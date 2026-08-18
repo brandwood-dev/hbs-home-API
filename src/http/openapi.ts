@@ -22,6 +22,14 @@ export async function registerOpenApi(
       ],
       tags: [
         { name: "system", description: "Service health and release metadata." },
+        {
+          name: "admin-identity",
+          description: "Authenticated Admin identity, roles and MFA state.",
+        },
+        {
+          name: "admin-audit",
+          description: "Immutable security and business audit events.",
+        },
       ],
       components: {
         securitySchemes: {
@@ -30,7 +38,7 @@ export async function registerOpenApi(
             scheme: "bearer",
             bearerFormat: "JWT",
             description:
-              "Supabase Auth access token. Not required by Phase 1 system endpoints.",
+              "Supabase Auth access token. Admin mutations require an aal2 MFA session.",
           },
         },
       },

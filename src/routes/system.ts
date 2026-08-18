@@ -1,18 +1,22 @@
 import type { FastifyInstance } from "fastify";
 import type { Environment } from "../config/environment.js";
+import type { DatabaseConnection } from "../database/connection.js";
 import { API_VERSION, CONTRACT_VERSION, SERVICE_NAME } from "../constants.js";
 import {
   HealthResponseSchema,
   ReadinessResponseSchema,
+  ReadinessUnavailableResponseSchema,
   VersionResponseSchema,
   type HealthResponse,
   type ReadinessResponse,
+  type ReadinessUnavailableResponse,
   type VersionResponse,
 } from "../http/schemas.js";
 
 export function registerSystemRoutes(
   app: FastifyInstance,
   environment: Environment,
+  database: DatabaseConnection,
 ): void {
   app.get<{ Reply: HealthResponse }>(
     "/health/live",
@@ -32,22 +36,37 @@ export function registerSystemRoutes(
     }),
   );
 
-  app.get<{ Reply: ReadinessResponse }>(
+  app.get<{ Reply: ReadinessResponse | ReadinessUnavailableResponse }>(
     "/health/ready",
     {
       schema: {
         operationId: "getReadiness",
         summary: "Check whether the API can receive traffic",
         tags: ["system"],
-        response: { 200: ReadinessResponseSchema },
+        response: {
+          200: ReadinessResponseSchema,
+          503: ReadinessUnavailableResponseSchema,
+        },
       },
     },
-    () => ({
-      status: "ready",
-      service: SERVICE_NAME,
-      timestamp: new Date().toISOString(),
-      checks: { application: "up" },
-    }),
+    async (_request, reply) => {
+      const databaseReady = await database.checkHealth();
+      if (!databaseReady) {
+        return reply.status(503).send({
+          status: "not_ready",
+          service: SERVICE_NAME,
+          timestamp: new Date().toISOString(),
+          checks: { application: "up", database: "down" },
+        });
+      }
+
+      return {
+        status: "ready",
+        service: SERVICE_NAME,
+        timestamp: new Date().toISOString(),
+        checks: { application: "up", database: "up" },
+      };
+    },
   );
 
   app.get<{ Reply: VersionResponse }>(

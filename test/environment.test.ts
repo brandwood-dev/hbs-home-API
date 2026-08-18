@@ -15,6 +15,8 @@ describe("loadEnvironment", () => {
   it("parses a comma-separated CORS allowlist", () => {
     const environment = loadEnvironment({
       NODE_ENV: "staging",
+      DATABASE_URL: "postgresql://postgres:secret@db.example.com/postgres",
+      SUPABASE_URL: "https://project.supabase.co",
       CORS_ORIGINS:
         "https://preview.hbs-home.com, https://admin-preview.hbs-home.com",
     });
@@ -25,13 +27,19 @@ describe("loadEnvironment", () => {
   });
 
   it("disables API documentation by default in production", () => {
-    const environment = loadEnvironment({ NODE_ENV: "production" });
+    const environment = loadEnvironment({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://postgres:secret@db.example.com/postgres",
+      SUPABASE_URL: "https://project.supabase.co",
+    });
     expect(environment.docsEnabled).toBe(false);
   });
 
   it("uses the immutable Render commit SHA when available", () => {
     const environment = loadEnvironment({
       NODE_ENV: "staging",
+      DATABASE_URL: "postgresql://postgres:secret@db.example.com/postgres",
+      SUPABASE_URL: "https://project.supabase.co",
       RENDER_GIT_COMMIT: "0123456789abcdef",
     });
     expect(environment.gitSha).toBe("0123456789abcdef");
@@ -68,5 +76,17 @@ describe("loadEnvironment", () => {
         CORS_ORIGINS: "https://preview.hbs-home.com/app",
       }),
     ).toThrow("invalid HTTP origin");
+  });
+
+  it("requires Supabase and database configuration in staging", () => {
+    expect(() => loadEnvironment({ NODE_ENV: "staging" })).toThrow(
+      "DATABASE_URL is required",
+    );
+    expect(() =>
+      loadEnvironment({
+        NODE_ENV: "staging",
+        DATABASE_URL: "postgresql://postgres:secret@db.example.com/postgres",
+      }),
+    ).toThrow("SUPABASE_URL is required");
   });
 });

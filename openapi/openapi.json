@@ -3,7 +3,7 @@
   "info": {
     "title": "HBS HOME API",
     "description": "Canonical HTTP contract for the HBS HOME public and administration applications.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "components": {
     "securitySchemes": {
@@ -11,7 +11,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Supabase Auth access token. Not required by Phase 1 system endpoints."
+        "description": "Supabase Auth access token. Admin mutations require an aal2 MFA session."
       }
     },
     "schemas": {
@@ -136,13 +136,69 @@
             "additionalProperties": false,
             "type": "object",
             "required": [
-              "application"
+              "application",
+              "database"
             ],
             "properties": {
               "application": {
                 "type": "string",
                 "enum": [
                   "up"
+                ]
+              },
+              "database": {
+                "type": "string",
+                "enum": [
+                  "up"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "ReadinessUnavailableResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "timestamp",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_ready"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "hbs-home-api"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "checks": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "application",
+              "database"
+            ],
+            "properties": {
+              "application": {
+                "type": "string",
+                "enum": [
+                  "up"
+                ]
+              },
+              "database": {
+                "type": "string",
+                "enum": [
+                  "down"
                 ]
               }
             }
@@ -177,7 +233,7 @@
           "contractVersion": {
             "type": "string",
             "enum": [
-              "1.0.0"
+              "1.1.0"
             ]
           },
           "releaseVersion": {
@@ -216,6 +272,319 @@
                 ]
               }
             ]
+          }
+        }
+      },
+      "AdminSession": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user",
+          "roles",
+          "permissions",
+          "assuranceLevel",
+          "mfaRequired"
+        ],
+        "properties": {
+          "user": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "email",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "email": {
+                "format": "email",
+                "type": "string"
+              },
+              "displayName": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assuranceLevel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "aal1"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "aal2"
+                ]
+              }
+            ]
+          },
+          "mfaRequired": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AuditEvent": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "occurredAt",
+          "requestId",
+          "actorUserId",
+          "actorEmail",
+          "action",
+          "resourceType",
+          "resourceId",
+          "outcome",
+          "sourceIp",
+          "userAgent",
+          "metadata"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actorEmail": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "success"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "denied"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "failure"
+                ]
+              }
+            ]
+          },
+          "sourceIp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "userAgent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "AuditListResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "occurredAt",
+                "requestId",
+                "actorUserId",
+                "actorEmail",
+                "action",
+                "resourceType",
+                "resourceId",
+                "outcome",
+                "sourceIp",
+                "userAgent",
+                "metadata"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "actorUserId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actorEmail": {
+                  "anyOf": [
+                    {
+                      "format": "email",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "action": {
+                  "type": "string"
+                },
+                "resourceType": {
+                  "type": "string"
+                },
+                "resourceId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "denied"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "failure"
+                      ]
+                    }
+                  ]
+                },
+                "sourceIp": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "userAgent": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "metadata": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            }
           }
         }
       }
@@ -312,13 +681,76 @@
                       "additionalProperties": false,
                       "type": "object",
                       "required": [
-                        "application"
+                        "application",
+                        "database"
                       ],
                       "properties": {
                         "application": {
                           "type": "string",
                           "enum": [
                             "up"
+                          ]
+                        },
+                        "database": {
+                          "type": "string",
+                          "enum": [
+                            "up"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service",
+                    "timestamp",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "not_ready"
+                      ]
+                    },
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "hbs-home-api"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "checks": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "application",
+                        "database"
+                      ],
+                      "properties": {
+                        "application": {
+                          "type": "string",
+                          "enum": [
+                            "up"
+                          ]
+                        },
+                        "database": {
+                          "type": "string",
+                          "enum": [
+                            "down"
                           ]
                         }
                       }
@@ -371,7 +803,7 @@
                     "contractVersion": {
                       "type": "string",
                       "enum": [
-                        "1.0.0"
+                        "1.1.0"
                       ]
                     },
                     "releaseVersion": {
@@ -418,6 +850,535 @@
           }
         }
       }
+    },
+    "/api/v1/admin/session": {
+      "get": {
+        "operationId": "getAdminSession",
+        "summary": "Resolve the current Admin profile, roles and MFA state",
+        "tags": [
+          "admin-identity"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "user",
+                    "roles",
+                    "permissions",
+                    "assuranceLevel",
+                    "mfaRequired"
+                  ],
+                  "properties": {
+                    "user": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "email",
+                        "displayName"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "email": {
+                          "format": "email",
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "permissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "assuranceLevel": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "aal1"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "aal2"
+                          ]
+                        }
+                      ]
+                    },
+                    "mfaRequired": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/audit-events": {
+      "get": {
+        "operationId": "listAuditEvents",
+        "summary": "List recent immutable audit events",
+        "tags": [
+          "admin-audit"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "occurredAt",
+                          "requestId",
+                          "actorUserId",
+                          "actorEmail",
+                          "action",
+                          "resourceType",
+                          "resourceId",
+                          "outcome",
+                          "sourceIp",
+                          "userAgent",
+                          "metadata"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "occurredAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "type": "string"
+                          },
+                          "actorUserId": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "actorEmail": {
+                            "anyOf": [
+                              {
+                                "format": "email",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "resourceType": {
+                            "type": "string"
+                          },
+                          "resourceId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "outcome": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "success"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "denied"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "failure"
+                                ]
+                              }
+                            ]
+                          },
+                          "sourceIp": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "userAgent": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "metadata": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
@@ -430,6 +1391,14 @@
     {
       "name": "system",
       "description": "Service health and release metadata."
+    },
+    {
+      "name": "admin-identity",
+      "description": "Authenticated Admin identity, roles and MFA state."
+    },
+    {
+      "name": "admin-audit",
+      "description": "Immutable security and business audit events."
     }
   ],
   "externalDocs": {

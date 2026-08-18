@@ -39,6 +39,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run db:start
       - run: bun run db:reset
+      - run: bun run db:lint
+      - run: bun run db:test
       - run: bunx supabase migration list --local
       - name: Stop the local database
         if: always()
@@ -57,11 +59,13 @@ jobs:
         run: >-
           docker run --detach --name hbs-home-api-ci --publish 3000:10000
           --env NODE_ENV=production --env LOG_LEVEL=info
+          --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          --env SUPABASE_URL=http://127.0.0.1:54321
           hbs-home-api:${GITHUB_SHA}
-      - name: Verify container health
+      - name: Verify that the production container starts
         run: |
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:3000/health/ready; then
+            if curl --fail --silent http://127.0.0.1:3000/health/live; then
               exit 0
             fi
             sleep 2
