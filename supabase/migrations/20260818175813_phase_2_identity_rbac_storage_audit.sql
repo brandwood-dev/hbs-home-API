@@ -242,6 +242,7 @@ as $$
 $$;
 
 revoke all on function iam.current_user_has_permission(text) from public, anon;
+grant usage on schema iam to authenticated;
 grant execute on function iam.current_user_has_permission(text) to authenticated;
 
 create function iam.provision_admin(

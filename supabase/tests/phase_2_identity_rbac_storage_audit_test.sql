@@ -31,8 +31,14 @@ SELECT ok(
 
 SELECT ok(NOT has_schema_privilege('anon', 'iam', 'USAGE'), 'anon cannot use IAM schema');
 SELECT ok(
-  NOT has_schema_privilege('authenticated', 'iam', 'USAGE'),
-  'authenticated users cannot use IAM schema directly'
+  has_schema_privilege('authenticated', 'iam', 'USAGE')
+  AND has_function_privilege(
+    'authenticated',
+    'iam.current_user_has_permission(text)',
+    'EXECUTE'
+  )
+  AND NOT has_table_privilege('authenticated', 'iam.admin_profiles', 'SELECT'),
+  'authenticated can invoke the IAM helper but cannot read IAM tables directly'
 );
 SELECT ok(NOT has_schema_privilege('anon', 'audit', 'USAGE'), 'anon cannot use audit schema');
 SELECT ok(
