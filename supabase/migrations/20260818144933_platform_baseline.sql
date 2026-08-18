@@ -1,0 +1,3 @@
+-- Phase 0 intentionally contains no business tables.
+-- This migration anchors the reproducible migration chain; Phase 2 introduces
+-- the private application schemas, grants, RLS policies, Auth profiles and audit log.

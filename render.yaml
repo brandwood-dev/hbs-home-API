@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: hbs-home-api-staging
+    runtime: docker
+    repo: https://github.com/brandwood-dev/hbs-home-API
+    branch: main
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health/ready
+    maxShutdownDelaySeconds: 30
+    domains:
+      - api-preview.hbs-home.com
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ORIGINS
+        value: https://preview.hbs-home.com
+      - key: DOCS_ENABLED
+        value: true
+      - key: API_PUBLIC_URL
+        value: https://api-preview.hbs-home.com
+      - key: RELEASE_VERSION
+        value: 0.1.0-staging

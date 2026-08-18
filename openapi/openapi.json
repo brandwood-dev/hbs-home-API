@@ -1,0 +1,439 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HBS HOME API",
+    "description": "Canonical HTTP contract for the HBS HOME public and administration applications.",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth access token. Not required by Phase 1 system endpoints."
+      }
+    },
+    "schemas": {
+      "ProblemDetail": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "requestId"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "minimum": 400,
+            "maximum": 599,
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "path",
+                "message",
+                "keyword"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "keyword": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "timestamp",
+          "uptimeSeconds"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "hbs-home-api"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "uptimeSeconds": {
+            "minimum": 0,
+            "type": "number"
+          }
+        }
+      },
+      "ReadinessResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "timestamp",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "hbs-home-api"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "checks": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "application"
+            ],
+            "properties": {
+              "application": {
+                "type": "string",
+                "enum": [
+                  "up"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "VersionResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service",
+          "apiVersion",
+          "contractVersion",
+          "releaseVersion",
+          "gitSha",
+          "builtAt",
+          "environment"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "enum": [
+              "hbs-home-api"
+            ]
+          },
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "contractVersion": {
+            "type": "string",
+            "enum": [
+              "1.0.0"
+            ]
+          },
+          "releaseVersion": {
+            "type": "string"
+          },
+          "gitSha": {
+            "type": "string"
+          },
+          "builtAt": {
+            "type": "string"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "development"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "test"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "staging"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "production"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "getLiveness",
+        "summary": "Check whether the API process is alive",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service",
+                    "timestamp",
+                    "uptimeSeconds"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    },
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "hbs-home-api"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "uptimeSeconds": {
+                      "minimum": 0,
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "summary": "Check whether the API can receive traffic",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service",
+                    "timestamp",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    },
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "hbs-home-api"
+                      ]
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "checks": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "application"
+                      ],
+                      "properties": {
+                        "application": {
+                          "type": "string",
+                          "enum": [
+                            "up"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "getVersion",
+        "summary": "Return the deployed release and contract versions",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "service",
+                    "apiVersion",
+                    "contractVersion",
+                    "releaseVersion",
+                    "gitSha",
+                    "builtAt",
+                    "environment"
+                  ],
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "hbs-home-api"
+                      ]
+                    },
+                    "apiVersion": {
+                      "type": "string",
+                      "enum": [
+                        "v1"
+                      ]
+                    },
+                    "contractVersion": {
+                      "type": "string",
+                      "enum": [
+                        "1.0.0"
+                      ]
+                    },
+                    "releaseVersion": {
+                      "type": "string"
+                    },
+                    "gitSha": {
+                      "type": "string"
+                    },
+                    "builtAt": {
+                      "type": "string"
+                    },
+                    "environment": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "development"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "staging"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "production"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "test"
+    }
+  ],
+  "tags": [
+    {
+      "name": "system",
+      "description": "Service health and release metadata."
+    }
+  ],
+  "externalDocs": {
+    "description": "hbs-home-api v1 contract roadmap",
+    "url": "https://github.com/brandwood-dev/hbs-home-API"
+  }
+}

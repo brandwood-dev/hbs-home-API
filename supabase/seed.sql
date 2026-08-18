@@ -1,0 +1,2 @@
+-- Deterministic synthetic staging data will be introduced with the Phase 2 schema.
+-- Production deployments must never use `supabase db push --include-seed`.
