@@ -10,7 +10,6 @@ services:
     dockerContext: .
     autoDeployTrigger: checksPass
     healthCheckPath: /health/ready
-    maxShutdownDelaySeconds: 30
     domains:
       - api-preview.hbs-home.com
     envVars:
