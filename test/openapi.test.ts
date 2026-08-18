@@ -26,9 +26,11 @@ function collectOperationIds(document: OpenAPIV3.Document): string[] {
 }
 
 describe("OpenAPI contract", () => {
-  it("documents every Phase 1 endpoint with a stable operation ID", async () => {
+  it("documents every implemented endpoint with a stable operation ID", async () => {
     const document = await createOpenApiDocument();
     expect(Object.keys(document.paths).sort()).toEqual([
+      "/api/v1/admin/audit-events",
+      "/api/v1/admin/session",
       "/api/v1/version",
       "/health/live",
       "/health/ready",
@@ -36,9 +38,11 @@ describe("OpenAPI contract", () => {
 
     const operationIds = collectOperationIds(document);
     expect(operationIds.sort()).toEqual([
+      "getAdminSession",
       "getLiveness",
       "getReadiness",
       "getVersion",
+      "listAuditEvents",
     ]);
     expect(new Set(operationIds).size).toBe(operationIds.length);
   });
@@ -49,9 +53,13 @@ describe("OpenAPI contract", () => {
     expect(schemas).toBeDefined();
     if (!schemas) throw new Error("OpenAPI components.schemas is required.");
     expect(Object.keys(schemas).sort()).toEqual([
+      "AdminSession",
+      "AuditEvent",
+      "AuditListResponse",
       "HealthResponse",
       "ProblemDetail",
       "ReadinessResponse",
+      "ReadinessUnavailableResponse",
       "VersionResponse",
     ]);
   });

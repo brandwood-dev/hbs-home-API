@@ -27,6 +27,10 @@ const EnvironmentSchema = Type.Object(
     corsOrigins: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
     docsEnabled: Type.Boolean(),
     apiPublicUrl: Type.String({ minLength: 1 }),
+    databaseUrl: Type.String({ minLength: 1 }),
+    databasePoolMax: Type.Integer({ minimum: 1, maximum: 20 }),
+    supabaseUrl: Type.String({ minLength: 1 }),
+    supabaseJwtAudience: Type.String({ minLength: 1, maxLength: 128 }),
     releaseVersion: Type.String({ minLength: 1 }),
     gitSha: Type.String({ minLength: 1, maxLength: 64 }),
     buildTime: Type.String({ minLength: 1 }),
@@ -55,6 +59,31 @@ function parsePort(value: string | undefined): number {
     );
   }
   return port;
+}
+
+function parseInteger(
+  name: string,
+  value: string | undefined,
+  fallback: number,
+): number {
+  const candidate = Number(value ?? String(fallback));
+  if (!Number.isInteger(candidate)) {
+    throw new ConfigurationError(`${name} must be an integer.`);
+  }
+  return candidate;
+}
+
+function validateAbsoluteUrl(
+  name: string,
+  value: string,
+  protocols: readonly string[],
+): void {
+  try {
+    const url = new URL(value);
+    if (!protocols.includes(url.protocol)) throw new Error("invalid protocol");
+  } catch {
+    throw new ConfigurationError(`${name} must be a valid absolute URL.`);
+  }
 }
 
 function parseCorsOrigins(value: string | undefined): string[] {
@@ -109,7 +138,17 @@ export function loadEnvironment(
     corsOrigins: parseCorsOrigins(source.CORS_ORIGINS),
     docsEnabled: parseBoolean(source.DOCS_ENABLED, nodeEnv !== "production"),
     apiPublicUrl: source.API_PUBLIC_URL ?? "http://localhost:3000",
-    releaseVersion: source.RELEASE_VERSION ?? "0.1.0",
+    databaseUrl:
+      source.DATABASE_URL ??
+      "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    databasePoolMax: parseInteger(
+      "DATABASE_POOL_MAX",
+      source.DATABASE_POOL_MAX,
+      5,
+    ),
+    supabaseUrl: source.SUPABASE_URL ?? "http://127.0.0.1:54321",
+    supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    releaseVersion: source.RELEASE_VERSION ?? "0.2.0",
     gitSha: source.GIT_SHA ?? source.RENDER_GIT_COMMIT ?? "local",
     buildTime: source.BUILD_TIME ?? "1970-01-01T00:00:00.000Z",
   };
@@ -123,10 +162,35 @@ export function loadEnvironment(
     );
   }
 
-  try {
-    new URL(candidate.apiPublicUrl);
-  } catch {
-    throw new ConfigurationError("API_PUBLIC_URL must be an absolute URL.");
+  validateAbsoluteUrl("API_PUBLIC_URL", candidate.apiPublicUrl, [
+    "http:",
+    "https:",
+  ]);
+  validateAbsoluteUrl("DATABASE_URL", candidate.databaseUrl, [
+    "postgres:",
+    "postgresql:",
+  ]);
+  validateAbsoluteUrl("SUPABASE_URL", candidate.supabaseUrl, [
+    "http:",
+    "https:",
+  ]);
+
+  if (
+    ["staging", "production"].includes(candidate.nodeEnv) &&
+    source.DATABASE_URL === undefined
+  ) {
+    throw new ConfigurationError(
+      "DATABASE_URL is required outside local development.",
+    );
+  }
+
+  if (
+    ["staging", "production"].includes(candidate.nodeEnv) &&
+    source.SUPABASE_URL === undefined
+  ) {
+    throw new ConfigurationError(
+      "SUPABASE_URL is required outside local development.",
+    );
   }
 
   return Object.freeze(candidate);

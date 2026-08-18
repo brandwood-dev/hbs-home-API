@@ -2,7 +2,29 @@
 
 Modular backend for the HBS HOME public storefront and administration application.
 
-## Phase 1 scope
+## Phase 2 scope
+
+The API now provides the secure identity foundation used by HBS HOME Admin:
+
+- Supabase JWT verification through the project's rotating JWKS;
+- database-backed Admin profiles, roles and granular permissions;
+- mandatory TOTP MFA (`aal2`) for sensitive Admin endpoints;
+- private `iam` and `audit` PostgreSQL schemas;
+- least-privilege `hbs_api` database role, RLS and explicit grants;
+- public product media plus private quote/import Storage buckets;
+- append-only security audit events;
+- an operator-only invitation command for the first Admin.
+
+Business catalogue, inventory, customer and order data remain mocked until their dedicated phases.
+
+Protected endpoints:
+
+```text
+GET /api/v1/admin/session
+GET /api/v1/admin/audit-events
+```
+
+## Phase 1 foundation
 
 This first phase provides only the API foundation:
 
@@ -15,7 +37,7 @@ This first phase provides only the API foundation:
 - generated OpenAPI 3.1 contract;
 - unit and integration tests.
 
-No catalogue, inventory, customer, or order business behavior is implemented in this phase.
+No catalogue, inventory, customer, or order business behavior is implemented yet.
 
 ## Phase 0 delivery foundation
 
@@ -47,7 +69,10 @@ bun run openapi:generate
 bun run check
 bun run db:start
 bun run db:reset
+bun run db:lint
+bun run db:test
 bun run db:stop
+bun run db:provision-api-role
 bun run docker:build
 ```
 
@@ -59,6 +84,8 @@ Endpoints:
 GET /health/live
 GET /health/ready
 GET /api/v1/version
+GET /api/v1/admin/session
+GET /api/v1/admin/audit-events
 GET /documentation
 ```
 

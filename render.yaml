@@ -23,5 +23,13 @@ services:
         value: true
       - key: API_PUBLIC_URL
         value: https://api-preview.hbs-home.com
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_MAX
+        value: 5
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_AUDIENCE
+        value: authenticated
       - key: RELEASE_VERSION
-        value: 0.1.0-staging
+        value: 0.2.0-staging

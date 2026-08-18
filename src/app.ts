@@ -6,20 +6,39 @@ import Fastify, {
   type FastifyServerOptions,
 } from "fastify";
 import { randomUUID } from "node:crypto";
+import {
+  PostgresAuditRepository,
+  type AuditRepository,
+} from "./audit/audit-repository.js";
+import { SupabaseJwtVerifier, type JwtVerifier } from "./auth/jwt-verifier.js";
 import { loadEnvironment, type Environment } from "./config/environment.js";
+import {
+  createDatabaseConnection,
+  type DatabaseConnection,
+} from "./database/connection.js";
 import { registerErrorHandling } from "./http/error-handler.js";
 import { registerOpenApi } from "./http/openapi.js";
 import { ProblemDetailSchema } from "./http/problem.js";
 import {
   HealthResponseSchema,
   ReadinessResponseSchema,
+  ReadinessUnavailableResponseSchema,
   VersionResponseSchema,
 } from "./http/schemas.js";
+import {
+  PostgresAdminAccessRepository,
+  type AdminAccessRepository,
+} from "./identity/admin-access.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
 export interface BuildAppOptions {
   environment?: Environment;
   logger?: FastifyServerOptions["logger"];
+  database?: DatabaseConnection;
+  jwtVerifier?: JwtVerifier;
+  adminAccessRepository?: AdminAccessRepository;
+  auditRepository?: AuditRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -32,6 +51,14 @@ export async function buildApp(
   options: BuildAppOptions = {},
 ): Promise<FastifyInstance> {
   const environment = options.environment ?? loadEnvironment();
+  const database = options.database ?? createDatabaseConnection(environment);
+  const adminAccessRepository =
+    options.adminAccessRepository ??
+    new PostgresAdminAccessRepository(database.client);
+  const auditRepository =
+    options.auditRepository ?? new PostgresAuditRepository(database.client);
+  const jwtVerifier =
+    options.jwtVerifier ?? new SupabaseJwtVerifier(environment);
   const app = Fastify({
     logger:
       options.logger ??
@@ -56,6 +83,7 @@ export async function buildApp(
   app.addSchema(ProblemDetailSchema);
   app.addSchema(HealthResponseSchema);
   app.addSchema(ReadinessResponseSchema);
+  app.addSchema(ReadinessUnavailableResponseSchema);
   app.addSchema(VersionResponseSchema);
 
   await app.register(helmet, { contentSecurityPolicy: false });
@@ -68,9 +96,19 @@ export async function buildApp(
   app.addHook("onSend", async (request, reply) => {
     void reply.header("x-request-id", request.id);
   });
+  app.decorateRequest("adminPrincipal", null);
+
+  if (!options.database) {
+    app.addHook("onClose", async () => database.destroy());
+  }
 
   registerErrorHandling(app);
-  registerSystemRoutes(app, environment);
+  registerSystemRoutes(app, environment, database);
+  registerAdminRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+  });
 
   await app.ready();
   return app;
