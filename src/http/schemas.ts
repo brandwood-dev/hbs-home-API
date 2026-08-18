@@ -20,6 +20,7 @@ export const ReadinessResponseSchema = Type.Object(
     checks: Type.Object(
       {
         application: Type.Literal("up"),
+        database: Type.Literal("up"),
       },
       { additionalProperties: false },
     ),
@@ -27,6 +28,25 @@ export const ReadinessResponseSchema = Type.Object(
   { $id: "ReadinessResponse", additionalProperties: false },
 );
 export type ReadinessResponse = Static<typeof ReadinessResponseSchema>;
+
+export const ReadinessUnavailableResponseSchema = Type.Object(
+  {
+    status: Type.Literal("not_ready"),
+    service: Type.Literal(SERVICE_NAME),
+    timestamp: Type.String(),
+    checks: Type.Object(
+      {
+        application: Type.Literal("up"),
+        database: Type.Literal("down"),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { $id: "ReadinessUnavailableResponse", additionalProperties: false },
+);
+export type ReadinessUnavailableResponse = Static<
+  typeof ReadinessUnavailableResponseSchema
+>;
 
 export const VersionResponseSchema = Type.Object(
   {

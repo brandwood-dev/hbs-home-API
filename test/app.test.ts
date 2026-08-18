@@ -2,6 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { loadEnvironment } from "../src/config/environment.js";
+import {
+  FakeAdminAccessRepository,
+  FakeAuditRepository,
+  FakeDatabaseConnection,
+  FakeJwtVerifier,
+} from "./support/fakes.js";
 
 const environment = loadEnvironment({
   NODE_ENV: "test",
@@ -11,7 +17,7 @@ const environment = loadEnvironment({
   CORS_ORIGINS: "http://localhost:3001",
   DOCS_ENABLED: "true",
   API_PUBLIC_URL: "http://localhost:3000",
-  RELEASE_VERSION: "0.1.0-test",
+  RELEASE_VERSION: "0.2.0-test",
   GIT_SHA: "test-sha",
   BUILD_TIME: "2026-08-18T00:00:00.000Z",
 });
@@ -20,7 +26,14 @@ describe("HBS HOME API foundation", () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    app = await buildApp({ environment, logger: false });
+    app = await buildApp({
+      environment,
+      logger: false,
+      database: new FakeDatabaseConnection(),
+      jwtVerifier: new FakeJwtVerifier(),
+      adminAccessRepository: new FakeAdminAccessRepository(),
+      auditRepository: new FakeAuditRepository(),
+    });
   });
 
   afterEach(async () => {
@@ -58,7 +71,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       status: "ready",
-      checks: { application: "up" },
+      checks: { application: "up", database: "up" },
     });
   });
 
@@ -71,8 +84,8 @@ describe("HBS HOME API foundation", () => {
     expect(response.json()).toEqual({
       service: "hbs-home-api",
       apiVersion: "v1",
-      contractVersion: "1.0.0",
-      releaseVersion: "0.1.0-test",
+      contractVersion: "1.1.0",
+      releaseVersion: "0.2.0-test",
       gitSha: "test-sha",
       builtAt: "2026-08-18T00:00:00.000Z",
       environment: "test",
@@ -100,7 +113,27 @@ describe("HBS HOME API foundation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       openapi: "3.1.0",
-      info: { title: "HBS HOME API", version: "1.0.0" },
+      info: { title: "HBS HOME API", version: "1.1.0" },
+    });
+  });
+
+  it("fails readiness when PostgreSQL is unavailable", async () => {
+    await app.close();
+    const database = new FakeDatabaseConnection(false);
+    app = await buildApp({
+      environment,
+      logger: false,
+      database,
+      jwtVerifier: new FakeJwtVerifier(),
+      adminAccessRepository: new FakeAdminAccessRepository(),
+      auditRepository: new FakeAuditRepository(),
+    });
+
+    const response = await app.inject({ method: "GET", url: "/health/ready" });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      status: "not_ready",
+      checks: { application: "up", database: "down" },
     });
   });
 });
