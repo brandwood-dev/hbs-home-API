@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(28);
+SELECT plan(32);
 
 SELECT has_schema('iam', 'Private IAM schema exists');
 SELECT has_schema('audit', 'Private audit schema exists');
@@ -47,6 +47,31 @@ SELECT ok(
 );
 SELECT ok(has_schema_privilege('hbs_api', 'iam', 'USAGE'), 'API role can use IAM schema');
 SELECT ok(has_schema_privilege('hbs_api', 'audit', 'USAGE'), 'API role can use audit schema');
+
+SELECT has_index(
+  'iam',
+  'admin_profiles',
+  'admin_profiles_invited_by_idx',
+  'Admin invitation actor foreign key is indexed'
+);
+SELECT has_index(
+  'iam',
+  'admin_user_roles',
+  'admin_user_roles_granted_by_idx',
+  'Admin role grant actor foreign key is indexed'
+);
+SELECT has_index(
+  'iam',
+  'admin_user_roles',
+  'admin_user_roles_revoked_by_idx',
+  'Admin role revocation actor foreign key is indexed'
+);
+SELECT has_index(
+  'iam',
+  'admin_user_roles',
+  'admin_user_roles_role_key_idx',
+  'Admin role key foreign key is indexed'
+);
 
 SELECT ok(
   (SELECT relrowsecurity FROM pg_class WHERE oid = 'iam.admin_profiles'::regclass),
