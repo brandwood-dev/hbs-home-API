@@ -63,6 +63,28 @@ export interface AuditEventTable {
   metadata: Record<string, unknown>;
 }
 
+export interface CatalogProductTable {
+  id: string;
+  slug: string;
+  is_published: Generated<boolean>;
+  is_demo: Generated<boolean>;
+  category: string;
+  material: string;
+  opacity_level: string | null;
+  selling_mode: string;
+  pattern: string | null;
+  blind_type: string | null;
+  is_large_width: boolean;
+  is_new: boolean;
+  is_best_seller: boolean;
+  is_featured: boolean;
+  is_thermal: boolean;
+  recommendation_score: number;
+  product: Record<string, unknown>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -70,4 +92,5 @@ export interface DatabaseSchema {
   "iam.role_permissions": RolePermissionTable;
   "iam.admin_user_roles": AdminUserRoleTable;
   "audit.events": AuditEventTable;
+  "catalog.products": CatalogProductTable;
 }
