@@ -59,10 +59,10 @@ SELECT ok(
     FROM pg_policies
     WHERE schemaname = 'catalog'
       AND tablename = 'products'
-      AND policyname = 'catalog_products_api_select'
+      AND policyname = 'catalog_products_api_all'
       AND roles = ARRAY['hbs_api']::name[]
   ),
-  'API read policy is scoped to hbs_api'
+  'API catalogue policy is scoped to hbs_api'
 );
 SELECT ok(
   (SELECT count(*) FROM catalog.products WHERE is_published) = 2
