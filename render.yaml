@@ -8,7 +8,10 @@ services:
     region: frankfurt
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    autoDeployTrigger: checksPass
+    # The post-deploy smoke workflow waits for this service. Gating Render on
+    # every GitHub check would make that workflow circular: it cannot pass
+    # until Render deploys, while Render would wait for it to pass.
+    autoDeployTrigger: commit
     healthCheckPath: /health/ready
     domains:
       - api-preview.hbs-home.com

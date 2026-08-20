@@ -19,6 +19,23 @@ async function getJson(path: string): Promise<unknown> {
   return response.json();
 }
 
+async function expectProtectedRoute(path: string): Promise<void> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { "x-request-id": requestId },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  // The route must be present. Without a bearer token the Admin guard should
+  // reject it with 401 (or 403 if an upstream policy rejects the request),
+  // never with the generic 404 fallback from an old deployment.
+  if (response.status !== 401 && response.status !== 403) {
+    throw new Error(`${path} returned HTTP ${String(response.status)}.`);
+  }
+  if (response.headers.get("x-request-id") !== requestId) {
+    throw new Error(`${path} did not propagate the request ID.`);
+  }
+}
+
 const liveness = (await getJson("/health/live")) as {
   status?: unknown;
   service?: unknown;
@@ -47,6 +64,8 @@ if (expectedGitSha && version.gitSha !== expectedGitSha) {
     `Expected deployed SHA ${expectedGitSha}, received ${String(version.gitSha)}.`,
   );
 }
+
+await expectProtectedRoute("/api/v1/admin/session");
 
 console.log(
   JSON.stringify({
