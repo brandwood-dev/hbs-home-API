@@ -68,6 +68,16 @@ export interface CatalogProductTable {
   slug: string;
   is_published: Generated<boolean>;
   is_demo: Generated<boolean>;
+  name: string;
+  reference: string;
+  short_description: string | null;
+  long_description: string | null;
+  image_alt: string | null;
+  status: "draft" | "active" | "archived";
+  category_id: string | null;
+  published_at: NullableTimestamp;
+  archived_at: NullableTimestamp;
+  version: Generated<number>;
   category: string;
   material: string;
   opacity_level: string | null;
@@ -85,6 +95,99 @@ export interface CatalogProductTable {
   updated_at: Generated<Date>;
 }
 
+export interface CatalogCategoryTable {
+  id: Generated<string>;
+  slug: string;
+  name: string;
+  description: string | null;
+  parent_id: string | null;
+  status: "draft" | "active" | "archived";
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogAttributeTable {
+  id: Generated<string>;
+  key: string;
+  name: string;
+  value_type: "text" | "number" | "boolean" | "select" | "color" | "dimension";
+  is_filterable: boolean;
+  is_required: boolean;
+  status: "draft" | "active" | "archived";
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogAttributeOptionTable {
+  id: Generated<string>;
+  attribute_id: string;
+  value: string;
+  label: string;
+  sort_order: number;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogProductCategoryTable {
+  product_id: string;
+  category_id: string;
+  is_primary: boolean;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogCategoryAttributeTable {
+  category_id: string;
+  attribute_id: string;
+  is_required: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogProductAttributeTable {
+  product_id: string;
+  attribute_id: string;
+  value: Record<string, unknown> | unknown[] | string | number | boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogProductVariantTable {
+  id: Generated<string>;
+  product_id: string;
+  sku: string;
+  title: string | null;
+  price_amount_minor: number;
+  compare_at_price_amount_minor: number | null;
+  currency: "TND";
+  status: "draft" | "active" | "archived";
+  options: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  is_default: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogProductMediaTable {
+  id: Generated<string>;
+  product_id: string;
+  variant_id: string | null;
+  storage_path: string;
+  public_url: string | null;
+  alt: string;
+  media_type:
+    | "front"
+    | "lifestyle"
+    | "fabric_detail"
+    | "header_detail"
+    | "mechanism_detail";
+  status: "draft" | "active" | "archived";
+  is_primary: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -92,5 +195,13 @@ export interface DatabaseSchema {
   "iam.role_permissions": RolePermissionTable;
   "iam.admin_user_roles": AdminUserRoleTable;
   "audit.events": AuditEventTable;
+  "catalog.categories": CatalogCategoryTable;
+  "catalog.attributes": CatalogAttributeTable;
+  "catalog.attribute_options": CatalogAttributeOptionTable;
   "catalog.products": CatalogProductTable;
+  "catalog.product_categories": CatalogProductCategoryTable;
+  "catalog.category_attributes": CatalogCategoryAttributeTable;
+  "catalog.product_attributes": CatalogProductAttributeTable;
+  "catalog.product_variants": CatalogProductVariantTable;
+  "catalog.product_media": CatalogProductMediaTable;
 }
