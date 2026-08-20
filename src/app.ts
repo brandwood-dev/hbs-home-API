@@ -30,6 +30,7 @@ import {
   type AdminAccessRepository,
 } from "./identity/admin-access.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
 export interface BuildAppOptions {
@@ -104,6 +105,7 @@ export async function buildApp(
 
   registerErrorHandling(app);
   registerSystemRoutes(app, environment, database);
+  registerCatalogRoutes(app, { database });
   registerAdminRoutes(app, {
     jwtVerifier,
     adminAccessRepository,

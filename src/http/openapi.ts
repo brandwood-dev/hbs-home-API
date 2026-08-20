@@ -30,6 +30,10 @@ export async function registerOpenApi(
           name: "admin-audit",
           description: "Immutable security and business audit events.",
         },
+        {
+          name: "catalog",
+          description: "Public catalog browsing and recommendations.",
+        },
       ],
       components: {
         securitySchemes: {
