@@ -29,7 +29,12 @@ import {
   PostgresAdminAccessRepository,
   type AdminAccessRepository,
 } from "./identity/admin-access.js";
+import {
+  PostgresAdminCatalogRepository,
+  type AdminCatalogRepository,
+} from "./catalog/admin-catalog-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -40,6 +45,7 @@ export interface BuildAppOptions {
   jwtVerifier?: JwtVerifier;
   adminAccessRepository?: AdminAccessRepository;
   auditRepository?: AuditRepository;
+  adminCatalogRepository?: AdminCatalogRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -60,6 +66,9 @@ export async function buildApp(
     options.auditRepository ?? new PostgresAuditRepository(database.client);
   const jwtVerifier =
     options.jwtVerifier ?? new SupabaseJwtVerifier(environment);
+  const adminCatalogRepository =
+    options.adminCatalogRepository ??
+    new PostgresAdminCatalogRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -110,6 +119,12 @@ export async function buildApp(
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
+  });
+  registerAdminCatalogRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminCatalogRepository,
   });
 
   await app.ready();

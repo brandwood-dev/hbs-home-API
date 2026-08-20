@@ -29,7 +29,18 @@ describe("OpenAPI contract", () => {
   it("documents every implemented endpoint with a stable operation ID", async () => {
     const document = await createOpenApiDocument();
     expect(Object.keys(document.paths).sort()).toEqual([
+      "/api/v1/admin/attributes",
+      "/api/v1/admin/attributes/{id}",
       "/api/v1/admin/audit-events",
+      "/api/v1/admin/categories",
+      "/api/v1/admin/categories/{id}",
+      "/api/v1/admin/products",
+      "/api/v1/admin/products/{id}",
+      "/api/v1/admin/products/{id}/archive",
+      "/api/v1/admin/products/{id}/publish",
+      "/api/v1/admin/products/{id}/variants",
+      "/api/v1/admin/products/{productId}/variants/{variantId}",
+      "/api/v1/admin/products/{productId}/variants/{variantId}/archive",
       "/api/v1/admin/session",
       "/api/v1/products",
       "/api/v1/products/by-ids",
@@ -43,6 +54,21 @@ describe("OpenAPI contract", () => {
 
     const operationIds = collectOperationIds(document);
     expect(operationIds.sort()).toEqual([
+      "adminArchiveProduct",
+      "adminArchiveVariant",
+      "adminCreateAttribute",
+      "adminCreateCategory",
+      "adminCreateProduct",
+      "adminCreateVariant",
+      "adminGetProduct",
+      "adminListAttributes",
+      "adminListCategories",
+      "adminListProducts",
+      "adminPublishProduct",
+      "adminUpdateAttribute",
+      "adminUpdateCategory",
+      "adminUpdateProduct",
+      "adminUpdateVariant",
       "getAdminSession",
       "getLiveness",
       "getProductBySlug",
@@ -63,6 +89,14 @@ describe("OpenAPI contract", () => {
     expect(schemas).toBeDefined();
     if (!schemas) throw new Error("OpenAPI components.schemas is required.");
     expect(Object.keys(schemas).sort()).toEqual([
+      "AdminAttribute",
+      "AdminAttributeOption",
+      "AdminAttributesResponse",
+      "AdminCategoriesResponse",
+      "AdminCategory",
+      "AdminProduct",
+      "AdminProductVariant",
+      "AdminProductsResponse",
       "AdminSession",
       "AuditEvent",
       "AuditListResponse",

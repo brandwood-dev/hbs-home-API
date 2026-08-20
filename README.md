@@ -2,7 +2,7 @@
 
 Modular backend for the HBS HOME public storefront and administration application.
 
-## Phase 2 scope
+## Phase 3C.2 scope
 
 The API now provides the secure identity foundation used by HBS HOME Admin:
 
@@ -14,14 +14,34 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - public product media plus private quote/import Storage buckets;
 - append-only security audit events;
 - an operator-only invitation command for the first Admin.
+- Admin catalogue CRUD for categories, typed attributes and products;
+- variant management with integer TND pricing and SKU uniqueness;
+- explicit draft, publish and archive transitions;
+- MFA-protected mutations, granular RBAC and append-only mutation audits;
+- optimistic product version checks and synchronization with the public JSONB read model.
 
-Business catalogue, inventory, customer and order data remain mocked until their dedicated phases.
+Inventory, checkout, customer, order, promotion and media-upload workflows remain in their dedicated phases.
 
 Protected endpoints:
 
 ```text
 GET /api/v1/admin/session
 GET /api/v1/admin/audit-events
+GET /api/v1/admin/categories
+POST /api/v1/admin/categories
+PATCH /api/v1/admin/categories/:id
+GET /api/v1/admin/attributes
+POST /api/v1/admin/attributes
+PATCH /api/v1/admin/attributes/:id
+GET /api/v1/admin/products
+POST /api/v1/admin/products
+GET /api/v1/admin/products/:id
+PATCH /api/v1/admin/products/:id
+POST /api/v1/admin/products/:id/publish
+POST /api/v1/admin/products/:id/archive
+POST /api/v1/admin/products/:id/variants
+PATCH /api/v1/admin/products/:productId/variants/:variantId
+POST /api/v1/admin/products/:productId/variants/:variantId/archive
 ```
 
 ## Phase 1 foundation
@@ -37,7 +57,7 @@ This first phase provides only the API foundation:
 - generated OpenAPI 3.1 contract;
 - unit and integration tests.
 
-No catalogue, inventory, customer, or order business behavior is implemented yet.
+Inventory, customer, order and promotion business behavior is not implemented yet.
 
 ## Phase 0 delivery foundation
 
@@ -86,6 +106,9 @@ GET /health/ready
 GET /api/v1/version
 GET /api/v1/admin/session
 GET /api/v1/admin/audit-events
+GET /api/v1/admin/categories
+GET /api/v1/admin/attributes
+GET /api/v1/admin/products
 GET /documentation
 ```
 

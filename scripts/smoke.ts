@@ -56,7 +56,7 @@ const version = (await getJson("/api/v1/version")) as {
   contractVersion?: unknown;
   gitSha?: unknown;
 };
-if (version.apiVersion !== "v1" || version.contractVersion !== "1.0.0") {
+if (version.apiVersion !== "v1" || version.contractVersion !== "1.1.0") {
   throw new Error("The deployed API contract version is unexpected.");
 }
 if (expectedGitSha && version.gitSha !== expectedGitSha) {
