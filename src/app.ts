@@ -41,10 +41,15 @@ import {
   PostgresReservationRepository,
   type ReservationRepository,
 } from "./inventory/reservation-repository.js";
+import {
+  PostgresCartRepository,
+  type CartRepository,
+} from "./cart/cart-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
 import { registerAdminInventoryReservationRoutes } from "./routes/admin-inventory-reservations.js";
+import { registerCartRoutes } from "./routes/cart.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -58,6 +63,7 @@ export interface BuildAppOptions {
   adminCatalogRepository?: AdminCatalogRepository;
   inventoryRepository?: InventoryRepository;
   reservationRepository?: ReservationRepository;
+  cartRepository?: CartRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -87,6 +93,8 @@ export async function buildApp(
   const reservationRepository =
     options.reservationRepository ??
     new PostgresReservationRepository(database.client);
+  const cartRepository =
+    options.cartRepository ?? new PostgresCartRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -118,7 +126,7 @@ export async function buildApp(
   await app.register(cors, {
     origin: environment.corsOrigins,
     credentials: true,
-    methods: ["GET", "HEAD", "POST", "PATCH", "OPTIONS"],
+    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
   });
   await registerOpenApi(app, environment);
 
@@ -158,6 +166,7 @@ export async function buildApp(
     reservationRepository,
     environment,
   });
+  registerCartRoutes(app, { cartRepository });
 
   await app.ready();
   return app;

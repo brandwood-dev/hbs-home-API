@@ -50,6 +50,10 @@ describe("OpenAPI contract", () => {
       "/api/v1/admin/products/{productId}/variants/{variantId}",
       "/api/v1/admin/products/{productId}/variants/{variantId}/archive",
       "/api/v1/admin/session",
+      "/api/v1/cart",
+      "/api/v1/cart/items",
+      "/api/v1/cart/items/{lineId}",
+      "/api/v1/cart/promotion",
       "/api/v1/products",
       "/api/v1/products/by-ids",
       "/api/v1/products/scope",
@@ -62,6 +66,7 @@ describe("OpenAPI contract", () => {
 
     const operationIds = collectOperationIds(document);
     expect(operationIds.sort()).toEqual([
+      "addCartItem",
       "adminAdjustInventory",
       "adminArchiveProduct",
       "adminArchiveVariant",
@@ -85,7 +90,10 @@ describe("OpenAPI contract", () => {
       "adminUpdateInventorySettings",
       "adminUpdateProduct",
       "adminUpdateVariant",
+      "applyCartPromotion",
+      "clearCart",
       "getAdminSession",
+      "getCart",
       "getLiveness",
       "getProductBySlug",
       "getReadiness",
@@ -95,6 +103,9 @@ describe("OpenAPI contract", () => {
       "listCatalogScopeProducts",
       "listProducts",
       "listProductsByIds",
+      "removeCartItem",
+      "removeCartPromotion",
+      "updateCartItem",
     ]);
     expect(new Set(operationIds).size).toBe(operationIds.length);
   });
@@ -122,6 +133,8 @@ describe("OpenAPI contract", () => {
       "AdminStockMovementsResponse",
       "AuditEvent",
       "AuditListResponse",
+      "Cart",
+      "CartLine",
       "HealthResponse",
       "ProblemDetail",
       "ReadinessResponse",
