@@ -138,7 +138,7 @@ function iso(value: Date | string): string {
     : new Date(value).toISOString();
 }
 
-function lineImage(
+export function resolveLineImage(
   product: Product,
   variant: Product["variants"][number],
 ): { url: string; alt: string } {
@@ -146,9 +146,11 @@ function lineImage(
   const selected = variant.imageIds
     .map((id) => byId.get(id))
     .find((image) => image != null);
+  const fallback =
+    product.images.find((image) => image.type === "front") ?? product.images[0];
   return {
-    url: selected?.url ?? variant.imageUrl,
-    alt: selected?.alt ?? product.imageAlt,
+    url: selected?.url ?? fallback?.url ?? variant.imageUrl,
+    alt: selected?.alt ?? fallback?.alt ?? product.imageAlt,
   };
 }
 
@@ -662,7 +664,7 @@ export class PostgresCartRepository implements CartRepository {
       ? Math.min(row.quantity, Math.max(1, available.quantity))
       : row.quantity;
     const priceChanged = row.price_at_add_minor !== variant.price.amountMinor;
-    const image = lineImage(product, variant);
+    const image = resolveLineImage(product, variant);
     let status: CartLine["status"] = "available";
     if (!canPurchase) status = "out_of_stock";
     else if (quantity !== row.quantity) status = "quantity_adjusted";

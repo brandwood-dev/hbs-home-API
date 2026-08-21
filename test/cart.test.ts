@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
-import type {
-  CartRepository,
-  CartSession,
+import {
+  resolveLineImage,
+  type CartRepository,
+  type CartSession,
 } from "../src/cart/cart-repository.js";
+import type { Product } from "../src/catalog/product-repository.js";
 import { loadEnvironment } from "../src/config/environment.js";
 import {
   FakeAdminAccessRepository,
@@ -141,5 +143,30 @@ describe("Guest cart API", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(repository.calls).toEqual(["add"]);
+  });
+});
+
+describe("Cart line media", () => {
+  it("falls back to the product front image when the variant has no media ids", () => {
+    const product = {
+      imageAlt: "Rideau en lin naturel HBS HOME",
+      images: [
+        {
+          id: "front-image",
+          url: "https://cdn.example.test/rideau-lin.jpg",
+          alt: "Rideau en lin naturel",
+          type: "front",
+        },
+      ],
+    } as unknown as Product;
+    const variant = {
+      imageIds: [],
+      imageUrl: "/catalog/rideau-lin-naturel.jpg",
+    } as unknown as Product["variants"][number];
+
+    expect(resolveLineImage(product, variant)).toEqual({
+      url: "https://cdn.example.test/rideau-lin.jpg",
+      alt: "Rideau en lin naturel",
+    });
   });
 });
