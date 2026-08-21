@@ -4,7 +4,7 @@ const baseUrl = configuredBaseUrl.replace(/\/$/, "");
 
 const expectedGitSha = process.env.EXPECTED_GIT_SHA;
 const expectedContractVersion =
-  process.env.EXPECTED_CONTRACT_VERSION?.trim() ?? "1.3.0";
+  process.env.EXPECTED_CONTRACT_VERSION?.trim() ?? "1.4.0";
 const requestId = `smoke-${crypto.randomUUID()}`;
 
 async function getJson(path: string): Promise<unknown> {

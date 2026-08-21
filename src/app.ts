@@ -45,8 +45,13 @@ import {
   PostgresCartRepository,
   type CartRepository,
 } from "./cart/cart-repository.js";
+import {
+  PostgresAdminPromotionRepository,
+  type AdminPromotionRepository,
+} from "./promotions/admin-promotion-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
+import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
 import { registerAdminInventoryReservationRoutes } from "./routes/admin-inventory-reservations.js";
 import { registerCartRoutes } from "./routes/cart.js";
@@ -61,6 +66,7 @@ export interface BuildAppOptions {
   adminAccessRepository?: AdminAccessRepository;
   auditRepository?: AuditRepository;
   adminCatalogRepository?: AdminCatalogRepository;
+  adminPromotionRepository?: AdminPromotionRepository;
   inventoryRepository?: InventoryRepository;
   reservationRepository?: ReservationRepository;
   cartRepository?: CartRepository;
@@ -87,6 +93,9 @@ export async function buildApp(
   const adminCatalogRepository =
     options.adminCatalogRepository ??
     new PostgresAdminCatalogRepository(database.client);
+  const adminPromotionRepository =
+    options.adminPromotionRepository ??
+    new PostgresAdminPromotionRepository(database.client);
   const inventoryRepository =
     options.inventoryRepository ??
     new PostgresInventoryRepository(database.client);
@@ -152,6 +161,12 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminCatalogRepository,
+  });
+  registerAdminPromotionRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminPromotionRepository,
   });
   registerAdminInventoryRoutes(app, {
     jwtVerifier,

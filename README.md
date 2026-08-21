@@ -2,7 +2,7 @@
 
 Modular backend for the HBS HOME public storefront and administration application.
 
-## Current scope (Phase 5A)
+## Current scope (Phase 5B)
 
 The API now provides the secure identity foundation used by HBS HOME Admin:
 
@@ -21,9 +21,10 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - optimistic product version checks and synchronization with the public JSONB read model.
 - opaque-token guest carts with server-side price, availability and shipping recalculation;
 - one-code V1 promotion evaluation (the redemption counter is consumed by checkout in Phase 6).
+- MFA-protected Admin promotion CRUD with RBAC, deactivation and audit events;
 
-Checkout/order creation, customer profiles, promotion administration and Brevo workflows remain in
-their dedicated phases. Adding to a cart never reserves stock.
+Checkout/order creation, customer profiles and Brevo workflows remain in their dedicated phases.
+Adding to a cart never reserves stock.
 
 Public cart endpoints:
 
@@ -57,6 +58,11 @@ POST /api/v1/admin/products/:id/archive
 POST /api/v1/admin/products/:id/variants
 PATCH /api/v1/admin/products/:productId/variants/:variantId
 POST /api/v1/admin/products/:productId/variants/:variantId/archive
+GET /api/v1/admin/promotions
+POST /api/v1/admin/promotions
+GET /api/v1/admin/promotions/:id
+PATCH /api/v1/admin/promotions/:id
+POST /api/v1/admin/promotions/:id/archive
 ```
 
 ## Phase 1 foundation
@@ -72,8 +78,8 @@ This first phase provides only the API foundation:
 - generated OpenAPI 3.1 contract;
 - unit and integration tests.
 
-Inventory is implemented through Phase 4. Checkout, customer, order and promotion administration
-business behavior remains in the subsequent phases.
+Inventory is implemented through Phase 4. Checkout and customer/order business behavior remains
+in the subsequent phases.
 
 ## Phase 0 delivery foundation
 

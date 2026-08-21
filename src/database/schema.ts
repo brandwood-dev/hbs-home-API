@@ -288,6 +288,7 @@ export type PromotionDiscountType = "percentage" | "fixed_amount";
 
 export interface PromotionTable {
   id: Generated<string>;
+  name: string;
   code: string;
   discount_type: PromotionDiscountType;
   discount_value: number;
