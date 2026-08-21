@@ -410,6 +410,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
           .executeTakeFirstOrThrow();
         await this.syncVariantPayload(trx, input.variantId, {
           stock: nextOnHand,
+          availableQuantity: Math.max(0, nextOnHand - current.reserved),
           lowStockThreshold: threshold,
           availability,
           trackInventory: current.track_inventory,
@@ -425,6 +426,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
           .executeTakeFirstOrThrow();
         await this.syncVariantPayload(trx, input.variantId, {
           stock: current.on_hand,
+          availableQuantity: Math.max(0, current.on_hand - current.reserved),
           lowStockThreshold: threshold,
           availability,
           trackInventory: current.track_inventory,
@@ -474,6 +476,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
         .executeTakeFirstOrThrow();
       await this.syncVariantPayload(trx, input.variantId, {
         stock: current.on_hand,
+        availableQuantity: Math.max(0, current.on_hand - current.reserved),
         lowStockThreshold: input.lowStockThreshold,
         availability,
         trackInventory: current.track_inventory,
@@ -546,6 +549,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
     variantId: string,
     fields: {
       stock: number;
+      availableQuantity: number;
       lowStockThreshold: number;
       availability: InventoryAvailability;
       trackInventory: boolean;
