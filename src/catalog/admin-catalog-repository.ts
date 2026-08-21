@@ -64,6 +64,28 @@ export interface AdminProductVariant {
   updatedAt: string;
 }
 
+export type ProductMediaType =
+  | "front"
+  | "lifestyle"
+  | "fabric_detail"
+  | "header_detail"
+  | "mechanism_detail";
+
+export interface AdminProductMedia {
+  id: string;
+  productId: string;
+  variantId: string | null;
+  storagePath: string;
+  publicUrl: string | null;
+  alt: string;
+  mediaType: ProductMediaType;
+  status: ProductStatus;
+  isPrimary: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminProduct {
   id: string;
   slug: string;
@@ -82,6 +104,7 @@ export interface AdminProduct {
   archivedAt: string | null;
   version: number;
   isDemo: boolean;
+  media: readonly AdminProductMedia[];
   variants: readonly AdminProductVariant[];
   createdAt: string;
   updatedAt: string;
@@ -168,6 +191,7 @@ export interface ProductPatch {
   isFeatured?: boolean;
   isThermal?: boolean;
   recommendationScore?: number;
+  payload?: Record<string, unknown>;
   expectedVersion?: number;
 }
 
@@ -246,6 +270,100 @@ function asObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? { ...(value as Record<string, unknown>) }
     : {};
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+const MEDIA_TYPES = new Set<ProductMediaType>([
+  "front",
+  "lifestyle",
+  "fabric_detail",
+  "header_detail",
+  "mechanism_detail",
+]);
+
+function mediaType(value: unknown): ProductMediaType {
+  return MEDIA_TYPES.has(value as ProductMediaType)
+    ? (value as ProductMediaType)
+    : "front";
+}
+
+function mediaInputs(
+  productId: string,
+  payload: Record<string, unknown>,
+  status: ProductStatus,
+  fallbackAlt: string,
+): {
+  id: string;
+  product_id: string;
+  variant_id: string | null;
+  storage_path: string;
+  public_url: string | null;
+  alt: string;
+  media_type: ProductMediaType;
+  status: ProductStatus;
+  is_primary: boolean;
+  sort_order: number;
+}[] {
+  const assets = Array.isArray(payload.imageAssets)
+    ? payload.imageAssets
+    : Array.isArray(payload.images)
+      ? payload.images
+      : [];
+  const seen = new Set<string>();
+  const rows: {
+    id: string;
+    product_id: string;
+    variant_id: string | null;
+    storage_path: string;
+    public_url: string | null;
+    alt: string;
+    media_type: ProductMediaType;
+    status: ProductStatus;
+    is_primary: boolean;
+    sort_order: number;
+  }[] = [];
+  for (const [index, value] of assets.entries()) {
+    const object = typeof value === "string" ? { url: value } : asObject(value);
+    const url = stringValue(object.url);
+    const storagePath = stringValue(object.storagePath) ?? url;
+    if (!url || !storagePath || storagePath.length > 500) continue;
+    const id = stringValue(object.id) ?? randomUUID();
+    if (seen.has(id)) continue;
+    const alt = stringValue(object.alt) ?? fallbackAlt.trim();
+    if (!alt || alt.length > 240) continue;
+    seen.add(id);
+    rows.push({
+      id,
+      product_id: productId,
+      variant_id: stringValue(object.variantId),
+      storage_path: storagePath,
+      public_url: stringValue(object.publicUrl) ?? url,
+      alt,
+      media_type: mediaType(object.type ?? object.mediaType),
+      status,
+      is_primary:
+        object.isPrimary === true || (index === 0 && rows.length === 0),
+      sort_order:
+        typeof object.order === "number" &&
+        Number.isInteger(object.order) &&
+        object.order >= 0
+          ? object.order
+          : index,
+    });
+  }
+  return rows.map((row, index) => ({
+    ...row,
+    is_primary:
+      index === 0
+        ? true
+        : row.is_primary &&
+          !rows.slice(0, index).some((item) => item.is_primary),
+  }));
 }
 
 export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
@@ -578,6 +696,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           is_primary: true,
         })
         .executeTakeFirst();
+      await this.replaceProductMedia(
+        trx,
+        row.id,
+        product,
+        "draft",
+        input.imageAlt ?? "",
+      );
       return this.productRecord(trx, row);
     });
   }
@@ -668,6 +793,24 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           })
           .executeTakeFirst();
       }
+      const nextProduct =
+        patch.payload === undefined
+          ? asObject(current.product)
+          : { ...asObject(current.product), ...patch.payload };
+      if (patch.payload !== undefined) {
+        await trx
+          .updateTable("catalog.products")
+          .set({ product: nextProduct })
+          .where("id", "=", id)
+          .executeTakeFirst();
+        await this.replaceProductMedia(
+          trx,
+          id,
+          nextProduct,
+          current.is_published ? "active" : "draft",
+          patch.imageAlt ?? current.image_alt ?? "",
+        );
+      }
       await this.refreshProductPayload(id, trx);
       return this.productRecord(trx, result);
     });
@@ -721,6 +864,12 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("product_id", "=", id)
         .where("status", "!=", "archived")
         .execute();
+      await trx
+        .updateTable("catalog.product_media")
+        .set({ status: "active" })
+        .where("product_id", "=", id)
+        .where("status", "!=", "archived")
+        .execute();
       const row = await trx
         .updateTable("catalog.products")
         .set({
@@ -752,6 +901,11 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirstOrThrow();
+      await trx
+        .updateTable("catalog.product_media")
+        .set({ status: "archived" })
+        .where("product_id", "=", id)
+        .execute();
       await this.refreshProductPayload(id, trx);
       return this.productRecord(trx, row);
     });
@@ -927,6 +1081,22 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     return row;
   }
 
+  private async replaceProductMedia(
+    executor: DbExecutor,
+    productId: string,
+    payload: Record<string, unknown>,
+    status: ProductStatus,
+    fallbackAlt: string,
+  ): Promise<void> {
+    const rows = mediaInputs(productId, payload, status, fallbackAlt);
+    await executor
+      .deleteFrom("catalog.product_media")
+      .where("product_id", "=", productId)
+      .execute();
+    if (rows.length === 0) return;
+    await executor.insertInto("catalog.product_media").values(rows).execute();
+  }
+
   private async getProductFromExecutor(
     executor: DbExecutor,
     id: string,
@@ -953,6 +1123,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .orderBy("sort_order")
       .orderBy("id")
       .execute();
+    const media = await executor
+      .selectFrom("catalog.product_media")
+      .selectAll()
+      .where("product_id", "=", row.id)
+      .orderBy("sort_order")
+      .orderBy("id")
+      .execute();
     return {
       id: row.id,
       slug: row.slug,
@@ -971,6 +1148,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       archivedAt: iso(row.archived_at),
       version: row.version,
       isDemo: row.is_demo,
+      media: media.map(mediaRecord),
       variants: variants.map(variantRecord),
       createdAt: iso(row.created_at) ?? new Date(0).toISOString(),
       updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
@@ -1189,6 +1367,25 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .where("id", "=", productId)
       .executeTakeFirst();
   }
+}
+
+function mediaRecord(
+  row: Selectable<DatabaseSchema["catalog.product_media"]>,
+): AdminProductMedia {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    variantId: row.variant_id,
+    storagePath: row.storage_path,
+    publicUrl: row.public_url,
+    alt: row.alt,
+    mediaType: row.media_type,
+    status: row.status,
+    isPrimary: row.is_primary,
+    sortOrder: row.sort_order,
+    createdAt: iso(row.created_at) ?? new Date(0).toISOString(),
+    updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
+  };
 }
 
 function isPublicVariant(row: VariantRow): boolean {

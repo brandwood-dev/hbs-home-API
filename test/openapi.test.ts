@@ -95,6 +95,7 @@ describe("OpenAPI contract", () => {
       "AdminCategoriesResponse",
       "AdminCategory",
       "AdminProduct",
+      "AdminProductMedia",
       "AdminProductVariant",
       "AdminProductsResponse",
       "AdminSession",
