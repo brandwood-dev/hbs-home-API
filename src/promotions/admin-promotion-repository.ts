@@ -276,7 +276,7 @@ export class PostgresAdminPromotionRepository implements AdminPromotionRepositor
   }): Promise<{ items: readonly AdminPromotion[]; total: number }> {
     let filtered = this.database.selectFrom("commerce.promotions");
     if (input.query?.trim()) {
-      const query = `%${input.query.trim().replace(/[%_]/g, "\\$&")}%`;
+      const query = `%${input.query.trim().replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
       filtered = filtered.where((eb) =>
         eb.or([eb("name", "ilike", query), eb("code", "ilike", query)]),
       );

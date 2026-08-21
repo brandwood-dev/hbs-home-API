@@ -271,7 +271,7 @@ export function registerAdminPromotionRoutes(
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const item = await dependencies.adminPromotionRepository.update(
         request.params.id,
         patch(request.body),
@@ -284,7 +284,7 @@ export function registerAdminPromotionRoutes(
         item.id,
         { code: item.code },
       );
-      return item;
+      return reply.type("application/json").send(item);
     },
   );
 
