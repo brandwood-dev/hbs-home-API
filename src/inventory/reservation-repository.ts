@@ -9,7 +9,7 @@ import type {
 import { AppError } from "../http/problem.js";
 import { syncVariantPayload } from "./inventory-payload.js";
 
-type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
+export type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
 type ReservationRow = Selectable<InventoryReservationTable>;
 type StockBalanceRow = Selectable<DatabaseSchema["inventory.stock_balances"]>;
 
@@ -167,9 +167,12 @@ function mapReservation(
 }
 
 export class PostgresReservationRepository implements ReservationRepository {
-  constructor(private readonly database: Kysely<DatabaseSchema>) {}
+  constructor(private readonly database: DbExecutor) {}
 
-  async reserve(input: ReserveStockInput): Promise<StockReservation> {
+  async reserve(
+    input: ReserveStockInput,
+    executor?: Transaction<DatabaseSchema>,
+  ): Promise<StockReservation> {
     const reservationKey = input.reservationKey.trim();
     if (!reservationKey || reservationKey.length > 160) {
       fail(
@@ -193,7 +196,9 @@ export class PostgresReservationRepository implements ReservationRepository {
       items,
     });
 
-    return this.database.transaction().execute(async (trx) => {
+    const run = async (
+      trx: Transaction<DatabaseSchema>,
+    ): Promise<StockReservation> => {
       await sql`select pg_advisory_xact_lock(hashtextextended(${reservationKey}, 0))`.execute(
         trx,
       );
@@ -297,7 +302,8 @@ export class PostgresReservationRepository implements ReservationRepository {
         );
       }
       return this.getWith(trx, reservationId);
-    });
+    };
+    return executor ? run(executor) : this.database.transaction().execute(run);
   }
 
   async get(reservationId: string): Promise<StockReservation> {
@@ -519,4 +525,17 @@ export class PostgresReservationRepository implements ReservationRepository {
       .where("id", "=", reservation.id)
       .executeTakeFirstOrThrow();
   }
+}
+
+/**
+ * Reuse the exact reservation algorithm while an order transaction is open.
+ * This keeps order creation and stock reservation atomic without exposing a
+ * second public HTTP surface for reservations.
+ */
+export function reserveWithinTransaction(
+  executor: Transaction<DatabaseSchema>,
+  input: ReserveStockInput,
+): Promise<StockReservation> {
+  const repository = new PostgresReservationRepository(executor);
+  return repository.reserve(input, executor);
 }
