@@ -75,6 +75,24 @@ describe("HBS HOME API foundation", () => {
     });
   });
 
+  it("allows browser preflight for Admin product updates", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/admin/products/product-test-1",
+      headers: {
+        origin: "http://localhost:3001",
+        "access-control-request-method": "PATCH",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:3001",
+    );
+    expect(response.headers["access-control-allow-methods"]).toContain("PATCH");
+  });
+
   it("reports release and contract versions", async () => {
     const response = await app.inject({
       method: "GET",
