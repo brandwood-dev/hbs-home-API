@@ -102,6 +102,29 @@ const VariantSchema = Type.Object(
   },
   { $id: "AdminProductVariant", additionalProperties: false },
 );
+const ProductMediaSchema = Type.Object(
+  {
+    id: Type.String(),
+    productId: Type.String(),
+    variantId: NullableString,
+    storagePath: Type.String(),
+    publicUrl: NullableString,
+    alt: Type.String(),
+    mediaType: Type.Union([
+      Type.Literal("front"),
+      Type.Literal("lifestyle"),
+      Type.Literal("fabric_detail"),
+      Type.Literal("header_detail"),
+      Type.Literal("mechanism_detail"),
+    ]),
+    status: Status,
+    isPrimary: Type.Boolean(),
+    sortOrder: Type.Integer(),
+    createdAt: Type.String({ format: "date-time" }),
+    updatedAt: Type.String({ format: "date-time" }),
+  },
+  { $id: "AdminProductMedia", additionalProperties: false },
+);
 const ProductSchema = Type.Object(
   {
     id: Type.String(),
@@ -121,6 +144,7 @@ const ProductSchema = Type.Object(
     archivedAt: NullableString,
     version: Type.Integer(),
     isDemo: Type.Boolean(),
+    media: Type.Array(ProductMediaSchema),
     variants: Type.Array(VariantSchema),
     createdAt: Type.String({ format: "date-time" }),
     updatedAt: Type.String({ format: "date-time" }),
@@ -337,6 +361,7 @@ export function registerAdminCatalogRoutes(
     AttributeOptionSchema,
     AttributeSchema,
     VariantSchema,
+    ProductMediaSchema,
     ProductSchema,
     CategoriesResponse,
     AttributesResponse,

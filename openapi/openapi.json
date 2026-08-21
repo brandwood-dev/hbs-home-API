@@ -927,6 +927,128 @@
           }
         }
       },
+      "AdminProductMedia": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "productId",
+          "variantId",
+          "storagePath",
+          "publicUrl",
+          "alt",
+          "mediaType",
+          "status",
+          "isPrimary",
+          "sortOrder",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "variantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "storagePath": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alt": {
+            "type": "string"
+          },
+          "mediaType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "front"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "lifestyle"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "fabric_detail"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "header_detail"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "mechanism_detail"
+                ]
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "active"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "archived"
+                ]
+              }
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
       "AdminProduct": {
         "additionalProperties": false,
         "type": "object",
@@ -948,6 +1070,7 @@
           "archivedAt",
           "version",
           "isDemo",
+          "media",
           "variants",
           "createdAt",
           "updatedAt"
@@ -1071,6 +1194,131 @@
           },
           "isDemo": {
             "type": "boolean"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "productId",
+                "variantId",
+                "storagePath",
+                "publicUrl",
+                "alt",
+                "mediaType",
+                "status",
+                "isPrimary",
+                "sortOrder",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "productId": {
+                  "type": "string"
+                },
+                "variantId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "storagePath": {
+                  "type": "string"
+                },
+                "publicUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "mediaType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "front"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "lifestyle"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "fabric_detail"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "header_detail"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "mechanism_detail"
+                      ]
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "draft"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "active"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "archived"
+                      ]
+                    }
+                  ]
+                },
+                "isPrimary": {
+                  "type": "boolean"
+                },
+                "sortOrder": {
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              }
+            }
           },
           "variants": {
             "type": "array",
@@ -1457,6 +1705,7 @@
                 "archivedAt",
                 "version",
                 "isDemo",
+                "media",
                 "variants",
                 "createdAt",
                 "updatedAt"
@@ -1580,6 +1829,131 @@
                 },
                 "isDemo": {
                   "type": "boolean"
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "productId",
+                      "variantId",
+                      "storagePath",
+                      "publicUrl",
+                      "alt",
+                      "mediaType",
+                      "status",
+                      "isPrimary",
+                      "sortOrder",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "productId": {
+                        "type": "string"
+                      },
+                      "variantId": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "storagePath": {
+                        "type": "string"
+                      },
+                      "publicUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "alt": {
+                        "type": "string"
+                      },
+                      "mediaType": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "front"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "lifestyle"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "fabric_detail"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "header_detail"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "mechanism_detail"
+                            ]
+                          }
+                        ]
+                      },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "draft"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "active"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "archived"
+                            ]
+                          }
+                        ]
+                      },
+                      "isPrimary": {
+                        "type": "boolean"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      },
+                      "createdAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      }
+                    }
+                  }
                 },
                 "variants": {
                   "type": "array",
@@ -8542,6 +8916,7 @@
                           "archivedAt",
                           "version",
                           "isDemo",
+                          "media",
                           "variants",
                           "createdAt",
                           "updatedAt"
@@ -8665,6 +9040,131 @@
                           },
                           "isDemo": {
                             "type": "boolean"
+                          },
+                          "media": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "productId",
+                                "variantId",
+                                "storagePath",
+                                "publicUrl",
+                                "alt",
+                                "mediaType",
+                                "status",
+                                "isPrimary",
+                                "sortOrder",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "productId": {
+                                  "type": "string"
+                                },
+                                "variantId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "storagePath": {
+                                  "type": "string"
+                                },
+                                "publicUrl": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "alt": {
+                                  "type": "string"
+                                },
+                                "mediaType": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "front"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "lifestyle"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "fabric_detail"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "header_detail"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "mechanism_detail"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "status": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "draft"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "active"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "archived"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "isPrimary": {
+                                  "type": "boolean"
+                                },
+                                "sortOrder": {
+                                  "type": "integer"
+                                },
+                                "createdAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                "updatedAt": {
+                                  "format": "date-time",
+                                  "type": "string"
+                                }
+                              }
+                            }
                           },
                           "variants": {
                             "type": "array",
@@ -9081,6 +9581,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -9204,6 +9705,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -9719,6 +10345,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -9842,6 +10469,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -10322,6 +11074,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -10445,6 +11198,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -10972,6 +11850,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -11095,6 +11974,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -11554,6 +12558,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -11677,6 +12682,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -12139,6 +13269,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -12262,6 +13393,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -12938,6 +14194,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -13061,6 +14318,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",
@@ -13666,6 +15048,7 @@
                     "archivedAt",
                     "version",
                     "isDemo",
+                    "media",
                     "variants",
                     "createdAt",
                     "updatedAt"
@@ -13789,6 +15172,131 @@
                     },
                     "isDemo": {
                       "type": "boolean"
+                    },
+                    "media": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "productId",
+                          "variantId",
+                          "storagePath",
+                          "publicUrl",
+                          "alt",
+                          "mediaType",
+                          "status",
+                          "isPrimary",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "storagePath": {
+                            "type": "string"
+                          },
+                          "publicUrl": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "alt": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "front"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "lifestyle"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "fabric_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "header_detail"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "mechanism_detail"
+                                ]
+                              }
+                            ]
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "active"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "archived"
+                                ]
+                              }
+                            ]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "variants": {
                       "type": "array",

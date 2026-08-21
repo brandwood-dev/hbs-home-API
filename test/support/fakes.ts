@@ -193,6 +193,7 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
       archivedAt: null,
       version: 1,
       isDemo: input.isDemo ?? false,
+      media: [],
       variants: [],
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
