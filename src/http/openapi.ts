@@ -34,6 +34,11 @@ export async function registerOpenApi(
           name: "catalog",
           description: "Public catalog browsing and recommendations.",
         },
+        {
+          name: "admin-inventory",
+          description:
+            "Authenticated stock balances, movements and transactional reservations.",
+        },
       ],
       components: {
         securitySchemes: {

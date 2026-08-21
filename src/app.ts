@@ -37,9 +37,14 @@ import {
   PostgresInventoryRepository,
   type InventoryRepository,
 } from "./inventory/inventory-repository.js";
+import {
+  PostgresReservationRepository,
+  type ReservationRepository,
+} from "./inventory/reservation-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
+import { registerAdminInventoryReservationRoutes } from "./routes/admin-inventory-reservations.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -52,6 +57,7 @@ export interface BuildAppOptions {
   auditRepository?: AuditRepository;
   adminCatalogRepository?: AdminCatalogRepository;
   inventoryRepository?: InventoryRepository;
+  reservationRepository?: ReservationRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -78,6 +84,9 @@ export async function buildApp(
   const inventoryRepository =
     options.inventoryRepository ??
     new PostgresInventoryRepository(database.client);
+  const reservationRepository =
+    options.reservationRepository ??
+    new PostgresReservationRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -141,6 +150,13 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     inventoryRepository,
+  });
+  registerAdminInventoryReservationRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    reservationRepository,
+    environment,
   });
 
   await app.ready();
