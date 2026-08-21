@@ -29,6 +29,12 @@ import type {
   VariantInput,
   VariantPatch,
 } from "../../src/catalog/admin-catalog-repository.js";
+import type {
+  AdminPromotion,
+  AdminPromotionInput,
+  AdminPromotionPatch,
+  AdminPromotionRepository,
+} from "../../src/promotions/admin-promotion-repository.js";
 
 export class FakeDatabaseConnection implements DatabaseConnection {
   readonly client = undefined as unknown as Kysely<DatabaseSchema>;
@@ -241,5 +247,77 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
   archiveVariant(productId: string, _variantId: string): Promise<AdminProduct> {
     void _variantId;
     return this.getProduct(productId);
+  }
+}
+
+export class FakeAdminPromotionRepository implements AdminPromotionRepository {
+  readonly promotions: AdminPromotion[] = [];
+
+  list(input: {
+    query?: string;
+    isActive?: boolean;
+    limit: number;
+    offset: number;
+  }): Promise<{ items: readonly AdminPromotion[]; total: number }> {
+    const query = input.query?.trim().toUpperCase();
+    const filtered = this.promotions.filter(
+      (promotion) =>
+        (input.isActive === undefined ||
+          promotion.isActive === input.isActive) &&
+        (!query ||
+          promotion.code.includes(query) ||
+          promotion.name.toUpperCase().includes(query)),
+    );
+    return Promise.resolve({
+      total: filtered.length,
+      items: filtered.slice(input.offset, input.offset + input.limit),
+    });
+  }
+
+  get(id: string): Promise<AdminPromotion> {
+    const promotion = this.promotions.find((item) => item.id === id);
+    return promotion
+      ? Promise.resolve(promotion)
+      : Promise.reject(new Error("missing promotion"));
+  }
+
+  create(input: AdminPromotionInput): Promise<AdminPromotion> {
+    const now = new Date(0).toISOString();
+    const promotion: AdminPromotion = {
+      id: "promo-test-1",
+      name: input.name,
+      code: input.code.toUpperCase(),
+      discountType: input.discountType,
+      discountValue: input.discountValue,
+      currency: "TND",
+      minSubtotalMinor: input.minSubtotalMinor ?? 0,
+      startsAt: input.startsAt ?? null,
+      endsAt: input.endsAt ?? null,
+      maxRedemptions: input.maxRedemptions ?? null,
+      redeemedCount: 0,
+      isActive: input.isActive ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.promotions.push(promotion);
+    return Promise.resolve(promotion);
+  }
+
+  update(id: string, patch: AdminPromotionPatch): Promise<AdminPromotion> {
+    const current = this.promotions.find((item) => item.id === id);
+    if (!current) return Promise.reject(new Error("missing promotion"));
+    Object.assign(
+      current,
+      patch,
+      patch.code ? { code: patch.code.toUpperCase() } : {},
+    );
+    return Promise.resolve(current);
+  }
+
+  archive(id: string): Promise<AdminPromotion> {
+    const current = this.promotions.find((item) => item.id === id);
+    if (!current) return Promise.reject(new Error("missing promotion"));
+    current.isActive = false;
+    return Promise.resolve(current);
   }
 }
