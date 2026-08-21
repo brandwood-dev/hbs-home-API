@@ -31,6 +31,11 @@ export async function registerOpenApi(
           description: "Immutable security and business audit events.",
         },
         {
+          name: "admin-orders",
+          description:
+            "Persisted customer orders for the authenticated Admin back-office.",
+        },
+        {
           name: "catalog",
           description: "Public catalog browsing and recommendations.",
         },

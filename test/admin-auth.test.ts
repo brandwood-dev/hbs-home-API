@@ -68,6 +68,15 @@ describe("Admin Auth, MFA and RBAC", () => {
     expect(response.json()).toMatchObject({ code: "AUTH_REQUIRED" });
   });
 
+  it("protects persisted Admin orders with authentication", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/orders",
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "AUTH_REQUIRED" });
+  });
+
   it("rejects an invalid bearer token without leaking verification details", async () => {
     const response = await app.inject({
       method: "GET",
