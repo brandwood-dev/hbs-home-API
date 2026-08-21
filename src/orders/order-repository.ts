@@ -924,7 +924,10 @@ export class PostgresOrderRepository implements OrderRepository {
             curtain_header_label: item.curtainHeaderLabel ?? null,
             eyelet_color_label: item.eyeletColorLabel ?? null,
             lining_label: item.liningLabel ?? null,
-            selected_options: item.selectedOptions,
+            // pg serializes JavaScript arrays using PostgreSQL array syntax by
+            // default. The column is JSONB, so bind an explicit JSON string
+            // to avoid malformed JSON for option snapshots.
+            selected_options: sql`cast(${JSON.stringify(item.selectedOptions)} as jsonb)`,
             selling_unit_label: item.sellingUnitLabel,
             shipping_profile: item.shippingProfile ?? null,
             quantity: item.quantity,
