@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Kysely, Selectable } from "kysely";
 import type {
   CustomerTable,
@@ -7,6 +8,7 @@ import type {
   OrderStatusHistoryTable,
   OrderTable,
 } from "../database/schema.js";
+import { AppError } from "../http/problem.js";
 
 type OrderRow = Selectable<OrderTable>;
 type CustomerRow = Selectable<CustomerTable>;
@@ -105,6 +107,27 @@ export interface AdminOrderList {
   counters: AdminOrderCounters;
   governorates: readonly string[];
 }
+
+export interface AdminOrderStatusUpdateInput {
+  orderId: string;
+  status: OrderStatus;
+  actorUserId: string;
+  reason?: string;
+  note?: string;
+  carrierName?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+}
+
+const STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  pending_confirmation: ["confirmed", "cancelled"],
+  confirmed: ["preparing", "cancelled"],
+  preparing: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: [],
+  cancelled: [],
+};
 
 function iso(value: Date): string {
   return value.toISOString();
@@ -342,6 +365,104 @@ export class PostgresAdminOrderRepository {
       .execute();
     const [order] = await this.loadOrders(headers);
     return order ?? null;
+  }
+
+  async updateStatus(input: AdminOrderStatusUpdateInput): Promise<AdminOrder> {
+    const reason = input.reason?.trim() ?? null;
+    const note = input.note?.trim() ?? null;
+    if (reason && reason.length > 500) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_ORDER_STATUS_UPDATE",
+        title: "Invalid order status update",
+        detail: "The status reason must be at most 500 characters.",
+      });
+    }
+    if (note && note.length > 1_000) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_ORDER_STATUS_UPDATE",
+        title: "Invalid order status update",
+        detail: "The internal note must be at most 1000 characters.",
+      });
+    }
+    if (input.status === "cancelled" && !reason) {
+      throw new AppError({
+        statusCode: 400,
+        code: "ORDER_STATUS_REASON_REQUIRED",
+        title: "A reason is required",
+        detail: "A reason is required when cancelling an order.",
+      });
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+
+      if (!STATUS_TRANSITIONS[current.status].includes(input.status)) {
+        throw new AppError({
+          statusCode: 409,
+          code: "ORDER_STATUS_TRANSITION_INVALID",
+          title: "Invalid order status transition",
+          detail: `The order cannot move from ${current.status} to ${input.status}.`,
+        });
+      }
+
+      const updatedAt = new Date();
+      await trx
+        .updateTable("commerce.orders")
+        .set({ status: input.status, updated_at: updatedAt })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+
+      const metadata: Record<string, unknown> = {};
+      if (note) metadata.note = note;
+      if (input.carrierName?.trim())
+        metadata.carrierName = input.carrierName.trim();
+      if (input.trackingNumber?.trim()) {
+        metadata.trackingNumber = input.trackingNumber.trim();
+      }
+      if (input.shippedAt?.trim()) metadata.shippedAt = input.shippedAt.trim();
+      if (input.deliveredAt?.trim()) {
+        metadata.deliveredAt = input.deliveredAt.trim();
+      }
+
+      await trx
+        .insertInto("commerce.order_status_history")
+        .values({
+          id: randomUUID(),
+          order_id: input.orderId,
+          status: input.status,
+          reason,
+          actor_user_id: input.actorUserId,
+          metadata,
+          created_at: updatedAt,
+        })
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
   }
 
   private async loadOrders(

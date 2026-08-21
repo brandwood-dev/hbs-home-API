@@ -1,14 +1,16 @@
 import { Type, type Static } from "@sinclair/typebox";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   createAdminGuard,
+  type AdminPrincipal,
   type AdminGuardDependencies,
 } from "../auth/admin-guard.js";
 import type {
   AdminOrderListParams,
+  AdminOrderStatusUpdateInput,
   PostgresAdminOrderRepository,
 } from "../orders/admin-order-repository.js";
-import { ProblemDetailSchema } from "../http/problem.js";
+import { AppError, ProblemDetailSchema } from "../http/problem.js";
 
 const OrderStatus = Type.Union([
   Type.Literal("pending_confirmation"),
@@ -37,6 +39,24 @@ const OrderListQuery = Type.Object(
   { additionalProperties: false },
 );
 type OrderListQueryType = Static<typeof OrderListQuery>;
+
+const OrderIdParams = Type.Object(
+  { id: Type.String({ format: "uuid" }) },
+  { additionalProperties: false },
+);
+const OrderStatusUpdateBody = Type.Object(
+  {
+    status: OrderStatus,
+    reason: Type.Optional(Type.String({ maxLength: 500 })),
+    note: Type.Optional(Type.String({ maxLength: 1_000 })),
+    carrierName: Type.Optional(Type.String({ maxLength: 160 })),
+    trackingNumber: Type.Optional(Type.String({ maxLength: 160 })),
+    shippedAt: Type.Optional(Type.String({ format: "date-time" })),
+    deliveredAt: Type.Optional(Type.String({ format: "date-time" })),
+  },
+  { additionalProperties: false },
+);
+type OrderStatusUpdateBodyType = Static<typeof OrderStatusUpdateBody>;
 
 const OrderItemOption = Type.Object(
   { label: Type.String(), value: Type.String() },
@@ -149,7 +169,56 @@ const OrderListResponse = Type.Object(
 );
 
 export interface AdminOrderRouteDependencies extends AdminGuardDependencies {
-  adminOrderRepository: Pick<PostgresAdminOrderRepository, "list" | "getById">;
+  adminOrderRepository: Pick<
+    PostgresAdminOrderRepository,
+    "list" | "getById" | "updateStatus"
+  >;
+}
+
+function principal(request: {
+  adminPrincipal: AdminPrincipal | null;
+}): AdminPrincipal {
+  if (!request.adminPrincipal)
+    throw new Error("Admin guard did not set a principal.");
+  return request.adminPrincipal;
+}
+
+function requiredStatusPermission(status: Static<typeof OrderStatus>): string {
+  if (status === "cancelled") return "orders.cancel";
+  if (status === "shipped" || status === "delivered") return "orders.ship";
+  return "orders.confirm";
+}
+
+async function requireStatusPermission(
+  dependencies: AdminOrderRouteDependencies,
+  request: Pick<FastifyRequest, "id" | "ip" | "method" | "url" | "headers">,
+  actor: AdminPrincipal,
+  permission: string,
+  orderId: string,
+): Promise<void> {
+  if (actor.permissions.includes(permission)) return;
+  try {
+    await dependencies.auditRepository.append({
+      requestId: request.id,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      action: "order.status_update_denied",
+      resourceType: "order",
+      resourceId: orderId,
+      outcome: "denied",
+      sourceIp: request.ip,
+      userAgent: request.headers["user-agent"]?.toString() ?? null,
+      metadata: { permission, method: request.method, path: request.url },
+    });
+  } catch {
+    // A missing permission must never be turned into a server error by audit.
+  }
+  throw new AppError({
+    statusCode: 403,
+    code: "PERMISSION_DENIED",
+    title: "Permission denied",
+    detail: "The current Admin role cannot change this order status.",
+  });
 }
 
 function parseStatuses(
@@ -227,10 +296,7 @@ export function registerAdminOrderRoutes(
         summary: "Read one persisted customer order for the Admin back-office",
         tags: ["admin-orders"],
         security: [{ bearerAuth: [] }],
-        params: Type.Object(
-          { id: Type.String({ format: "uuid" }) },
-          { additionalProperties: false },
-        ),
+        params: OrderIdParams,
         response: {
           200: AdminOrder,
           401: ProblemDetailSchema,
@@ -254,6 +320,83 @@ export function registerAdminOrderRoutes(
           requestId: request.id,
         });
       }
+      return order;
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderStatusUpdateBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/status",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "updateAdminOrderStatus",
+        summary: "Change the status of a persisted customer order",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderStatusUpdateBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      const permission = requiredStatusPermission(request.body.status);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        permission,
+        request.params.id,
+      );
+      const input: AdminOrderStatusUpdateInput = {
+        orderId: request.params.id,
+        status: request.body.status,
+        actorUserId: actor.userId,
+        ...(request.body.reason ? { reason: request.body.reason } : {}),
+        ...(request.body.note ? { note: request.body.note } : {}),
+        ...(request.body.carrierName
+          ? { carrierName: request.body.carrierName }
+          : {}),
+        ...(request.body.trackingNumber
+          ? { trackingNumber: request.body.trackingNumber }
+          : {}),
+        ...(request.body.shippedAt
+          ? { shippedAt: request.body.shippedAt }
+          : {}),
+        ...(request.body.deliveredAt
+          ? { deliveredAt: request.body.deliveredAt }
+          : {}),
+      };
+      const order = await dependencies.adminOrderRepository.updateStatus(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.status_updated",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: {
+          orderNumber: order.orderNumber,
+          status: order.status,
+          permission,
+        },
+      });
       return order;
     },
   );
