@@ -303,6 +303,97 @@ export interface PromotionTable {
   updated_at: Generated<Date>;
 }
 
+export type OrderStatus =
+  | "pending_confirmation"
+  | "confirmed"
+  | "preparing"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+export interface CustomerTable {
+  id: Generated<string>;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface OrderTable {
+  id: Generated<string>;
+  order_number: string;
+  customer_id: string;
+  cart_id: string;
+  status: OrderStatus;
+  delivery_method: "home_delivery" | "store_pickup";
+  payment_method: "cash_on_delivery";
+  shipping_address: Record<string, unknown> | null;
+  currency: "TND";
+  subtotal_minor: number;
+  discount_minor: number;
+  shipping_minor: number;
+  total_minor: number;
+  promo_code: string | null;
+  idempotency_key: string;
+  request_fingerprint: string;
+  reservation_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface OrderItemTable {
+  order_id: string;
+  line_number: number;
+  product_id: string;
+  variant_id: string;
+  product_slug: string;
+  product_name: string;
+  product_reference: string;
+  sku: string;
+  image_url: string;
+  image_alt: string;
+  category: string;
+  color_label: string | null;
+  width_cm: number | null;
+  height_cm: number | null;
+  curtain_header_label: string | null;
+  eyelet_color_label: string | null;
+  lining_label: string | null;
+  selected_options: readonly { label: string; value: string }[];
+  selling_unit_label: string;
+  shipping_profile: string | null;
+  quantity: number;
+  unit_price_minor: number;
+  line_total_minor: number;
+  created_at: Generated<Date>;
+}
+
+export interface OrderStatusHistoryTable {
+  id: Generated<string>;
+  order_id: string;
+  status: OrderStatus;
+  reason: string | null;
+  actor_user_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: Generated<Date>;
+}
+
+export interface OutboxEventTable {
+  id: Generated<string>;
+  aggregate_type: string;
+  aggregate_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  status: "pending" | "processing" | "processed" | "dead_letter";
+  attempts: number;
+  available_at: Generated<Date>;
+  processed_at: Date | null;
+  last_error: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -326,4 +417,9 @@ export interface DatabaseSchema {
   "commerce.carts": CartTable;
   "commerce.cart_items": CartItemTable;
   "commerce.promotions": PromotionTable;
+  "commerce.customers": CustomerTable;
+  "commerce.orders": OrderTable;
+  "commerce.order_items": OrderItemTable;
+  "commerce.order_status_history": OrderStatusHistoryTable;
+  "commerce.outbox_events": OutboxEventTable;
 }

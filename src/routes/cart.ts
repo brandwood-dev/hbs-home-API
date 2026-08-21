@@ -132,7 +132,7 @@ type QuantityBodyType = Static<typeof QuantityBody>;
 type LineParamsType = Static<typeof LineParams>;
 type PromotionBodyType = Static<typeof PromotionBody>;
 
-function cookieToken(request: FastifyRequest): string | null {
+export function cookieToken(request: FastifyRequest): string | null {
   const header = request.headers["x-cart-token"];
   if (typeof header === "string" && header.trim()) return header.trim();
   const cookie = request.headers.cookie;

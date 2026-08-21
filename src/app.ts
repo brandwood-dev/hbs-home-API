@@ -49,12 +49,17 @@ import {
   PostgresAdminPromotionRepository,
   type AdminPromotionRepository,
 } from "./promotions/admin-promotion-repository.js";
+import {
+  PostgresOrderRepository,
+  type OrderRepository,
+} from "./orders/order-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
 import { registerAdminInventoryReservationRoutes } from "./routes/admin-inventory-reservations.js";
 import { registerCartRoutes } from "./routes/cart.js";
+import { registerOrderRoutes } from "./routes/orders.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -70,6 +75,7 @@ export interface BuildAppOptions {
   inventoryRepository?: InventoryRepository;
   reservationRepository?: ReservationRepository;
   cartRepository?: CartRepository;
+  orderRepository?: OrderRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -104,6 +110,8 @@ export async function buildApp(
     new PostgresReservationRepository(database.client);
   const cartRepository =
     options.cartRepository ?? new PostgresCartRepository(database.client);
+  const orderRepository =
+    options.orderRepository ?? new PostgresOrderRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -182,6 +190,7 @@ export async function buildApp(
     environment,
   });
   registerCartRoutes(app, { cartRepository });
+  registerOrderRoutes(app, { orderRepository });
 
   await app.ready();
   return app;
