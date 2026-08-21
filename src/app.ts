@@ -100,6 +100,7 @@ export async function buildApp(
   await app.register(cors, {
     origin: environment.corsOrigins,
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PATCH", "OPTIONS"],
   });
   await registerOpenApi(app, environment);
 
