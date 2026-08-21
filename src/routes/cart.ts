@@ -151,11 +151,11 @@ function setCartCookie(
   reply: FastifyReply,
   token: string,
 ): void {
-  const secure =
-    request.protocol === "https" || request.hostname.endsWith("hbs-home.com");
-  const domain = request.hostname.endsWith("hbs-home.com")
-    ? "; Domain=.hbs-home.com"
-    : "";
+  const isHbsHomeHost =
+    request.hostname === "hbs-home.com" ||
+    request.hostname.endsWith(".hbs-home.com");
+  const secure = request.protocol === "https" || isHbsHomeHost;
+  const domain = isHbsHomeHost ? "; Domain=.hbs-home.com" : "";
   reply.header(
     "set-cookie",
     `hbs_cart_token=${encodeURIComponent(token)}; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}${domain}`,
