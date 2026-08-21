@@ -235,6 +235,30 @@ export interface StockMovementTable {
   created_at: Generated<Date>;
 }
 
+export type ReservationStatus = "active" | "released" | "expired" | "converted";
+
+export interface InventoryReservationTable {
+  id: Generated<string>;
+  reservation_key: string;
+  order_id: string | null;
+  status: ReservationStatus;
+  expires_at: Date;
+  released_at: NullableTimestamp;
+  release_reason: string | null;
+  converted_at: NullableTimestamp;
+  request_fingerprint: string;
+  actor_user_id: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface InventoryReservationItemTable {
+  reservation_id: string;
+  variant_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -253,4 +277,6 @@ export interface DatabaseSchema {
   "catalog.product_media": CatalogProductMediaTable;
   "inventory.stock_balances": StockBalanceTable;
   "inventory.stock_movements": StockMovementTable;
+  "inventory.reservations": InventoryReservationTable;
+  "inventory.reservation_items": InventoryReservationItemTable;
 }

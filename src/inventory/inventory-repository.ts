@@ -6,6 +6,7 @@ import type {
   StockMovementType,
 } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
+import { syncVariantPayload } from "./inventory-payload.js";
 
 type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
 
@@ -408,7 +409,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
             actor_user_id: input.actorUserId,
           })
           .executeTakeFirstOrThrow();
-        await this.syncVariantPayload(trx, input.variantId, {
+        await syncVariantPayload(trx, input.variantId, {
           stock: nextOnHand,
           availableQuantity: Math.max(0, nextOnHand - current.reserved),
           lowStockThreshold: threshold,
@@ -424,7 +425,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
           .set({ low_stock_threshold: threshold, availability })
           .where("variant_id", "=", input.variantId)
           .executeTakeFirstOrThrow();
-        await this.syncVariantPayload(trx, input.variantId, {
+        await syncVariantPayload(trx, input.variantId, {
           stock: current.on_hand,
           availableQuantity: Math.max(0, current.on_hand - current.reserved),
           lowStockThreshold: threshold,
@@ -474,7 +475,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
         .set({ low_stock_threshold: input.lowStockThreshold, availability })
         .where("variant_id", "=", input.variantId)
         .executeTakeFirstOrThrow();
-      await this.syncVariantPayload(trx, input.variantId, {
+      await syncVariantPayload(trx, input.variantId, {
         stock: current.on_hand,
         availableQuantity: Math.max(0, current.on_hand - current.reserved),
         lowStockThreshold: input.lowStockThreshold,
@@ -542,50 +543,5 @@ export class PostgresInventoryRepository implements InventoryRepository {
       );
     }
     return row;
-  }
-
-  private async syncVariantPayload(
-    executor: DbExecutor,
-    variantId: string,
-    fields: {
-      stock: number;
-      availableQuantity: number;
-      lowStockThreshold: number;
-      availability: InventoryAvailability;
-      trackInventory: boolean;
-    },
-  ): Promise<void> {
-    const variant = await executor
-      .selectFrom("catalog.product_variants")
-      .select(["product_id", "payload"])
-      .where("id", "=", variantId)
-      .executeTakeFirstOrThrow();
-    await executor
-      .updateTable("catalog.product_variants")
-      .set({
-        payload: {
-          ...object(variant.payload),
-          ...fields,
-        },
-      })
-      .where("id", "=", variantId)
-      .executeTakeFirstOrThrow();
-
-    const product = await executor
-      .selectFrom("catalog.products")
-      .select(["id", "product"])
-      .where("id", "=", variant.product_id)
-      .executeTakeFirstOrThrow();
-    const payload = object(product.product);
-    const variants = Array.isArray(payload.variants) ? payload.variants : [];
-    const nextVariants = variants.map((entry) => {
-      const item = object(entry);
-      return item.id === variantId ? { ...item, ...fields } : item;
-    });
-    await executor
-      .updateTable("catalog.products")
-      .set({ product: { ...payload, variants: nextVariants } })
-      .where("id", "=", product.id)
-      .executeTakeFirstOrThrow();
   }
 }

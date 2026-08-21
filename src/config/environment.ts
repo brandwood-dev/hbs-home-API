@@ -29,6 +29,10 @@ const EnvironmentSchema = Type.Object(
     apiPublicUrl: Type.String({ minLength: 1 }),
     databaseUrl: Type.String({ minLength: 1 }),
     databasePoolMax: Type.Integer({ minimum: 1, maximum: 20 }),
+    inventoryReservationTtlSeconds: Type.Integer({
+      minimum: 60,
+      maximum: 86_400,
+    }),
     supabaseUrl: Type.String({ minLength: 1 }),
     supabaseJwtAudience: Type.String({ minLength: 1, maxLength: 128 }),
     releaseVersion: Type.String({ minLength: 1 }),
@@ -145,6 +149,11 @@ export function loadEnvironment(
       "DATABASE_POOL_MAX",
       source.DATABASE_POOL_MAX,
       5,
+    ),
+    inventoryReservationTtlSeconds: parseInteger(
+      "INVENTORY_RESERVATION_TTL_SECONDS",
+      source.INVENTORY_RESERVATION_TTL_SECONDS,
+      1_800,
     ),
     supabaseUrl: source.SUPABASE_URL ?? "http://127.0.0.1:54321",
     supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
