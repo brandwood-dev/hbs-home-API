@@ -33,8 +33,13 @@ import {
   PostgresAdminCatalogRepository,
   type AdminCatalogRepository,
 } from "./catalog/admin-catalog-repository.js";
+import {
+  PostgresInventoryRepository,
+  type InventoryRepository,
+} from "./inventory/inventory-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
+import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -46,6 +51,7 @@ export interface BuildAppOptions {
   adminAccessRepository?: AdminAccessRepository;
   auditRepository?: AuditRepository;
   adminCatalogRepository?: AdminCatalogRepository;
+  inventoryRepository?: InventoryRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -69,6 +75,9 @@ export async function buildApp(
   const adminCatalogRepository =
     options.adminCatalogRepository ??
     new PostgresAdminCatalogRepository(database.client);
+  const inventoryRepository =
+    options.inventoryRepository ??
+    new PostgresInventoryRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -126,6 +135,12 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminCatalogRepository,
+  });
+  registerAdminInventoryRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    inventoryRepository,
   });
 
   await app.ready();
