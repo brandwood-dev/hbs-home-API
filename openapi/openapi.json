@@ -2085,6 +2085,618 @@
             "type": "integer"
           }
         }
+      },
+      "AdminInventoryVariant": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "sku",
+          "colorId",
+          "colorLabel",
+          "widthCm",
+          "heightCm",
+          "curtainHeader",
+          "priceMinor",
+          "stock",
+          "reserved",
+          "lowStockThreshold",
+          "availability",
+          "isActive",
+          "isDefault",
+          "options",
+          "trackInventory"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "colorId": {
+            "type": "string"
+          },
+          "colorLabel": {
+            "type": "string"
+          },
+          "widthCm": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "heightCm": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "curtainHeader": {
+            "type": "string"
+          },
+          "eyeletColor": {
+            "type": "string"
+          },
+          "lining": {
+            "type": "string"
+          },
+          "priceMinor": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "compareAtPriceMinor": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stock": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reserved": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lowStockThreshold": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "in_stock"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "low_stock"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "out_of_stock"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "made_to_order"
+                ]
+              }
+            ]
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "packQuantity": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "trackInventory": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdminInventoryRow": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "productId",
+          "productName",
+          "categoryId",
+          "variant",
+          "updatedAt"
+        ],
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "variant": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "sku",
+              "colorId",
+              "colorLabel",
+              "widthCm",
+              "heightCm",
+              "curtainHeader",
+              "priceMinor",
+              "stock",
+              "reserved",
+              "lowStockThreshold",
+              "availability",
+              "isActive",
+              "isDefault",
+              "options",
+              "trackInventory"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "sku": {
+                "type": "string"
+              },
+              "colorId": {
+                "type": "string"
+              },
+              "colorLabel": {
+                "type": "string"
+              },
+              "widthCm": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "heightCm": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "curtainHeader": {
+                "type": "string"
+              },
+              "eyeletColor": {
+                "type": "string"
+              },
+              "lining": {
+                "type": "string"
+              },
+              "priceMinor": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "compareAtPriceMinor": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "stock": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reserved": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "lowStockThreshold": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "availability": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "in_stock"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "low_stock"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "out_of_stock"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "made_to_order"
+                    ]
+                  }
+                ]
+              },
+              "imageUrl": {
+                "type": "string"
+              },
+              "isActive": {
+                "type": "boolean"
+              },
+              "isDefault": {
+                "type": "boolean"
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              },
+              "packQuantity": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "trackInventory": {
+                "type": "boolean"
+              }
+            }
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "AdminInventoryResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "productId",
+                "productName",
+                "categoryId",
+                "variant",
+                "updatedAt"
+              ],
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "productName": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "variant": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "sku",
+                    "colorId",
+                    "colorLabel",
+                    "widthCm",
+                    "heightCm",
+                    "curtainHeader",
+                    "priceMinor",
+                    "stock",
+                    "reserved",
+                    "lowStockThreshold",
+                    "availability",
+                    "isActive",
+                    "isDefault",
+                    "options",
+                    "trackInventory"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "sku": {
+                      "type": "string"
+                    },
+                    "colorId": {
+                      "type": "string"
+                    },
+                    "colorLabel": {
+                      "type": "string"
+                    },
+                    "widthCm": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "heightCm": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "curtainHeader": {
+                      "type": "string"
+                    },
+                    "eyeletColor": {
+                      "type": "string"
+                    },
+                    "lining": {
+                      "type": "string"
+                    },
+                    "priceMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "compareAtPriceMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "stock": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "reserved": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "lowStockThreshold": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "availability": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "in_stock"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "low_stock"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "out_of_stock"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "made_to_order"
+                          ]
+                        }
+                      ]
+                    },
+                    "imageUrl": {
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    },
+                    "options": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    },
+                    "packQuantity": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "trackInventory": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AdminStockMovement": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "variantId",
+          "productId",
+          "type",
+          "quantity",
+          "reason",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "variantId": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "increase"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "decrease"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "set"
+                ]
+              }
+            ]
+          },
+          "quantity": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "previousStock": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resultingStock": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      },
+      "AdminStockMovementsResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "variantId",
+                "productId",
+                "type",
+                "quantity",
+                "reason",
+                "createdAt"
+              ],
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "variantId": {
+                  "type": "string"
+                },
+                "productId": {
+                  "type": "string"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "increase"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "decrease"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "set"
+                      ]
+                    }
+                  ]
+                },
+                "quantity": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "previousStock": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "resultingStock": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "userId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -15414,6 +16026,1759 @@
                     "updatedAt": {
                       "format": "date-time",
                       "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventory": {
+      "get": {
+        "operationId": "adminListInventory",
+        "tags": [
+          "admin-inventory"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "productName",
+                          "categoryId",
+                          "variant",
+                          "updatedAt"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productName": {
+                            "type": "string"
+                          },
+                          "categoryId": {
+                            "type": "string"
+                          },
+                          "variant": {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "sku",
+                              "colorId",
+                              "colorLabel",
+                              "widthCm",
+                              "heightCm",
+                              "curtainHeader",
+                              "priceMinor",
+                              "stock",
+                              "reserved",
+                              "lowStockThreshold",
+                              "availability",
+                              "isActive",
+                              "isDefault",
+                              "options",
+                              "trackInventory"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "sku": {
+                                "type": "string"
+                              },
+                              "colorId": {
+                                "type": "string"
+                              },
+                              "colorLabel": {
+                                "type": "string"
+                              },
+                              "widthCm": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "heightCm": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "curtainHeader": {
+                                "type": "string"
+                              },
+                              "eyeletColor": {
+                                "type": "string"
+                              },
+                              "lining": {
+                                "type": "string"
+                              },
+                              "priceMinor": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "compareAtPriceMinor": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "stock": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "reserved": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "lowStockThreshold": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "availability": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "in_stock"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "low_stock"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "out_of_stock"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "made_to_order"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "imageUrl": {
+                                "type": "string"
+                              },
+                              "isActive": {
+                                "type": "boolean"
+                              },
+                              "isDefault": {
+                                "type": "boolean"
+                              },
+                              "options": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    }
+                                  ]
+                                }
+                              },
+                              "packQuantity": {
+                                "minimum": 1,
+                                "type": "integer"
+                              },
+                              "trackInventory": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventory/movements": {
+      "get": {
+        "operationId": "adminListStockMovements",
+        "tags": [
+          "admin-inventory"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minLength": 1,
+              "maxLength": 160,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "variantId",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "variantId",
+                          "productId",
+                          "type",
+                          "quantity",
+                          "reason",
+                          "createdAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "increase"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "decrease"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "set"
+                                ]
+                              }
+                            ]
+                          },
+                          "quantity": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "note": {
+                            "type": "string"
+                          },
+                          "previousStock": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "resultingStock": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventory/adjustments": {
+      "post": {
+        "operationId": "adminAdjustInventory",
+        "tags": [
+          "admin-inventory"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "productId",
+                  "variantId",
+                  "type",
+                  "quantity",
+                  "reason"
+                ],
+                "properties": {
+                  "productId": {
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "type": "string"
+                  },
+                  "variantId": {
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "type": "string"
+                  },
+                  "type": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "increase"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "decrease"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "set"
+                        ]
+                      }
+                    ]
+                  },
+                  "quantity": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "purchase"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "sale_correction"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "customer_return"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "damaged"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "inventory_correction"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "manual_adjustment"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "other"
+                        ]
+                      }
+                    ]
+                  },
+                  "note": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "lowStockThreshold": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "availability": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "in_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "low_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "out_of_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "made_to_order"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "productId",
+                    "productName",
+                    "categoryId",
+                    "variant",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "productId": {
+                      "type": "string"
+                    },
+                    "productName": {
+                      "type": "string"
+                    },
+                    "categoryId": {
+                      "type": "string"
+                    },
+                    "variant": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "sku",
+                        "colorId",
+                        "colorLabel",
+                        "widthCm",
+                        "heightCm",
+                        "curtainHeader",
+                        "priceMinor",
+                        "stock",
+                        "reserved",
+                        "lowStockThreshold",
+                        "availability",
+                        "isActive",
+                        "isDefault",
+                        "options",
+                        "trackInventory"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "sku": {
+                          "type": "string"
+                        },
+                        "colorId": {
+                          "type": "string"
+                        },
+                        "colorLabel": {
+                          "type": "string"
+                        },
+                        "widthCm": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "heightCm": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "curtainHeader": {
+                          "type": "string"
+                        },
+                        "eyeletColor": {
+                          "type": "string"
+                        },
+                        "lining": {
+                          "type": "string"
+                        },
+                        "priceMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "compareAtPriceMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "stock": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "reserved": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "lowStockThreshold": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "availability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "in_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "low_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "out_of_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "made_to_order"
+                              ]
+                            }
+                          ]
+                        },
+                        "imageUrl": {
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "options": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          }
+                        },
+                        "packQuantity": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "trackInventory": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventory/{variantId}": {
+      "patch": {
+        "operationId": "adminUpdateInventorySettings",
+        "tags": [
+          "admin-inventory"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "productId",
+                  "lowStockThreshold"
+                ],
+                "properties": {
+                  "productId": {
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "type": "string"
+                  },
+                  "lowStockThreshold": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "availability": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "in_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "low_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "out_of_stock"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "made_to_order"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "minLength": 1,
+              "maxLength": 160,
+              "type": "string"
+            },
+            "in": "path",
+            "name": "variantId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "productId",
+                    "productName",
+                    "categoryId",
+                    "variant",
+                    "updatedAt"
+                  ],
+                  "properties": {
+                    "productId": {
+                      "type": "string"
+                    },
+                    "productName": {
+                      "type": "string"
+                    },
+                    "categoryId": {
+                      "type": "string"
+                    },
+                    "variant": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "sku",
+                        "colorId",
+                        "colorLabel",
+                        "widthCm",
+                        "heightCm",
+                        "curtainHeader",
+                        "priceMinor",
+                        "stock",
+                        "reserved",
+                        "lowStockThreshold",
+                        "availability",
+                        "isActive",
+                        "isDefault",
+                        "options",
+                        "trackInventory"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "sku": {
+                          "type": "string"
+                        },
+                        "colorId": {
+                          "type": "string"
+                        },
+                        "colorLabel": {
+                          "type": "string"
+                        },
+                        "widthCm": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "heightCm": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "curtainHeader": {
+                          "type": "string"
+                        },
+                        "eyeletColor": {
+                          "type": "string"
+                        },
+                        "lining": {
+                          "type": "string"
+                        },
+                        "priceMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "compareAtPriceMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "stock": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "reserved": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "lowStockThreshold": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "availability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "in_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "low_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "out_of_stock"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "made_to_order"
+                              ]
+                            }
+                          ]
+                        },
+                        "imageUrl": {
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "options": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          }
+                        },
+                        "packQuantity": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "trackInventory": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 }

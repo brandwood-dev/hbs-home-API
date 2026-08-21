@@ -188,6 +188,53 @@ export interface CatalogProductMediaTable {
   updated_at: Generated<Date>;
 }
 
+export type InventoryAvailability =
+  "in_stock" | "low_stock" | "out_of_stock" | "made_to_order";
+
+export interface StockBalanceTable {
+  variant_id: string;
+  product_id: string;
+  on_hand: number;
+  reserved: number;
+  low_stock_threshold: number;
+  track_inventory: boolean;
+  availability: InventoryAvailability;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type StockMovementType =
+  | "initial"
+  | "adjustment_in"
+  | "adjustment_out"
+  | "reservation"
+  | "reservation_release"
+  | "sale"
+  | "return"
+  | "damage"
+  | "correction";
+
+export interface StockMovementTable {
+  id: Generated<string>;
+  variant_id: string;
+  product_id: string;
+  movement_type: StockMovementType;
+  quantity: number;
+  on_hand_delta: number;
+  reserved_delta: number;
+  previous_on_hand: number;
+  resulting_on_hand: number;
+  previous_reserved: number;
+  resulting_reserved: number;
+  reason: string;
+  note: string | null;
+  operation_key: string;
+  request_fingerprint: string | null;
+  order_id: string | null;
+  actor_user_id: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -204,4 +251,6 @@ export interface DatabaseSchema {
   "catalog.product_attributes": CatalogProductAttributeTable;
   "catalog.product_variants": CatalogProductVariantTable;
   "catalog.product_media": CatalogProductMediaTable;
+  "inventory.stock_balances": StockBalanceTable;
+  "inventory.stock_movements": StockMovementTable;
 }

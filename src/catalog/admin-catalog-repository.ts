@@ -278,6 +278,16 @@ function stringValue(value: unknown): string | null {
     : null;
 }
 
+function numberValue(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value))
+    return Math.trunc(value);
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  }
+  return fallback;
+}
+
 const MEDIA_TYPES = new Set<ProductMediaType>([
   "front",
   "lifestyle",
@@ -1311,6 +1321,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     if (row.is_published)
       mediaQuery = mediaQuery.where("status", "=", "active");
     const media = await mediaQuery.execute();
+    const balances = await executor
+      .selectFrom("inventory.stock_balances")
+      .selectAll()
+      .where("product_id", "=", productId)
+      .execute();
+    const balanceByVariant = new Map(
+      balances.map((balance) => [balance.variant_id, balance]),
+    );
     const existing = asObject(row.product);
     const images = media.map((item) => ({
       id: item.id,
@@ -1318,24 +1336,43 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       alt: item.alt,
       type: item.media_type,
     }));
-    const normalizedVariants = variants.map((variant) => ({
-      ...asObject(variant.payload),
-      ...asObject(variant.options),
-      id: variant.id,
-      sku: variant.sku,
-      price: { amountMinor: variant.price_amount_minor, currency: "TND" },
-      ...(variant.compare_at_price_amount_minor === null
-        ? {}
-        : {
-            compareAtPrice: {
-              amountMinor: variant.compare_at_price_amount_minor,
-              currency: "TND",
-            },
-          }),
-      availability: "in_stock",
-      availableQuantity: 0,
-      imageIds: [],
-    }));
+    const normalizedVariants = variants.map((variant) => {
+      const balance = balanceByVariant.get(variant.id);
+      const legacy = asObject(variant.payload);
+      const stock = balance?.on_hand ?? numberValue(legacy.stock, 0);
+      const reserved = balance?.reserved ?? 0;
+      const availableQuantity = Math.max(0, stock - reserved);
+      const threshold =
+        balance?.low_stock_threshold ??
+        numberValue(legacy.lowStockThreshold, 3);
+      const availability =
+        balance?.availability ??
+        stringValue(legacy.availability) ??
+        (stock <= 0
+          ? "out_of_stock"
+          : stock <= threshold
+            ? "low_stock"
+            : "in_stock");
+      return {
+        ...legacy,
+        ...asObject(variant.options),
+        id: variant.id,
+        sku: variant.sku,
+        price: { amountMinor: variant.price_amount_minor, currency: "TND" },
+        ...(variant.compare_at_price_amount_minor === null
+          ? {}
+          : {
+              compareAtPrice: {
+                amountMinor: variant.compare_at_price_amount_minor,
+                currency: "TND",
+              },
+            }),
+        availability,
+        availableQuantity,
+        ...(balance ? { reservedQuantity: reserved } : {}),
+        imageIds: [],
+      };
+    });
     const payload = {
       ...existing,
       id: row.id,
