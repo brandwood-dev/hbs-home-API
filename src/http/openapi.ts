@@ -39,6 +39,11 @@ export async function registerOpenApi(
           description:
             "Authenticated stock balances, movements and transactional reservations.",
         },
+        {
+          name: "cart",
+          description:
+            "Opaque-token guest cart, authoritative prices and single-code promotions.",
+        },
       ],
       components: {
         securitySchemes: {

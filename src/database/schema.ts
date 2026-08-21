@@ -259,6 +259,49 @@ export interface InventoryReservationItemTable {
   created_at: Generated<Date>;
 }
 
+export type CartStatus = "active" | "expired" | "converted";
+
+export interface CartTable {
+  id: Generated<string>;
+  token_hash: string;
+  auth_user_id: string | null;
+  status: CartStatus;
+  currency: "TND";
+  promo_code: string | null;
+  expires_at: Date;
+  last_accessed_at: Generated<Date>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CartItemTable {
+  cart_id: string;
+  product_id: string;
+  variant_id: string;
+  quantity: number;
+  price_at_add_minor: number;
+  added_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type PromotionDiscountType = "percentage" | "fixed_amount";
+
+export interface PromotionTable {
+  id: Generated<string>;
+  code: string;
+  discount_type: PromotionDiscountType;
+  discount_value: number;
+  currency: "TND";
+  min_subtotal_minor: number;
+  starts_at: Date | null;
+  ends_at: Date | null;
+  max_redemptions: number | null;
+  redeemed_count: number;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -279,4 +322,7 @@ export interface DatabaseSchema {
   "inventory.stock_movements": StockMovementTable;
   "inventory.reservations": InventoryReservationTable;
   "inventory.reservation_items": InventoryReservationItemTable;
+  "commerce.carts": CartTable;
+  "commerce.cart_items": CartItemTable;
+  "commerce.promotions": PromotionTable;
 }

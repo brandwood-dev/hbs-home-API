@@ -102,7 +102,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.json()).toEqual({
       service: "hbs-home-api",
       apiVersion: "v1",
-      contractVersion: "1.2.0",
+      contractVersion: "1.3.0",
       releaseVersion: "0.2.0-test",
       gitSha: "test-sha",
       builtAt: "2026-08-18T00:00:00.000Z",
@@ -131,7 +131,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       openapi: "3.1.0",
-      info: { title: "HBS HOME API", version: "1.2.0" },
+      info: { title: "HBS HOME API", version: "1.3.0" },
     });
   });
 
