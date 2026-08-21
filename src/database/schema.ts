@@ -229,6 +229,7 @@ export interface StockMovementTable {
   reason: string;
   note: string | null;
   operation_key: string;
+  request_fingerprint: string | null;
   order_id: string | null;
   actor_user_id: string | null;
   created_at: Generated<Date>;

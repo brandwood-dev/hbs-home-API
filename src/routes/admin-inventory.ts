@@ -7,7 +7,7 @@ import {
   type AdminPrincipal,
 } from "../auth/admin-guard.js";
 import { type InventoryRepository } from "../inventory/inventory-repository.js";
-import { ProblemDetailSchema } from "../http/problem.js";
+import { AppError, ProblemDetailSchema } from "../http/problem.js";
 
 const VariantParams = Type.Object(
   { variantId: Type.String({ minLength: 1, maxLength: 160 }) },
@@ -228,8 +228,18 @@ export function registerAdminInventoryRoutes(
     },
     async (request) => {
       const actor = principal(request);
-      const operationKey =
-        headerValue(request.headers["idempotency-key"]) ?? request.id;
+      const suppliedOperationKey = headerValue(
+        request.headers["idempotency-key"],
+      );
+      if (suppliedOperationKey && suppliedOperationKey.length > 160) {
+        throw new AppError({
+          statusCode: 400,
+          code: "INVALID_IDEMPOTENCY_KEY",
+          title: "Invalid idempotency key",
+          detail: "The Idempotency-Key header must be at most 160 characters.",
+        });
+      }
+      const operationKey = suppliedOperationKey ?? request.id;
       const item = await dependencies.inventoryRepository.adjust({
         ...request.body,
         operationKey,

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import type { Kysely, Transaction } from "kysely";
+import { createHash, randomUUID } from "node:crypto";
+import { sql, type Kysely, type Transaction } from "kysely";
 import type {
   DatabaseSchema,
   InventoryAvailability,
@@ -170,6 +170,23 @@ function movementMode(type: StockMovementType): StockAdjustmentMode {
   return "set";
 }
 
+function adjustmentFingerprint(input: StockAdjustmentInput): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        productId: input.productId,
+        variantId: input.variantId,
+        type: input.type,
+        quantity: input.quantity,
+        reason: input.reason,
+        note: input.note ?? null,
+        lowStockThreshold: input.lowStockThreshold ?? null,
+        availability: input.availability ?? null,
+      }),
+    )
+    .digest("hex");
+}
+
 function mapVariant(row: InventoryJoinedRow): InventoryVariant {
   const options = object(row.options);
   const payload = object(row.payload);
@@ -257,9 +274,15 @@ export class PostgresInventoryRepository implements InventoryRepository {
 
   async adjust(input: StockAdjustmentInput): Promise<InventoryRow> {
     return this.database.transaction().execute(async (trx) => {
+      const fingerprint = adjustmentFingerprint(input);
+      // Serialize requests sharing an idempotency key, even when they target
+      // different variants. This avoids a unique-index race becoming a 500.
+      await sql`select pg_advisory_xact_lock(hashtextextended(${input.operationKey}, 0))`.execute(
+        trx,
+      );
       const existing = await trx
         .selectFrom("inventory.stock_movements")
-        .select(["variant_id"])
+        .select(["variant_id", "request_fingerprint", "movement_type"])
         .where("operation_key", "=", input.operationKey)
         .executeTakeFirst();
       if (existing && existing.variant_id !== input.variantId) {
@@ -268,6 +291,18 @@ export class PostgresInventoryRepository implements InventoryRepository {
           "IDEMPOTENCY_KEY_CONFLICT",
           "Idempotency key conflict",
           "This idempotency key was already used for another variant.",
+        );
+      }
+      if (
+        existing &&
+        (existing.request_fingerprint === null ||
+          existing.request_fingerprint !== fingerprint)
+      ) {
+        fail(
+          409,
+          "IDEMPOTENCY_KEY_CONFLICT",
+          "Idempotency key conflict",
+          "This idempotency key was already used for a different adjustment.",
         );
       }
 
@@ -368,6 +403,7 @@ export class PostgresInventoryRepository implements InventoryRepository {
             reason: input.reason,
             note: input.note ?? null,
             operation_key: input.operationKey,
+            request_fingerprint: fingerprint,
             order_id: null,
             actor_user_id: input.actorUserId,
           })

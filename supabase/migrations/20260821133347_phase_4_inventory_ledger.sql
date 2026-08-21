@@ -44,6 +44,7 @@ create table inventory.stock_movements (
   reason text not null,
   note text,
   operation_key text not null,
+  request_fingerprint text,
   order_id text,
   actor_user_id uuid,
   created_at timestamptz not null default now(),
@@ -113,7 +114,14 @@ language plpgsql
 set search_path = ''
 as $$
 declare
-  initial_stock integer := greatest(0, coalesce((new.payload ->> 'stock')::integer, 0));
+  initial_stock integer := greatest(
+    0,
+    coalesce(
+      nullif(new.payload ->> 'stock', '')::integer,
+      nullif(new.payload ->> 'availableQuantity', '')::integer,
+      0
+    )
+  );
   threshold integer := greatest(0, coalesce((new.payload ->> 'lowStockThreshold')::integer, 3));
   tracking boolean := coalesce((new.payload ->> 'trackInventory')::boolean, true);
   initial_availability text := coalesce(new.payload ->> 'availability', '');
@@ -153,6 +161,19 @@ create trigger product_variants_ensure_stock_balance
 after insert on catalog.product_variants
 for each row execute function inventory.ensure_stock_balance();
 
+with legacy_source as (
+  select
+    variant.*,
+    greatest(
+      0,
+      coalesce(
+        nullif(variant.payload ->> 'stock', '')::integer,
+        nullif(variant.payload ->> 'availableQuantity', '')::integer,
+        0
+      )
+    ) as initial_stock
+  from catalog.product_variants variant
+)
 insert into inventory.stock_balances (
   variant_id, product_id, on_hand, reserved, low_stock_threshold,
   track_inventory, availability
@@ -160,17 +181,17 @@ insert into inventory.stock_balances (
 select
   variant.id,
   variant.product_id,
-  greatest(0, coalesce((variant.payload ->> 'stock')::integer, 0)),
+  variant.initial_stock,
   0,
-  greatest(0, coalesce((variant.payload ->> 'lowStockThreshold')::integer, 3)),
+  greatest(0, coalesce(nullif((variant.payload ->> 'lowStockThreshold'), '')::integer, 3)),
   coalesce((variant.payload ->> 'trackInventory')::boolean, true),
   case
     when variant.payload ->> 'availability' = 'made_to_order' then 'made_to_order'
-    when greatest(0, coalesce((variant.payload ->> 'stock')::integer, 0)) = 0 then 'out_of_stock'
-    when greatest(0, coalesce((variant.payload ->> 'stock')::integer, 0)) <= greatest(0, coalesce((variant.payload ->> 'lowStockThreshold')::integer, 3)) then 'low_stock'
+    when variant.initial_stock = 0 then 'out_of_stock'
+    when variant.initial_stock <= greatest(0, coalesce(nullif(variant.payload ->> 'lowStockThreshold', '')::integer, 3)) then 'low_stock'
     else 'in_stock'
   end
-from catalog.product_variants variant
+from legacy_source variant
 on conflict (variant_id) do nothing;
 
 insert into inventory.stock_movements (

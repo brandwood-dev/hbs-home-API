@@ -181,4 +181,25 @@ describe("Admin inventory API", () => {
       }),
     );
   });
+
+  it("rejects an oversized idempotency key before touching the repository", async () => {
+    authorize("aal2");
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/inventory/adjustments",
+      headers: {
+        authorization: "Bearer valid-token",
+        "idempotency-key": "x".repeat(161),
+      },
+      payload: {
+        productId,
+        variantId,
+        type: "increase",
+        quantity: 1,
+        reason: "purchase",
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(inventoryRepository.adjustments).toHaveLength(0);
+  });
 });
