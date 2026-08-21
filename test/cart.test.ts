@@ -169,4 +169,27 @@ describe("Cart line media", () => {
       alt: "Rideau en lin naturel",
     });
   });
+
+  it("keeps a usable variant URL ahead of the product-wide fallback", () => {
+    const product = {
+      imageAlt: "Rideau en lin naturel HBS HOME",
+      images: [
+        {
+          id: "front-image",
+          url: "https://cdn.example.test/rideau-lin.jpg",
+          alt: "Rideau en lin naturel",
+          type: "front",
+        },
+      ],
+    } as unknown as Product;
+    const variant = {
+      imageIds: [],
+      imageUrl: "https://cdn.example.test/rideau-lin-naturel.jpg",
+    } as unknown as Product["variants"][number];
+
+    expect(resolveLineImage(product, variant)).toEqual({
+      url: "https://cdn.example.test/rideau-lin-naturel.jpg",
+      alt: "Rideau en lin naturel HBS HOME",
+    });
+  });
 });

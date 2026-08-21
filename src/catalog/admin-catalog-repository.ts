@@ -1338,6 +1338,9 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     }));
     const normalizedVariants = variants.map((variant) => {
       const balance = balanceByVariant.get(variant.id);
+      const imageIds = media
+        .filter((item) => item.variant_id === variant.id)
+        .map((item) => item.id);
       const legacy = asObject(variant.payload);
       const stock = balance?.on_hand ?? numberValue(legacy.stock, 0);
       const reserved = balance?.reserved ?? 0;
@@ -1370,7 +1373,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         availability,
         availableQuantity,
         ...(balance ? { reservedQuantity: reserved } : {}),
-        imageIds: [],
+        imageIds,
       };
     });
     const payload = {

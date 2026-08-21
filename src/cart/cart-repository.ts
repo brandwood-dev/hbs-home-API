@@ -146,11 +146,22 @@ export function resolveLineImage(
   const selected = variant.imageIds
     .map((id) => byId.get(id))
     .find((image) => image != null);
+  const variantUrl = variant.imageUrl.trim();
+  const hasUsableVariantUrl =
+    /^https?:\/\//i.test(variantUrl) && !variantUrl.includes("/catalog/");
   const fallback =
     product.images.find((image) => image.type === "front") ?? product.images[0];
   return {
-    url: selected?.url ?? fallback?.url ?? variant.imageUrl,
-    alt: selected?.alt ?? fallback?.alt ?? product.imageAlt,
+    url:
+      selected?.url ??
+      (hasUsableVariantUrl ? variantUrl : undefined) ??
+      fallback?.url ??
+      variant.imageUrl,
+    alt:
+      selected?.alt ??
+      (hasUsableVariantUrl ? product.imageAlt : undefined) ??
+      fallback?.alt ??
+      product.imageAlt,
   };
 }
 
