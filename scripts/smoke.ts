@@ -3,6 +3,8 @@ if (!configuredBaseUrl) throw new Error("SMOKE_BASE_URL is required.");
 const baseUrl = configuredBaseUrl.replace(/\/$/, "");
 
 const expectedGitSha = process.env.EXPECTED_GIT_SHA;
+const expectedContractVersion =
+  process.env.EXPECTED_CONTRACT_VERSION?.trim() ?? "1.3.0";
 const requestId = `smoke-${crypto.randomUUID()}`;
 
 async function getJson(path: string): Promise<unknown> {
@@ -56,7 +58,10 @@ const version = (await getJson("/api/v1/version")) as {
   contractVersion?: unknown;
   gitSha?: unknown;
 };
-if (version.apiVersion !== "v1" || version.contractVersion !== "1.1.0") {
+if (
+  version.apiVersion !== "v1" ||
+  version.contractVersion !== expectedContractVersion
+) {
   throw new Error("The deployed API contract version is unexpected.");
 }
 if (expectedGitSha && version.gitSha !== expectedGitSha) {
