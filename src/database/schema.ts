@@ -284,6 +284,14 @@ export interface CartItemTable {
   updated_at: Generated<Date>;
 }
 
+export interface FavoriteItemTable {
+  token_hash: string;
+  product_id: string;
+  added_at: Generated<Date>;
+  expires_at: Date;
+  last_accessed_at: Generated<Date>;
+}
+
 export type PromotionDiscountType = "percentage" | "fixed_amount";
 
 export interface PromotionTable {
@@ -444,6 +452,7 @@ export interface DatabaseSchema {
   "inventory.reservation_items": InventoryReservationItemTable;
   "commerce.carts": CartTable;
   "commerce.cart_items": CartItemTable;
+  "commerce.favorite_items": FavoriteItemTable;
   "commerce.promotions": PromotionTable;
   "commerce.customers": CustomerTable;
   "commerce.orders": OrderTable;

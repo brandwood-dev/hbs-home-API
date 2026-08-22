@@ -84,7 +84,7 @@ const ColorSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const ProductSchema = Type.Object(
+export const ProductSchema = Type.Object(
   {
     id: Type.String(),
     slug: Type.String(),
@@ -130,7 +130,7 @@ const ProductSchema = Type.Object(
     recommendationScore: Type.Number(),
     isDemo: Type.Boolean(),
   },
-  { additionalProperties: false },
+  { $id: "Product", additionalProperties: false },
 );
 
 const ProductListResponseSchema = Type.Object(
@@ -361,6 +361,7 @@ export function registerCatalogRoutes(
   app: FastifyInstance,
   dependencies: CatalogRouteDependencies,
 ): void {
+  app.addSchema(ProductSchema);
   const productRepository = new PostgresProductRepository(
     dependencies.database.client,
   );

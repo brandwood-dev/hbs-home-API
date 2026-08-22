@@ -49,6 +49,11 @@ export async function registerOpenApi(
           description:
             "Opaque-token guest cart, authoritative prices and single-code promotions.",
         },
+        {
+          name: "favorites",
+          description:
+            "Opaque-token guest favorites resolved against the published catalog.",
+        },
       ],
       components: {
         securitySchemes: {
