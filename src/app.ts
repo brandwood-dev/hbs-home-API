@@ -46,6 +46,10 @@ import {
   type CartRepository,
 } from "./cart/cart-repository.js";
 import {
+  PostgresFavoritesRepository,
+  type FavoritesRepository,
+} from "./favorites/favorites-repository.js";
+import {
   PostgresAdminPromotionRepository,
   type AdminPromotionRepository,
 } from "./promotions/admin-promotion-repository.js";
@@ -60,6 +64,7 @@ import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
 import { registerAdminInventoryReservationRoutes } from "./routes/admin-inventory-reservations.js";
 import { registerCartRoutes } from "./routes/cart.js";
+import { registerFavoritesRoutes } from "./routes/favorites.js";
 import { registerOrderRoutes } from "./routes/orders.js";
 import { registerAdminOrderRoutes } from "./routes/admin-orders.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
@@ -77,6 +82,7 @@ export interface BuildAppOptions {
   inventoryRepository?: InventoryRepository;
   reservationRepository?: ReservationRepository;
   cartRepository?: CartRepository;
+  favoritesRepository?: FavoritesRepository;
   orderRepository?: OrderRepository;
   adminOrderRepository?: PostgresAdminOrderRepository;
 }
@@ -113,6 +119,9 @@ export async function buildApp(
     new PostgresReservationRepository(database.client);
   const cartRepository =
     options.cartRepository ?? new PostgresCartRepository(database.client);
+  const favoritesRepository =
+    options.favoritesRepository ??
+    new PostgresFavoritesRepository(database.client);
   const orderRepository =
     options.orderRepository ?? new PostgresOrderRepository(database.client);
   const adminOrderRepository =
@@ -202,6 +211,7 @@ export async function buildApp(
     adminOrderRepository,
   });
   registerCartRoutes(app, { cartRepository });
+  registerFavoritesRoutes(app, { favoritesRepository });
   registerOrderRoutes(app, { orderRepository });
 
   await app.ready();

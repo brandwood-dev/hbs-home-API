@@ -275,6 +275,434 @@
           }
         }
       },
+      "Product": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "reference",
+          "category",
+          "material",
+          "sellingMode",
+          "isLargeWidth",
+          "shortDescription",
+          "longDescription",
+          "imageAlt",
+          "images",
+          "variants",
+          "colors",
+          "details",
+          "seo",
+          "isThermal",
+          "isNew",
+          "isBestSeller",
+          "isFeatured",
+          "createdAt",
+          "recommendationScore",
+          "isDemo"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "material": {
+            "type": "string"
+          },
+          "opacityLevel": {
+            "type": "string"
+          },
+          "sellingMode": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "blindType": {
+            "type": "string"
+          },
+          "isLargeWidth": {
+            "type": "boolean"
+          },
+          "cushionShape": {
+            "type": "string"
+          },
+          "removableCover": {
+            "type": "boolean"
+          },
+          "machineWashable": {
+            "type": "boolean"
+          },
+          "chairPadShape": {
+            "type": "string"
+          },
+          "accessoryType": {
+            "type": "string"
+          },
+          "accessoryMaterial": {
+            "type": "string"
+          },
+          "accessoryCompatibilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "furnitureType": {
+            "type": "string"
+          },
+          "furnitureRooms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "furnitureStyle": {
+            "type": "string"
+          },
+          "furnitureAssembly": {
+            "type": "string"
+          },
+          "plantNature": {
+            "type": "string"
+          },
+          "plantType": {
+            "type": "string"
+          },
+          "plantLightNeed": {
+            "type": "string"
+          },
+          "plantCareLevel": {
+            "type": "string"
+          },
+          "petFriendly": {
+            "type": "boolean"
+          },
+          "potIncluded": {
+            "type": "boolean"
+          },
+          "shortDescription": {
+            "type": "string"
+          },
+          "longDescription": {
+            "type": "string"
+          },
+          "imageAlt": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "url",
+                "alt",
+                "type"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "front"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "lifestyle"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "fabric_detail"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "header_detail"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "mechanism_detail"
+                      ]
+                    }
+                  ]
+                },
+                "colorId": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "sku",
+                "colorId",
+                "widthCm",
+                "heightCm",
+                "price",
+                "availability",
+                "availableQuantity",
+                "imageUrl",
+                "imageIds"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "colorId": {
+                  "type": "string"
+                },
+                "widthCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "heightCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "curtainHeader": {
+                  "type": "string"
+                },
+                "eyeletColor": {
+                  "type": "string"
+                },
+                "lining": {
+                  "type": "string"
+                },
+                "blindMountingType": {
+                  "type": "string"
+                },
+                "blindControlSide": {
+                  "type": "string"
+                },
+                "blindMechanismColor": {
+                  "type": "string"
+                },
+                "sizeLabel": {
+                  "type": "string"
+                },
+                "cushionContent": {
+                  "type": "string"
+                },
+                "cushionClosure": {
+                  "type": "string"
+                },
+                "chairPadFastening": {
+                  "type": "string"
+                },
+                "accessoryFinish": {
+                  "type": "string"
+                },
+                "accessoryMountingType": {
+                  "type": "string"
+                },
+                "minLengthCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxLengthCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "diameterMm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "depthCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "seatCount": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "plantHeightCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "potDiameterCm": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "plantSize": {
+                  "type": "string"
+                },
+                "packQuantity": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "price": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "amountMinor",
+                    "currency"
+                  ],
+                  "properties": {
+                    "amountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "TND"
+                      ]
+                    }
+                  }
+                },
+                "compareAtPrice": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "amountMinor",
+                    "currency"
+                  ],
+                  "properties": {
+                    "amountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "TND"
+                      ]
+                    }
+                  }
+                },
+                "availability": {
+                  "type": "string"
+                },
+                "availableQuantity": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "imageUrl": {
+                  "type": "string"
+                },
+                "secondaryImageUrl": {
+                  "type": "string"
+                },
+                "imageIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "colors": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "family",
+                "hex"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "family": {
+                  "type": "string"
+                },
+                "hex": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "seo": {
+            "type": "object",
+            "required": [
+              "title",
+              "description"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "isThermal": {
+            "type": "boolean"
+          },
+          "isNew": {
+            "type": "boolean"
+          },
+          "isBestSeller": {
+            "type": "boolean"
+          },
+          "isFeatured": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "recommendationScore": {
+            "type": "number"
+          },
+          "isDemo": {
+            "type": "boolean"
+          }
+        }
+      },
       "AdminSession": {
         "additionalProperties": false,
         "type": "object",
@@ -5066,6 +5494,55 @@
           },
           "hasPriceChanges": {
             "type": "boolean"
+          }
+        }
+      },
+      "Favorites": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "removedProductIds",
+          "count"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "productId",
+                "addedAt",
+                "product",
+                "isAvailable"
+              ],
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "addedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "product": {
+                  "$ref": "#/components/schemas/Product"
+                },
+                "isAvailable": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "removedProductIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "minimum": 0,
+            "type": "integer"
           }
         }
       },
@@ -38573,6 +39050,645 @@
         }
       }
     },
+    "/api/v1/favorites": {
+      "get": {
+        "operationId": "getFavorites",
+        "summary": "Read the current opaque-token guest favorites",
+        "tags": [
+          "favorites"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "removedProductIds",
+                    "count"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "addedAt",
+                          "product",
+                          "isAvailable"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "addedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "product": {
+                            "$ref": "#/components/schemas/Product"
+                          },
+                          "isAvailable": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "removedProductIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clearFavorites",
+        "summary": "Clear all guest favorites",
+        "tags": [
+          "favorites"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "removedProductIds",
+                    "count"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "addedAt",
+                          "product",
+                          "isAvailable"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "addedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "product": {
+                            "$ref": "#/components/schemas/Product"
+                          },
+                          "isAvailable": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "removedProductIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites/items": {
+      "post": {
+        "operationId": "addFavorite",
+        "summary": "Add a published product to guest favorites",
+        "tags": [
+          "favorites"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "productId"
+                ],
+                "properties": {
+                  "productId": {
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "removedProductIds",
+                    "count"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "addedAt",
+                          "product",
+                          "isAvailable"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "addedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "product": {
+                            "$ref": "#/components/schemas/Product"
+                          },
+                          "isAvailable": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "removedProductIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites/items/{productId}": {
+      "delete": {
+        "operationId": "removeFavorite",
+        "summary": "Remove a product from guest favorites",
+        "tags": [
+          "favorites"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "minLength": 1,
+              "maxLength": 160,
+              "type": "string"
+            },
+            "in": "path",
+            "name": "productId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "removedProductIds",
+                    "count"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "addedAt",
+                          "product",
+                          "isAvailable"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "addedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "product": {
+                            "$ref": "#/components/schemas/Product"
+                          },
+                          "isAvailable": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "removedProductIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "count": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders": {
       "post": {
         "operationId": "createGuestOrder",
@@ -39660,6 +40776,10 @@
     {
       "name": "cart",
       "description": "Opaque-token guest cart, authoritative prices and single-code promotions."
+    },
+    {
+      "name": "favorites",
+      "description": "Opaque-token guest favorites resolved against the published catalog."
     }
   ],
   "externalDocs": {
