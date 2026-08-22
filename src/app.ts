@@ -58,6 +58,7 @@ import {
   type OrderRepository,
 } from "./orders/order-repository.js";
 import { PostgresAdminOrderRepository } from "./orders/admin-order-repository.js";
+import { PostgresAdminCustomerRepository } from "./customers/admin-customer-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
@@ -67,6 +68,7 @@ import { registerCartRoutes } from "./routes/cart.js";
 import { registerFavoritesRoutes } from "./routes/favorites.js";
 import { registerOrderRoutes } from "./routes/orders.js";
 import { registerAdminOrderRoutes } from "./routes/admin-orders.js";
+import { registerAdminCustomerRoutes } from "./routes/admin-customers.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -85,6 +87,7 @@ export interface BuildAppOptions {
   favoritesRepository?: FavoritesRepository;
   orderRepository?: OrderRepository;
   adminOrderRepository?: PostgresAdminOrderRepository;
+  adminCustomerRepository?: PostgresAdminCustomerRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -127,6 +130,9 @@ export async function buildApp(
   const adminOrderRepository =
     options.adminOrderRepository ??
     new PostgresAdminOrderRepository(database.client);
+  const adminCustomerRepository =
+    options.adminCustomerRepository ??
+    new PostgresAdminCustomerRepository(database.client, adminOrderRepository);
   const app = Fastify({
     logger:
       options.logger ??
@@ -209,6 +215,12 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminOrderRepository,
+  });
+  registerAdminCustomerRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminCustomerRepository,
   });
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });
