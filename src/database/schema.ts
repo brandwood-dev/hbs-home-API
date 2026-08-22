@@ -103,6 +103,10 @@ export interface CatalogCategoryTable {
   parent_id: string | null;
   status: "draft" | "active" | "archived";
   sort_order: number;
+  image_url: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  show_in_navigation: boolean;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -115,6 +119,9 @@ export interface CatalogAttributeTable {
   is_filterable: boolean;
   is_required: boolean;
   status: "draft" | "active" | "archived";
+  is_variant_axis: boolean;
+  sort_order: number;
+  is_system: boolean;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }
@@ -125,6 +132,9 @@ export interface CatalogAttributeOptionTable {
   value: string;
   label: string;
   sort_order: number;
+  hex: string | null;
+  family: string | null;
+  is_active: boolean;
   created_at: Generated<Date>;
 }
 

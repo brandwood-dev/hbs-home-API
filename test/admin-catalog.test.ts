@@ -111,6 +111,71 @@ describe("Admin catalogue API", () => {
     );
   });
 
+  it("accepts and returns the complete Phase 9A category and attribute contract", async () => {
+    authorize("aal2", ["categories.write"]);
+    const category = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        slug: "stores",
+        name: "Stores",
+        description: "Stores HBS HOME",
+        imageUrl: "https://cdn.example.test/stores.jpg",
+        seoTitle: "Stores HBS HOME",
+        seoDescription: "Découvrez nos stores.",
+        showInNavigation: false,
+        sortOrder: 3,
+      },
+    });
+    expect(category.statusCode).toBe(201);
+    expect(category.json()).toMatchObject({
+      imageUrl: "https://cdn.example.test/stores.jpg",
+      seoTitle: "Stores HBS HOME",
+      seoDescription: "Découvrez nos stores.",
+      showInNavigation: false,
+    });
+
+    const attribute = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/attributes",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        key: "color",
+        name: "Couleur",
+        valueType: "color",
+        isFilterable: true,
+        isVariantAxis: true,
+        sortOrder: 4,
+        isSystem: false,
+        categorySlugs: ["stores"],
+        options: [
+          {
+            value: "beige",
+            label: "Beige",
+            sortOrder: 1,
+            hex: "#d8c4a8",
+            family: "neutres",
+            isActive: true,
+          },
+        ],
+      },
+    });
+    expect(attribute.statusCode).toBe(201);
+    expect(attribute.json()).toMatchObject({
+      isVariantAxis: true,
+      sortOrder: 4,
+      categorySlugs: ["stores"],
+      options: [
+        expect.objectContaining({
+          hex: "#d8c4a8",
+          family: "neutres",
+          isActive: true,
+        }),
+      ],
+    });
+  });
+
   it("enforces products.publish separately from products.write", async () => {
     authorize("aal2", ["products.write"]);
     const create = await app.inject({

@@ -23,6 +23,10 @@ export interface AdminCategory {
   parentId: string | null;
   status: CategoryStatus;
   sortOrder: number;
+  imageUrl: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  showInNavigation: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +36,9 @@ export interface AdminAttributeOption {
   value: string;
   label: string;
   sortOrder: number;
+  hex: string | null;
+  family: string | null;
+  isActive: boolean;
 }
 
 export interface AdminAttribute {
@@ -42,6 +49,10 @@ export interface AdminAttribute {
   isFilterable: boolean;
   isRequired: boolean;
   status: AttributeStatus;
+  isVariantAxis: boolean;
+  sortOrder: number;
+  isSystem: boolean;
+  categorySlugs: readonly string[];
   options: readonly AdminAttributeOption[];
   createdAt: string;
   updatedAt: string;
@@ -117,6 +128,10 @@ export interface CategoryInput {
   parentId?: string | null;
   status?: CategoryStatus;
   sortOrder?: number;
+  imageUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  showInNavigation?: boolean;
 }
 
 export interface CategoryPatch {
@@ -126,12 +141,19 @@ export interface CategoryPatch {
   parentId?: string | null;
   status?: CategoryStatus;
   sortOrder?: number;
+  imageUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  showInNavigation?: boolean;
 }
 
 export interface AttributeOptionInput {
   value: string;
   label: string;
   sortOrder?: number;
+  hex?: string | null;
+  family?: string | null;
+  isActive?: boolean;
 }
 
 export interface AttributeInput {
@@ -141,6 +163,10 @@ export interface AttributeInput {
   isFilterable?: boolean;
   isRequired?: boolean;
   status?: AttributeStatus;
+  isVariantAxis?: boolean;
+  sortOrder?: number;
+  isSystem?: boolean;
+  categorySlugs?: readonly string[];
   options?: readonly AttributeOptionInput[];
 }
 
@@ -151,6 +177,10 @@ export interface AttributePatch {
   isFilterable?: boolean;
   isRequired?: boolean;
   status?: AttributeStatus;
+  isVariantAxis?: boolean;
+  sortOrder?: number;
+  isSystem?: boolean;
+  categorySlugs?: readonly string[];
   options?: readonly AttributeOptionInput[];
 }
 
@@ -414,6 +444,10 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           parent_id: input.parentId ?? null,
           status: input.status ?? "draft",
           sort_order: input.sortOrder ?? 0,
+          image_url: input.imageUrl ?? null,
+          seo_title: input.seoTitle ?? null,
+          seo_description: input.seoDescription ?? null,
+          show_in_navigation: input.showInNavigation ?? true,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -441,6 +475,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       const parentId =
         patch.parentId === undefined ? current.parent_id : patch.parentId;
       await this.assertCategoryParent(trx, parentId, id);
+      if (patch.status === "archived" && current.status !== "archived")
+        await this.assertCategoryArchivable(trx, id);
       if (patch.slug && patch.slug !== current.slug) {
         const duplicate = await trx
           .selectFrom("catalog.categories")
@@ -471,6 +507,18 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           ...(patch.sortOrder === undefined
             ? {}
             : { sort_order: patch.sortOrder }),
+          ...(patch.imageUrl === undefined
+            ? {}
+            : { image_url: patch.imageUrl }),
+          ...(patch.seoTitle === undefined
+            ? {}
+            : { seo_title: patch.seoTitle }),
+          ...(patch.seoDescription === undefined
+            ? {}
+            : { seo_description: patch.seoDescription }),
+          ...(patch.showInNavigation === undefined
+            ? {}
+            : { show_in_navigation: patch.showInNavigation }),
         })
         .where("id", "=", id)
         .returningAll()
@@ -514,10 +562,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           is_filterable: input.isFilterable ?? false,
           is_required: input.isRequired ?? false,
           status: input.status ?? "draft",
+          is_variant_axis: input.isVariantAxis ?? false,
+          sort_order: input.sortOrder ?? 0,
+          is_system: input.isSystem ?? false,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
       await replaceAttributeOptions(trx, row.id, input.options ?? []);
+      await replaceAttributeCategories(trx, row.id, input.categorySlugs ?? []);
       return this.attributeRecord(trx, row);
     });
   }
@@ -554,6 +606,23 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             "An attribute with this key already exists.",
           );
       }
+      if (current.is_system && patch.isSystem === false)
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          "A system attribute cannot be converted into a regular attribute.",
+        );
+      if (patch.status === "archived" && current.status !== "archived") {
+        if (current.is_system)
+          fail(
+            409,
+            "ATTRIBUTE_SYSTEM_IN_USE",
+            "System attribute",
+            "A system attribute cannot be archived.",
+          );
+        await this.assertAttributeArchivable(trx, id);
+      }
       const row = await trx
         .updateTable("catalog.attributes")
         .set({
@@ -569,12 +638,23 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             ? {}
             : { is_required: patch.isRequired }),
           ...(patch.status === undefined ? {} : { status: patch.status }),
+          ...(patch.isVariantAxis === undefined
+            ? {}
+            : { is_variant_axis: patch.isVariantAxis }),
+          ...(patch.sortOrder === undefined
+            ? {}
+            : { sort_order: patch.sortOrder }),
+          ...(patch.isSystem === undefined
+            ? {}
+            : { is_system: patch.isSystem }),
         })
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirstOrThrow();
       if (patch.options !== undefined)
         await replaceAttributeOptions(trx, id, patch.options);
+      if (patch.categorySlugs !== undefined)
+        await replaceAttributeCategories(trx, id, patch.categorySlugs);
       return this.attributeRecord(trx, row);
     });
   }
@@ -1176,6 +1256,19 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .orderBy("sort_order")
       .orderBy("id")
       .execute();
+    const categoryRows = await executor
+      .selectFrom("catalog.category_attributes as categoryAttribute")
+      .innerJoin(
+        "catalog.categories as category",
+        "category.id",
+        "categoryAttribute.category_id",
+      )
+      .select(["category.slug", "categoryAttribute.sort_order"])
+      .where("categoryAttribute.attribute_id", "=", row.id)
+      .where("category.status", "!=", "archived")
+      .orderBy("categoryAttribute.sort_order")
+      .orderBy("category.slug")
+      .execute();
     return {
       id: row.id,
       key: row.key,
@@ -1184,11 +1277,18 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       isFilterable: row.is_filterable,
       isRequired: row.is_required,
       status: row.status,
+      isVariantAxis: row.is_variant_axis,
+      sortOrder: row.sort_order,
+      isSystem: row.is_system,
+      categorySlugs: categoryRows.map((category) => category.slug),
       options: options.map((option) => ({
         id: option.id,
         value: option.value,
         label: option.label,
         sortOrder: option.sort_order,
+        hex: option.hex,
+        family: option.family,
+        isActive: option.is_active,
       })),
       createdAt: iso(row.created_at) ?? new Date(0).toISOString(),
       updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
@@ -1245,6 +1345,63 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       const parent = await this.assertCategory(executor, cursor);
       cursor = parent.parent_id;
     }
+  }
+
+  private async assertCategoryArchivable(
+    executor: DbExecutor,
+    id: string,
+  ): Promise<void> {
+    const child = await executor
+      .selectFrom("catalog.categories")
+      .select("id")
+      .where("parent_id", "=", id)
+      .where("status", "!=", "archived")
+      .executeTakeFirst();
+    const product = await executor
+      .selectFrom("catalog.product_categories")
+      .select("product_id")
+      .where("category_id", "=", id)
+      .executeTakeFirst();
+    const primaryProduct = await executor
+      .selectFrom("catalog.products")
+      .select("id")
+      .where("category_id", "=", id)
+      .executeTakeFirst();
+    const attribute = await executor
+      .selectFrom("catalog.category_attributes")
+      .select("attribute_id")
+      .where("category_id", "=", id)
+      .executeTakeFirst();
+    if (child || product || primaryProduct || attribute)
+      fail(
+        409,
+        "CATEGORY_IN_USE",
+        "Category in use",
+        "A category with children, products or attributes cannot be archived.",
+      );
+  }
+
+  private async assertAttributeArchivable(
+    executor: DbExecutor,
+    id: string,
+  ): Promise<void> {
+    const product = await executor
+      .selectFrom("catalog.product_attributes")
+      .select("product_id")
+      .where("attribute_id", "=", id)
+      .executeTakeFirst();
+    const category = await executor
+      .selectFrom("catalog.category_attributes")
+      .select("category_id")
+      .where("attribute_id", "=", id)
+      .executeTakeFirst();
+    if (product || category)
+      fail(
+        409,
+        "ATTRIBUTE_IN_USE",
+        "Attribute in use",
+        "An attribute used by products or categories cannot be archived.",
+      );
   }
 
   private async assertProductIdentifier(
@@ -1459,6 +1616,10 @@ function categoryRecord(row: CategoryRow): AdminCategory {
     parentId: row.parent_id,
     status: row.status,
     sortOrder: row.sort_order,
+    imageUrl: row.image_url,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
+    showInNavigation: row.show_in_navigation,
     createdAt: iso(row.created_at) ?? new Date(0).toISOString(),
     updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
   };
@@ -1502,6 +1663,52 @@ async function replaceAttributeOptions(
         value: option.value,
         label: option.label,
         sort_order: option.sortOrder ?? index,
+        hex: option.hex ?? null,
+        family: option.family ?? null,
+        is_active: option.isActive ?? true,
+      })),
+    )
+    .execute();
+}
+
+async function replaceAttributeCategories(
+  executor: DbExecutor,
+  attributeId: string,
+  categorySlugs: readonly string[],
+): Promise<void> {
+  const requested = [
+    ...new Set(categorySlugs.map((slug) => slug.trim()).filter(Boolean)),
+  ];
+  await executor
+    .deleteFrom("catalog.category_attributes")
+    .where("attribute_id", "=", attributeId)
+    .execute();
+  if (requested.length === 0) return;
+
+  const categories = await executor
+    .selectFrom("catalog.categories")
+    .select(["id", "slug"])
+    .where("slug", "in", requested)
+    .where("status", "!=", "archived")
+    .execute();
+  const found = new Set(categories.map((category) => category.slug));
+  const missing = requested.filter((slug) => !found.has(slug));
+  if (missing.length > 0)
+    fail(
+      422,
+      "ATTRIBUTE_CATEGORY_NOT_FOUND",
+      "Invalid attribute categories",
+      `Unknown category slug(s): ${missing.join(", ")}.`,
+    );
+
+  await executor
+    .insertInto("catalog.category_attributes")
+    .values(
+      categories.map((category, index) => ({
+        category_id: category.id,
+        attribute_id: attributeId,
+        is_required: false,
+        sort_order: index,
       })),
     )
     .execute();

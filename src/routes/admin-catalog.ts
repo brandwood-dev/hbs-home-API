@@ -34,6 +34,22 @@ const Status = Type.Union([
   Type.Literal("archived"),
 ]);
 const NullableString = Type.Union([Type.String(), Type.Null()]);
+const CategoryImageUrl = Type.Union([
+  Type.String({ minLength: 1, maxLength: 2048 }),
+  Type.Null(),
+]);
+const CategorySeoTitle = Type.Union([
+  Type.String({ minLength: 1, maxLength: 160 }),
+  Type.Null(),
+]);
+const CategorySeoDescription = Type.Union([
+  Type.String({ minLength: 1, maxLength: 320 }),
+  Type.Null(),
+]);
+const AttributeFamily = Type.Union([
+  Type.String({ minLength: 1, maxLength: 80 }),
+  Type.Null(),
+]);
 
 const CategorySchema = Type.Object(
   {
@@ -44,6 +60,10 @@ const CategorySchema = Type.Object(
     parentId: NullableString,
     status: Status,
     sortOrder: Type.Integer(),
+    imageUrl: CategoryImageUrl,
+    seoTitle: CategorySeoTitle,
+    seoDescription: CategorySeoDescription,
+    showInNavigation: Type.Boolean(),
     createdAt: Type.String({ format: "date-time" }),
     updatedAt: Type.String({ format: "date-time" }),
   },
@@ -55,6 +75,12 @@ const AttributeOptionSchema = Type.Object(
     value: Type.String(),
     label: Type.String(),
     sortOrder: Type.Integer(),
+    hex: Type.Union([
+      Type.String({ pattern: "^#[0-9A-Fa-f]{6}$" }),
+      Type.Null(),
+    ]),
+    family: AttributeFamily,
+    isActive: Type.Boolean(),
   },
   { $id: "AdminAttributeOption", additionalProperties: false },
 );
@@ -74,6 +100,10 @@ const AttributeSchema = Type.Object(
     isFilterable: Type.Boolean(),
     isRequired: Type.Boolean(),
     status: Status,
+    isVariantAxis: Type.Boolean(),
+    sortOrder: Type.Integer({ minimum: 0 }),
+    isSystem: Type.Boolean(),
+    categorySlugs: Type.Array(Type.String({ minLength: 1, maxLength: 160 })),
     options: Type.Array(AttributeOptionSchema),
     createdAt: Type.String({ format: "date-time" }),
     updatedAt: Type.String({ format: "date-time" }),
@@ -181,6 +211,10 @@ const CategoryBody = Type.Object(
     parentId: Type.Optional(NullableString),
     status: Type.Optional(Status),
     sortOrder: Type.Optional(Type.Integer({ minimum: 0 })),
+    imageUrl: Type.Optional(CategoryImageUrl),
+    seoTitle: Type.Optional(CategorySeoTitle),
+    seoDescription: Type.Optional(CategorySeoDescription),
+    showInNavigation: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -190,6 +224,11 @@ const AttributeOptionBody = Type.Object(
     value: Type.String({ minLength: 1, maxLength: 160 }),
     label: Type.String({ minLength: 1, maxLength: 160 }),
     sortOrder: Type.Optional(Type.Integer({ minimum: 0 })),
+    hex: Type.Optional(
+      Type.Union([Type.String({ pattern: "^#[0-9A-Fa-f]{6}$" }), Type.Null()]),
+    ),
+    family: Type.Optional(AttributeFamily),
+    isActive: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -208,6 +247,12 @@ const AttributeBody = Type.Object(
     isFilterable: Type.Optional(Type.Boolean()),
     isRequired: Type.Optional(Type.Boolean()),
     status: Type.Optional(Status),
+    isVariantAxis: Type.Optional(Type.Boolean()),
+    sortOrder: Type.Optional(Type.Integer({ minimum: 0 })),
+    isSystem: Type.Optional(Type.Boolean()),
+    categorySlugs: Type.Optional(
+      Type.Array(Type.String({ minLength: 1, maxLength: 160 })),
+    ),
     options: Type.Optional(Type.Array(AttributeOptionBody)),
   },
   { additionalProperties: false },
