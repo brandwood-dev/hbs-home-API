@@ -466,6 +466,23 @@ function totals(
   };
 }
 
+function shippingStatus(
+  items: readonly OrderItemSnapshot[],
+  deliveryMethod: OrderDeliveryMethod,
+  shippingMinor: number,
+): "calculated" | "to_confirm" {
+  const quoteRequired = items.some(
+    (item) =>
+      item.shippingProfile === "volumineux" ||
+      item.shippingProfile === "hors_norme",
+  );
+  return deliveryMethod === "home_delivery" &&
+    quoteRequired &&
+    shippingMinor === 0
+    ? "to_confirm"
+    : "calculated";
+}
+
 function mapAddress(
   value: Record<string, unknown> | null,
 ): OrderAddressInput | undefined {
@@ -850,6 +867,12 @@ export class PostgresOrderRepository implements OrderRepository {
           customer_id: customerRow.id,
           cart_id: cart.id,
           status: "pending_confirmation",
+          payment_status: "pending",
+          shipping_status: shippingStatus(
+            snapshots,
+            input.deliveryMethod,
+            orderTotals.shippingMinor,
+          ),
           delivery_method: input.deliveryMethod,
           payment_method: input.paymentMethod,
           shipping_address: input.shippingAddress

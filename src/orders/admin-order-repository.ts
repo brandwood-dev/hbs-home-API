@@ -4,16 +4,19 @@ import type {
   CustomerTable,
   DatabaseSchema,
   OrderItemTable,
+  OrderNoteTable,
   OrderStatus,
   OrderStatusHistoryTable,
   OrderTable,
 } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
+import { PostgresReservationRepository } from "../inventory/reservation-repository.js";
 
 type OrderRow = Selectable<OrderTable>;
 type CustomerRow = Selectable<CustomerTable>;
 type OrderItemRow = Selectable<OrderItemTable>;
 type OrderHistoryRow = Selectable<OrderStatusHistoryTable>;
+type OrderNoteRow = Selectable<OrderNoteTable>;
 
 export type AdminOrderSort =
   "newest" | "oldest" | "total_desc" | "total_asc" | "status";
@@ -54,6 +57,14 @@ export interface AdminOrderEvent {
   reason: string | null;
 }
 
+export interface AdminOrderNote {
+  id: string;
+  at: string;
+  author: string;
+  userId: string;
+  body: string;
+}
+
 export interface AdminOrder {
   id: string;
   orderNumber: string;
@@ -79,7 +90,7 @@ export interface AdminOrder {
   discountMinor: number;
   totalMinor: number;
   timeline: readonly AdminOrderEvent[];
-  notes: readonly never[];
+  notes: readonly AdminOrderNote[];
   shipment: {
     shippingStatus: "calculated" | "to_confirm";
     shippingFeeMinor: number;
@@ -118,6 +129,38 @@ export interface AdminOrderStatusUpdateInput {
   trackingNumber?: string;
   shippedAt?: string;
   deliveredAt?: string;
+}
+
+export interface AdminOrderPaymentUpdateInput {
+  orderId: string;
+  paymentStatus: "pending" | "collected" | "refunded";
+  actorUserId: string;
+  reason?: string;
+  note?: string;
+}
+
+export interface AdminOrderShippingUpdateInput {
+  orderId: string;
+  shippingFeeMinor: number;
+  actorUserId: string;
+  carrierName?: string;
+  note?: string;
+}
+
+export interface AdminOrderNoteInput {
+  orderId: string;
+  actorUserId: string;
+  actorName: string;
+  text: string;
+}
+
+export interface AdminOrderCancellationInput {
+  orderId: string;
+  actorUserId: string;
+  reason: string;
+  note?: string;
+  restoreStock: boolean;
+  refundPayment: boolean;
 }
 
 const STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
@@ -189,11 +232,22 @@ function mapHistory(row: OrderHistoryRow): AdminOrderEvent {
   };
 }
 
+function mapNote(row: OrderNoteRow): AdminOrderNote {
+  return {
+    id: row.id,
+    at: iso(row.created_at),
+    author: row.author_name,
+    userId: row.author_user_id,
+    body: row.body,
+  };
+}
+
 function mapOrder(
   row: OrderRow,
   customer: CustomerRow,
   items: readonly OrderItemRow[],
   history: readonly OrderHistoryRow[],
+  notes: readonly OrderNoteRow[],
 ): AdminOrder {
   const address = row.shipping_address;
   const timeline = history.length
@@ -214,7 +268,7 @@ function mapOrder(
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
     status: row.status,
-    paymentStatus: row.status === "delivered" ? "collected" : "pending",
+    paymentStatus: row.payment_status,
     paymentMethod: row.payment_method,
     customerId: customer.id,
     customerName: `${customer.first_name} ${customer.last_name}`.trim(),
@@ -233,9 +287,9 @@ function mapOrder(
     discountMinor: row.discount_minor,
     totalMinor: row.total_minor,
     timeline,
-    notes: [],
+    notes: notes.map(mapNote),
     shipment: {
-      shippingStatus: "calculated",
+      shippingStatus: row.shipping_status,
       shippingFeeMinor: row.shipping_minor,
     },
   };
@@ -465,6 +519,324 @@ export class PostgresAdminOrderRepository {
     return updated;
   }
 
+  async updatePaymentStatus(
+    input: AdminOrderPaymentUpdateInput,
+  ): Promise<AdminOrder> {
+    const reason = input.reason?.trim() ?? null;
+    const note = input.note?.trim() ?? null;
+    if (reason && reason.length > 500) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_PAYMENT_UPDATE",
+        title: "Invalid payment update",
+        detail: "The payment reason must be at most 500 characters.",
+      });
+    }
+    if (note && note.length > 1_000) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_PAYMENT_UPDATE",
+        title: "Invalid payment update",
+        detail: "The internal note must be at most 1000 characters.",
+      });
+    }
+    if (input.paymentStatus === "refunded" && !reason) {
+      throw new AppError({
+        statusCode: 400,
+        code: "PAYMENT_REASON_REQUIRED",
+        title: "A reason is required",
+        detail: "A reason is required when refunding a payment.",
+      });
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      if (current.payment_status === input.paymentStatus) return;
+      const allowed =
+        (current.payment_status === "pending" &&
+          input.paymentStatus === "collected") ||
+        (current.payment_status === "collected" &&
+          input.paymentStatus === "refunded" &&
+          current.status === "cancelled");
+      if (!allowed) {
+        throw new AppError({
+          statusCode: 409,
+          code: "PAYMENT_STATUS_TRANSITION_INVALID",
+          title: "Invalid payment status transition",
+          detail: `The payment cannot move from ${current.payment_status} to ${input.paymentStatus}.`,
+        });
+      }
+      await trx
+        .updateTable("commerce.orders")
+        .set({ payment_status: input.paymentStatus, updated_at: new Date() })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
+  async updateShipping(
+    input: AdminOrderShippingUpdateInput,
+  ): Promise<AdminOrder> {
+    if (
+      !Number.isInteger(input.shippingFeeMinor) ||
+      input.shippingFeeMinor < 0
+    ) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_SHIPPING_FEE",
+        title: "Invalid shipping fee",
+        detail:
+          "The shipping fee must be a non-negative integer in minor units.",
+      });
+    }
+    const note = input.note?.trim() ?? null;
+    if (note && note.length > 1_000) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_SHIPPING_UPDATE",
+        title: "Invalid shipping update",
+        detail: "The internal note must be at most 1000 characters.",
+      });
+    }
+    const carrierName = input.carrierName?.trim() ?? null;
+    if (carrierName && carrierName.length > 160) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_SHIPPING_UPDATE",
+        title: "Invalid shipping update",
+        detail: "The carrier name must be at most 160 characters.",
+      });
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      if (["shipped", "delivered", "cancelled"].includes(current.status)) {
+        throw new AppError({
+          statusCode: 409,
+          code: "SHIPPING_UPDATE_NOT_ALLOWED",
+          title: "Shipping update not allowed",
+          detail:
+            "Shipping fees cannot be changed after shipment or cancellation.",
+        });
+      }
+      const totalMinor =
+        current.subtotal_minor -
+        current.discount_minor +
+        input.shippingFeeMinor;
+      await trx
+        .updateTable("commerce.orders")
+        .set({
+          shipping_minor: input.shippingFeeMinor,
+          shipping_status: "calculated",
+          total_minor: totalMinor,
+          updated_at: new Date(),
+        })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
+  async addNote(input: AdminOrderNoteInput): Promise<AdminOrder> {
+    const body = input.text.trim();
+    const authorName = input.actorName.trim();
+    if (!body || body.length > 2_000) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_ORDER_NOTE",
+        title: "Invalid order note",
+        detail: "The note must contain between one and 2000 characters.",
+      });
+    }
+    if (!authorName || authorName.length > 160) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_ORDER_NOTE",
+        title: "Invalid order note",
+        detail: "The note author is invalid.",
+      });
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const exists = await trx
+        .selectFrom("commerce.orders")
+        .select("id")
+        .where("id", "=", input.orderId)
+        .executeTakeFirst();
+      if (!exists) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      await trx
+        .insertInto("commerce.order_notes")
+        .values({
+          id: randomUUID(),
+          order_id: input.orderId,
+          body,
+          author_user_id: input.actorUserId,
+          author_name: authorName,
+          created_at: new Date(),
+        })
+        .executeTakeFirstOrThrow();
+    });
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
+  async cancelOrder(input: AdminOrderCancellationInput): Promise<AdminOrder> {
+    const reason = input.reason.trim();
+    const note = input.note?.trim() ?? null;
+    if (!reason) {
+      throw new AppError({
+        statusCode: 400,
+        code: "ORDER_STATUS_REASON_REQUIRED",
+        title: "A reason is required",
+        detail: "A reason is required when cancelling an order.",
+      });
+    }
+    if (reason.length > 500 || (note && note.length > 1_000)) {
+      throw new AppError({
+        statusCode: 400,
+        code: "INVALID_ORDER_STATUS_UPDATE",
+        title: "Invalid order cancellation",
+        detail:
+          "The reason must be at most 500 characters and the note at most 1000 characters.",
+      });
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      if (!STATUS_TRANSITIONS[current.status].includes("cancelled")) {
+        throw new AppError({
+          statusCode: 409,
+          code: "ORDER_STATUS_TRANSITION_INVALID",
+          title: "Invalid order status transition",
+          detail: `The order cannot move from ${current.status} to cancelled.`,
+        });
+      }
+      if (input.restoreStock && current.reservation_id) {
+        await new PostgresReservationRepository(trx).releaseWithinTransaction(
+          trx,
+          current.reservation_id,
+          "cancelled",
+        );
+      }
+      const nextPaymentStatus =
+        input.refundPayment && current.payment_status === "collected"
+          ? "refunded"
+          : current.payment_status;
+      await trx
+        .updateTable("commerce.orders")
+        .set({
+          status: "cancelled",
+          payment_status: nextPaymentStatus,
+          updated_at: new Date(),
+        })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+      const metadata: Record<string, unknown> = {
+        restoreStock: input.restoreStock,
+        refundPayment: input.refundPayment,
+      };
+      if (note) metadata.note = note;
+      await trx
+        .insertInto("commerce.order_status_history")
+        .values({
+          id: randomUUID(),
+          order_id: input.orderId,
+          status: "cancelled",
+          reason,
+          actor_user_id: input.actorUserId,
+          metadata,
+          created_at: new Date(),
+        })
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
   private async loadOrders(
     headers: readonly (OrderRow & {
       customer_row_id: string;
@@ -476,7 +848,7 @@ export class PostgresAdminOrderRepository {
   ): Promise<AdminOrder[]> {
     if (headers.length === 0) return [];
     const ids = headers.map((row) => row.id);
-    const [items, history] = await Promise.all([
+    const [items, history, notes] = await Promise.all([
       this.database
         .selectFrom("commerce.order_items")
         .selectAll()
@@ -488,6 +860,13 @@ export class PostgresAdminOrderRepository {
         .selectAll()
         .where("order_id", "in", ids)
         .orderBy("created_at", "asc")
+        .execute(),
+      this.database
+        .selectFrom("commerce.order_notes")
+        .selectAll()
+        .where("order_id", "in", ids)
+        .orderBy("created_at", "desc")
+        .orderBy("id", "desc")
         .execute(),
     ]);
     const itemsByOrder = new Map<string, OrderItemRow[]>();
@@ -501,6 +880,12 @@ export class PostgresAdminOrderRepository {
       const current = historyByOrder.get(event.order_id) ?? [];
       current.push(event);
       historyByOrder.set(event.order_id, current);
+    }
+    const notesByOrder = new Map<string, OrderNoteRow[]>();
+    for (const note of notes) {
+      const current = notesByOrder.get(note.order_id) ?? [];
+      current.push(note);
+      notesByOrder.set(note.order_id, current);
     }
     return headers.map((row) =>
       mapOrder(
@@ -516,6 +901,7 @@ export class PostgresAdminOrderRepository {
         },
         itemsByOrder.get(row.id) ?? [],
         historyByOrder.get(row.id) ?? [],
+        notesByOrder.get(row.id) ?? [],
       ),
     );
   }

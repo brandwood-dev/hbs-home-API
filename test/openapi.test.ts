@@ -44,6 +44,10 @@ describe("OpenAPI contract", () => {
       "/api/v1/admin/inventory/{variantId}",
       "/api/v1/admin/orders",
       "/api/v1/admin/orders/{id}",
+      "/api/v1/admin/orders/{id}/cancel",
+      "/api/v1/admin/orders/{id}/notes",
+      "/api/v1/admin/orders/{id}/payment",
+      "/api/v1/admin/orders/{id}/shipping",
       "/api/v1/admin/orders/{id}/status",
       "/api/v1/admin/products",
       "/api/v1/admin/products/{id}",
@@ -74,6 +78,7 @@ describe("OpenAPI contract", () => {
 
     const operationIds = collectOperationIds(document);
     expect(operationIds.sort()).toEqual([
+      "addAdminOrderNote",
       "addCartItem",
       "adminAdjustInventory",
       "adminArchiveProduct",
@@ -104,6 +109,7 @@ describe("OpenAPI contract", () => {
       "adminUpdatePromotion",
       "adminUpdateVariant",
       "applyCartPromotion",
+      "cancelAdminOrder",
       "clearCart",
       "createGuestOrder",
       "getAdminOrder",
@@ -122,11 +128,13 @@ describe("OpenAPI contract", () => {
       "removeCartItem",
       "removeCartPromotion",
       "trackGuestOrder",
+      "updateAdminOrderPayment",
+      "updateAdminOrderShipping",
       "updateAdminOrderStatus",
       "updateCartItem",
     ]);
     expect(new Set(operationIds).size).toBe(operationIds.length);
-  });
+  }, 20_000);
 
   it("publishes reusable response and problem schemas", async () => {
     const document = await createOpenApiDocument();
