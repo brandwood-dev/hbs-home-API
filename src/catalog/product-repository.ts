@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 
 export type ProductSort =
@@ -13,6 +13,9 @@ export interface ProductListParams {
   page: number;
   pageSize: number;
   sort: ProductSort;
+
+  /** Public catalogue search text. Kept on the product query so filters and pagination stay server-side. */
+  query?: string | undefined;
 
   categories?: readonly string[] | undefined;
   materials?: readonly string[] | undefined;
@@ -76,6 +79,8 @@ export interface PaginatedProducts {
   pageSize: number;
   total: number;
   totalPages: number;
+  /** Counts by category for a search result set. Present when `query` is provided. */
+  categoryCounts?: Record<string, number>;
 }
 
 export interface ProductPrice {
@@ -864,7 +869,16 @@ export class PostgresProductRepository implements ProductRepository {
       .map((row) => parseProduct(row))
       .filter((product): product is Product => product !== null)
       .filter((product) => productMatches(product, params));
-    const sorted = sortProducts(products, params.sort);
+    const categoryCounts = params.query
+      ? products.reduce<Record<string, number>>((counts, product) => {
+          counts[product.category] = (counts[product.category] ?? 0) + 1;
+          return counts;
+        }, {})
+      : undefined;
+    const sorted =
+      params.query && params.sort === "recommended"
+        ? sortSearchProducts(products, params.query)
+        : sortProducts(products, params.sort);
     const result = paginate(sorted, params.page, params.pageSize);
 
     return {
@@ -873,6 +887,7 @@ export class PostgresProductRepository implements ProductRepository {
       pageSize: params.pageSize,
       total: result.total,
       totalPages: result.totalPages,
+      ...(categoryCounts ? { categoryCounts } : {}),
     };
   }
 
@@ -997,6 +1012,40 @@ export class PostgresProductRepository implements ProductRepository {
       .selectAll()
       .where("is_published", "=", true);
 
+    const search = params.query?.trim();
+    if (search) {
+      const contains = `%${search}%`;
+      query = query.where(sql<boolean>`(
+        to_tsvector(
+          'simple'::regconfig,
+          coalesce(name, '') || ' ' ||
+          coalesce(reference, '') || ' ' ||
+          coalesce(slug, '') || ' ' ||
+          coalesce(category, '') || ' ' ||
+          coalesce(material, '') || ' ' ||
+          coalesce(short_description, '') || ' ' ||
+          coalesce(long_description, '') || ' ' ||
+          coalesce(product::text, '')
+        ) @@ websearch_to_tsquery('simple'::regconfig, ${search})
+        or lower(name) like lower(${contains})
+        or lower(reference) like lower(${contains})
+        or lower(slug) like lower(${contains})
+        or exists (
+          select 1
+          from catalog.product_variants variant
+          where variant.product_id = catalog.products.id
+            and variant.status = 'active'
+            and lower(variant.sku) like lower(${contains})
+        )
+        or exists (
+          select 1
+          from catalog.product_attributes attribute
+          where attribute.product_id = catalog.products.id
+            and lower(attribute.value::text) like lower(${contains})
+        )
+      )`);
+    }
+
     if (params.categories?.length) {
       query = query.where("category", "in", [...params.categories]);
     }
@@ -1031,6 +1080,7 @@ function normalizeListParams(input: ProductListParams): ProductListParams {
     page: Math.max(1, Math.trunc(input.page || 1)),
     pageSize: Math.max(1, Math.min(200, Math.trunc(input.pageSize || 12))),
     sort: input.sort,
+    query: normalizeSearchQuery(input.query),
     categories: uniqueList(input.categories),
     materials: uniqueList(input.materials),
     colors: uniqueList(input.colors),
@@ -1066,4 +1116,63 @@ function normalizeListParams(input: ProductListParams): ProductListParams {
     furnitureRooms: uniqueList(input.furnitureRooms),
     furnitureStyles: uniqueList(input.furnitureStyles),
   };
+}
+
+function normalizeSearchQuery(value: string | undefined): string | undefined {
+  const normalized = value?.trim().replace(/\s+/g, " ").slice(0, 120);
+  if (!normalized) return undefined;
+  return normalized;
+}
+
+function searchScore(product: Product, query: string): number {
+  const normalized = query.toLocaleLowerCase("fr");
+  const name = product.name.toLocaleLowerCase("fr");
+  const reference = product.reference.toLocaleLowerCase("fr");
+  const slug = product.slug.toLocaleLowerCase("fr");
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  let score = 0;
+  if (reference.includes(normalized)) score += 140;
+  if (name === normalized) score += 120;
+  else if (name.startsWith(normalized)) score += 100;
+  else if (name.includes(normalized)) score += 80;
+  if (slug.includes(normalized)) score += 70;
+  if (product.category.toLocaleLowerCase("fr").includes(normalized))
+    score += 60;
+  if (product.material.toLocaleLowerCase("fr").includes(normalized))
+    score += 50;
+  if (product.shortDescription.toLocaleLowerCase("fr").includes(normalized))
+    score += 15;
+  if (product.longDescription.toLocaleLowerCase("fr").includes(normalized))
+    score += 10;
+  if (
+    product.variants.some((variant) =>
+      variant.sku.toLocaleLowerCase("fr").includes(normalized),
+    )
+  )
+    score += 135;
+  if (
+    tokens.length > 1 &&
+    tokens.every((token) =>
+      `${name} ${reference} ${slug} ${product.shortDescription}`.includes(
+        token,
+      ),
+    )
+  )
+    score += 25;
+  return score;
+}
+
+function sortSearchProducts(
+  products: readonly Product[],
+  query: string,
+): Product[] {
+  return [...products].sort((left, right) => {
+    const scoreDifference =
+      searchScore(right, query) - searchScore(left, query);
+    if (scoreDifference !== 0) return scoreDifference;
+    const recommendationDifference =
+      right.recommendationScore - left.recommendationScore;
+    if (recommendationDifference !== 0) return recommendationDifference;
+    return right.createdAt.localeCompare(left.createdAt);
+  });
 }
