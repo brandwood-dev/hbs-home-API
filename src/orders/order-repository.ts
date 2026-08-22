@@ -828,6 +828,7 @@ export class PostgresOrderRepository implements OrderRepository {
         .selectFrom("commerce.customers")
         .selectAll()
         .where("phone", "=", phone)
+        .where("merged_into_customer_id", "is", null)
         .orderBy("updated_at", "desc")
         .forUpdate()
         .executeTakeFirst();

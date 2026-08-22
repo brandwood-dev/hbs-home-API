@@ -36997,6 +36997,10 @@
                     "maxLength": 120,
                     "type": "string"
                   },
+                  "internalNotes": {
+                    "maxLength": 10000,
+                    "type": "string"
+                  },
                   "preferredChannel": {
                     "anyOf": [
                       {

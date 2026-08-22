@@ -17,10 +17,15 @@ type CustomerRow = Selectable<CustomerTable>;
 type AddressRow = Selectable<CustomerAddressTable>;
 type NoteRow = Selectable<CustomerNoteTable>;
 interface OrderSummaryRow {
+  id: string;
   customer_id: string;
   status: OrderStatus;
   subtotal_minor: number;
   created_at: Date;
+}
+
+interface ReturnSummaryRow {
+  order_id: string;
 }
 
 export type CustomerSort =
@@ -107,6 +112,7 @@ export interface CustomerUpdateInput {
   phone?: string;
   email?: string | null;
   governorate?: string;
+  internalNotes?: string;
   preferredChannel?: "phone" | "email" | "whatsapp" | null;
 }
 
@@ -247,7 +253,10 @@ function mapCustomer(
   };
 }
 
-function metricsFor(orders: readonly OrderSummaryRow[]): CustomerMetrics {
+function metricsFor(
+  orders: readonly OrderSummaryRow[],
+  returnedOrderIds: ReadonlySet<string> = new Set(),
+): CustomerMetrics {
   const delivered = orders.filter((order) => order.status === "delivered");
   const dates = orders
     .map((order) => order.created_at.getTime())
@@ -272,7 +281,8 @@ function metricsFor(orders: readonly OrderSummaryRow[]): CustomerMetrics {
       : { lastOrderAt: new Date(lastDate).toISOString() }),
     cancelledOrders: orders.filter((order) => order.status === "cancelled")
       .length,
-    returnedOrders: 0,
+    returnedOrders: orders.filter((order) => returnedOrderIds.has(order.id))
+      .length,
   };
 }
 
@@ -380,7 +390,7 @@ export class PostgresAdminCustomerRepository {
     governorates: string[];
     tags: string[];
   }> {
-    const [customers, orders] = await Promise.all([
+    const [customers, orders, returns] = await Promise.all([
       this.database
         .selectFrom("commerce.customers")
         .selectAll()
@@ -388,14 +398,27 @@ export class PostgresAdminCustomerRepository {
         .execute(),
       this.database
         .selectFrom("commerce.orders")
-        .select(["customer_id", "status", "subtotal_minor", "created_at"])
+        .select(["id", "customer_id", "status", "subtotal_minor", "created_at"])
+        .execute(),
+      this.database
+        .selectFrom("commerce.order_returns")
+        .select("order_id")
+        .where("status", "=", "accepted")
         .execute(),
     ]);
+    const returnedOrderIds = new Set(returns.map((row) => row.order_id));
     const byCustomer = new Map<string, OrderSummaryRow[]>();
     for (const order of orders) {
       const entries = byCustomer.get(order.customer_id) ?? [];
       entries.push(order);
       byCustomer.set(order.customer_id, entries);
+    }
+    const returnedByCustomer = new Map<string, Set<string>>();
+    for (const order of orders) {
+      if (!returnedOrderIds.has(order.id)) continue;
+      const entries = returnedByCustomer.get(order.customer_id) ?? new Set();
+      entries.add(order.id);
+      returnedByCustomer.set(order.customer_id, entries);
     }
     const governorates = [
       ...new Set(
@@ -413,7 +436,10 @@ export class PostgresAdminCustomerRepository {
       .filter((customer) => matchesSearch(customer, params.search ?? ""))
       .map((customer) => ({
         ...mapCustomer(customer),
-        metrics: metricsFor(byCustomer.get(customer.id) ?? []),
+        metrics: metricsFor(
+          byCustomer.get(customer.id) ?? [],
+          returnedByCustomer.get(customer.id),
+        ),
         hasPotentialDuplicate: hasDuplicate(customer, customers),
       }));
     rows = rows.filter((row) => {
@@ -490,20 +516,36 @@ export class PostgresAdminCustomerRepository {
       .where("id", "=", customerId)
       .executeTakeFirst();
     if (!row) return null;
-    const [customer, orderRows, allCustomers] = await Promise.all([
+    const orderRowsPromise = this.database
+      .selectFrom("commerce.orders")
+      .select(["id"])
+      .where("customer_id", "=", customerId)
+      .orderBy("created_at", "desc")
+      .execute();
+    const returnRowsPromise = orderRowsPromise.then((rows) => {
+      const orderIds = rows.map((order) => order.id);
+      return orderIds.length
+        ? this.database
+            .selectFrom("commerce.order_returns")
+            .select("order_id")
+            .where("status", "=", "accepted")
+            .where("order_id", "in", orderIds)
+            .execute()
+        : Promise.resolve([] as ReturnSummaryRow[]);
+    });
+    const [customer, orderRows, allCustomers, returnRows] = await Promise.all([
       this.fullCustomer(row),
-      this.database
-        .selectFrom("commerce.orders")
-        .select(["id"])
-        .where("customer_id", "=", customerId)
-        .orderBy("created_at", "desc")
-        .execute(),
+      orderRowsPromise,
       this.database
         .selectFrom("commerce.customers")
         .selectAll()
         .where("merged_into_customer_id", "is", null)
         .execute(),
+      returnRowsPromise,
     ]);
+    const returnedOrderIds = new Set(
+      returnRows.map((returnRow) => returnRow.order_id),
+    );
     const orders = (
       await Promise.all(
         orderRows.map((order) => this.orderRepository.getById(order.id)),
@@ -511,11 +553,13 @@ export class PostgresAdminCustomerRepository {
     ).filter((order): order is AdminOrder => Boolean(order));
     const metrics = metricsFor(
       orders.map((order) => ({
+        id: order.id,
         customer_id: customerId,
         status: order.status,
         subtotal_minor: order.subtotalMinor,
         created_at: new Date(order.createdAt),
       })),
+      returnedOrderIds,
     );
     const duplicates = allCustomers
       .filter(
@@ -543,6 +587,7 @@ export class PostgresAdminCustomerRepository {
       phone?: string;
       email?: string | null;
       governorate?: string;
+      internal_notes?: string;
       preferred_channel?: "phone" | "email" | "whatsapp" | null;
     } = {};
     if (input.firstName !== undefined)
@@ -557,6 +602,13 @@ export class PostgresAdminCustomerRepository {
         "Governorate",
         0,
         120,
+      );
+    if (input.internalNotes !== undefined)
+      values.internal_notes = normalizeText(
+        input.internalNotes,
+        "Internal notes",
+        0,
+        10_000,
       );
     if (input.preferredChannel !== undefined)
       values.preferred_channel = input.preferredChannel;
@@ -811,6 +863,13 @@ export class PostgresAdminCustomerRepository {
           code: "CUSTOMER_ALREADY_MERGED",
           title: "Customer already merged",
           detail: "The secondary customer has already been merged.",
+        });
+      if (primary.merged_into_customer_id)
+        throw new AppError({
+          statusCode: 409,
+          code: "CUSTOMER_ALREADY_MERGED",
+          title: "Customer already merged",
+          detail: "The primary customer has already been merged.",
         });
       const primaryPhone =
         input.keepPhoneFrom === "secondary" ? secondary.phone : primary.phone;

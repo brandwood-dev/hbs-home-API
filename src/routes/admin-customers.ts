@@ -150,6 +150,7 @@ const UpdateBody = Type.Object(
       Type.Union([Type.String({ maxLength: 255 }), Type.Null()]),
     ),
     governorate: Type.Optional(Type.String({ maxLength: 120 })),
+    internalNotes: Type.Optional(Type.String({ maxLength: 10_000 })),
     preferredChannel: Type.Optional(
       Type.Union([
         Type.Literal("phone"),
