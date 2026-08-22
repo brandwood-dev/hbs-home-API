@@ -140,12 +140,16 @@ const ProductListResponseSchema = Type.Object(
     pageSize: Type.Integer(),
     total: Type.Integer(),
     totalPages: Type.Integer(),
+    categoryCounts: Type.Optional(
+      Type.Record(Type.String(), Type.Integer({ minimum: 0 })),
+    ),
   },
   { additionalProperties: false },
 );
 
 const ProductsListQuerySchema = Type.Object(
   {
+    q: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
     page: Type.Optional(Type.Integer({ minimum: 1 })),
     pageSize: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
     sort: Type.Optional(
@@ -266,6 +270,7 @@ function parseCatalogQuery(
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 12,
     sort: query.sort ?? "recommended",
+    query: query.q,
     categories: asStringList(query.categories),
     materials: asStringList(query.materials),
     colors: asStringList(query.colors),

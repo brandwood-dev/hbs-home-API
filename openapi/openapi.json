@@ -6172,6 +6172,16 @@
         "parameters": [
           {
             "schema": {
+              "minLength": 1,
+              "maxLength": 120,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
               "minimum": 1,
               "type": "integer"
             },
@@ -7002,6 +7012,13 @@
                     },
                     "totalPages": {
                       "type": "integer"
+                    },
+                    "categoryCounts": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
                     }
                   }
                 }
