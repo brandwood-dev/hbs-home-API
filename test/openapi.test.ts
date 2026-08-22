@@ -44,6 +44,7 @@ describe("OpenAPI contract", () => {
       "/api/v1/admin/inventory/{variantId}",
       "/api/v1/admin/orders",
       "/api/v1/admin/orders/{id}",
+      "/api/v1/admin/orders/{id}/status",
       "/api/v1/admin/products",
       "/api/v1/admin/products/{id}",
       "/api/v1/admin/products/{id}/archive",
@@ -121,6 +122,7 @@ describe("OpenAPI contract", () => {
       "removeCartItem",
       "removeCartPromotion",
       "trackGuestOrder",
+      "updateAdminOrderStatus",
       "updateCartItem",
     ]);
     expect(new Set(operationIds).size).toBe(operationIds.length);
