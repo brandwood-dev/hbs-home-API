@@ -638,7 +638,7 @@ export function registerAdminOrderRoutes(
       const input: AdminOrderNoteInput = {
         orderId: request.params.id,
         actorUserId: actor.userId,
-        actorName: actor.displayName?.trim() || actor.email,
+        actorName: actor.displayName?.trim() ?? actor.email,
         text: request.body.text,
       };
       const order = await dependencies.adminOrderRepository.addNote(input);
