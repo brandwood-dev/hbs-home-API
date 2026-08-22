@@ -3534,6 +3534,120 @@
               }
             }
           },
+          "returnInfo": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "id",
+                  "status",
+                  "requestedAt",
+                  "reason",
+                  "note",
+                  "resolvedAt",
+                  "resolution",
+                  "restocked",
+                  "refundPayment",
+                  "conditionReason"
+                ],
+                "properties": {
+                  "id": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "requested"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "accepted"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "refused"
+                        ]
+                      }
+                    ]
+                  },
+                  "requestedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resolvedAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resolution": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "accepted"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "refused"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "restocked": {
+                    "type": "boolean"
+                  },
+                  "refundPayment": {
+                    "type": "boolean"
+                  },
+                  "conditionReason": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "shipment": {
             "additionalProperties": false,
             "type": "object",
@@ -4010,6 +4124,120 @@
                       }
                     }
                   }
+                },
+                "returnInfo": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status",
+                        "requestedAt",
+                        "reason",
+                        "note",
+                        "resolvedAt",
+                        "resolution",
+                        "restocked",
+                        "refundPayment",
+                        "conditionReason"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "requested"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "refused"
+                              ]
+                            }
+                          ]
+                        },
+                        "requestedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "note": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "resolvedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "resolution": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "accepted"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "refused"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "restocked": {
+                          "type": "boolean"
+                        },
+                        "refundPayment": {
+                          "type": "boolean"
+                        },
+                        "conditionReason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "shipment": {
                   "additionalProperties": false,
@@ -25358,6 +25586,120 @@
                               }
                             }
                           },
+                          "returnInfo": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "id",
+                                  "status",
+                                  "requestedAt",
+                                  "reason",
+                                  "note",
+                                  "resolvedAt",
+                                  "resolution",
+                                  "restocked",
+                                  "refundPayment",
+                                  "conditionReason"
+                                ],
+                                "properties": {
+                                  "id": {
+                                    "format": "uuid",
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "requested"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "accepted"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "refused"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "requestedAt": {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "note": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "resolvedAt": {
+                                    "anyOf": [
+                                      {
+                                        "format": "date-time",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "resolution": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "accepted"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "refused"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "restocked": {
+                                    "type": "boolean"
+                                  },
+                                  "refundPayment": {
+                                    "type": "boolean"
+                                  },
+                                  "conditionReason": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "shipment": {
                             "additionalProperties": false,
                             "type": "object",
@@ -26067,6 +26409,120 @@
                           }
                         }
                       }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "shipment": {
                       "additionalProperties": false,
@@ -26847,6 +27303,120 @@
                           }
                         }
                       }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "shipment": {
                       "additionalProperties": false,
@@ -27730,6 +28300,120 @@
                         }
                       }
                     },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "shipment": {
                       "additionalProperties": false,
                       "type": "object",
@@ -28595,6 +29279,120 @@
                         }
                       }
                     },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "shipment": {
                       "additionalProperties": false,
                       "type": "object",
@@ -29452,6 +30250,120 @@
                         }
                       }
                     },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "shipment": {
                       "additionalProperties": false,
                       "type": "object",
@@ -29692,6 +30604,3018 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/contact": {
+      "patch": {
+        "operationId": "updateAdminOrderContact",
+        "summary": "Update customer contact details before shipment",
+        "tags": [
+          "admin-orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "customerName",
+                  "customerPhone"
+                ],
+                "properties": {
+                  "customerName": {
+                    "minLength": 1,
+                    "maxLength": 121,
+                    "type": "string"
+                  },
+                  "customerPhone": {
+                    "minLength": 8,
+                    "maxLength": 20,
+                    "type": "string"
+                  },
+                  "customerEmail": {
+                    "anyOf": [
+                      {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "orderNumber",
+                    "createdAt",
+                    "updatedAt",
+                    "status",
+                    "paymentStatus",
+                    "paymentMethod",
+                    "customerId",
+                    "customerName",
+                    "customerPhone",
+                    "customerEmail",
+                    "deliveryMethod",
+                    "governorate",
+                    "city",
+                    "postalCode",
+                    "addressLine",
+                    "landmark",
+                    "deliveryNote",
+                    "items",
+                    "subtotalMinor",
+                    "shippingMinor",
+                    "discountMinor",
+                    "totalMinor",
+                    "timeline",
+                    "notes",
+                    "shipment"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "orderNumber": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending_confirmation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "confirmed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "preparing"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "shipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "delivered"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentStatus": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "collected"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "refunded"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentMethod": {
+                      "type": "string",
+                      "enum": [
+                        "cash_on_delivery"
+                      ]
+                    },
+                    "customerId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "customerName": {
+                      "type": "string"
+                    },
+                    "customerPhone": {
+                      "type": "string"
+                    },
+                    "customerEmail": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryMethod": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "home_delivery"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "store_pickup"
+                          ]
+                        }
+                      ]
+                    },
+                    "governorate": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "postalCode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string"
+                    },
+                    "landmark": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryNote": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "variantId",
+                          "productName",
+                          "variantLabel",
+                          "sku",
+                          "quantity",
+                          "unitPriceMinor",
+                          "lineTotalMinor",
+                          "productReference",
+                          "productSlug",
+                          "imageUrl",
+                          "imageAlt",
+                          "selectedOptions",
+                          "sellingUnitLabel",
+                          "shippingProfile"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "type": "string"
+                          },
+                          "productName": {
+                            "type": "string"
+                          },
+                          "variantLabel": {
+                            "type": "string"
+                          },
+                          "sku": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "unitPriceMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "productReference": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "imageUrl": {
+                            "type": "string"
+                          },
+                          "imageAlt": {
+                            "type": "string"
+                          },
+                          "selectedOptions": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "label",
+                                "value"
+                              ],
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "sellingUnitLabel": {
+                            "type": "string"
+                          },
+                          "shippingProfile": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "subtotalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shippingMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "status",
+                          "label",
+                          "kind",
+                          "reason"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending_confirmation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "confirmed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "preparing"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "shipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "delivered"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "cancelled"
+                                ]
+                              }
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "created"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "status"
+                                ]
+                              }
+                            ]
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "author",
+                          "userId",
+                          "body"
+                        ],
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "shipment": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "shippingStatus",
+                        "shippingFeeMinor"
+                      ],
+                      "properties": {
+                        "shippingStatus": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "calculated"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "to_confirm"
+                              ]
+                            }
+                          ]
+                        },
+                        "shippingFeeMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/address": {
+      "patch": {
+        "operationId": "updateAdminOrderAddress",
+        "summary": "Update the delivery address before shipment",
+        "tags": [
+          "admin-orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "governorate",
+                  "city",
+                  "addressLine"
+                ],
+                "properties": {
+                  "governorate": {
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "city": {
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "anyOf": [
+                      {
+                        "maxLength": 20,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "addressLine": {
+                    "minLength": 1,
+                    "maxLength": 240,
+                    "type": "string"
+                  },
+                  "landmark": {
+                    "anyOf": [
+                      {
+                        "maxLength": 160,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliveryNote": {
+                    "anyOf": [
+                      {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "orderNumber",
+                    "createdAt",
+                    "updatedAt",
+                    "status",
+                    "paymentStatus",
+                    "paymentMethod",
+                    "customerId",
+                    "customerName",
+                    "customerPhone",
+                    "customerEmail",
+                    "deliveryMethod",
+                    "governorate",
+                    "city",
+                    "postalCode",
+                    "addressLine",
+                    "landmark",
+                    "deliveryNote",
+                    "items",
+                    "subtotalMinor",
+                    "shippingMinor",
+                    "discountMinor",
+                    "totalMinor",
+                    "timeline",
+                    "notes",
+                    "shipment"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "orderNumber": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending_confirmation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "confirmed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "preparing"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "shipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "delivered"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentStatus": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "collected"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "refunded"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentMethod": {
+                      "type": "string",
+                      "enum": [
+                        "cash_on_delivery"
+                      ]
+                    },
+                    "customerId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "customerName": {
+                      "type": "string"
+                    },
+                    "customerPhone": {
+                      "type": "string"
+                    },
+                    "customerEmail": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryMethod": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "home_delivery"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "store_pickup"
+                          ]
+                        }
+                      ]
+                    },
+                    "governorate": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "postalCode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string"
+                    },
+                    "landmark": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryNote": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "variantId",
+                          "productName",
+                          "variantLabel",
+                          "sku",
+                          "quantity",
+                          "unitPriceMinor",
+                          "lineTotalMinor",
+                          "productReference",
+                          "productSlug",
+                          "imageUrl",
+                          "imageAlt",
+                          "selectedOptions",
+                          "sellingUnitLabel",
+                          "shippingProfile"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "type": "string"
+                          },
+                          "productName": {
+                            "type": "string"
+                          },
+                          "variantLabel": {
+                            "type": "string"
+                          },
+                          "sku": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "unitPriceMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "productReference": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "imageUrl": {
+                            "type": "string"
+                          },
+                          "imageAlt": {
+                            "type": "string"
+                          },
+                          "selectedOptions": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "label",
+                                "value"
+                              ],
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "sellingUnitLabel": {
+                            "type": "string"
+                          },
+                          "shippingProfile": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "subtotalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shippingMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "status",
+                          "label",
+                          "kind",
+                          "reason"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending_confirmation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "confirmed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "preparing"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "shipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "delivered"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "cancelled"
+                                ]
+                              }
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "created"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "status"
+                                ]
+                              }
+                            ]
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "author",
+                          "userId",
+                          "body"
+                        ],
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "shipment": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "shippingStatus",
+                        "shippingFeeMinor"
+                      ],
+                      "properties": {
+                        "shippingStatus": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "calculated"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "to_confirm"
+                              ]
+                            }
+                          ]
+                        },
+                        "shippingFeeMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/orders/{id}/return": {
+      "post": {
+        "operationId": "returnAdminOrder",
+        "summary": "Request or resolve a customer return",
+        "tags": [
+          "admin-orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "action",
+                  "reason"
+                ],
+                "properties": {
+                  "action": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "request"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "accept"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "refuse"
+                        ]
+                      }
+                    ]
+                  },
+                  "reason": {
+                    "minLength": 1,
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "note": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  },
+                  "restock": {
+                    "type": "boolean"
+                  },
+                  "conditionReason": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "refundPayment": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "orderNumber",
+                    "createdAt",
+                    "updatedAt",
+                    "status",
+                    "paymentStatus",
+                    "paymentMethod",
+                    "customerId",
+                    "customerName",
+                    "customerPhone",
+                    "customerEmail",
+                    "deliveryMethod",
+                    "governorate",
+                    "city",
+                    "postalCode",
+                    "addressLine",
+                    "landmark",
+                    "deliveryNote",
+                    "items",
+                    "subtotalMinor",
+                    "shippingMinor",
+                    "discountMinor",
+                    "totalMinor",
+                    "timeline",
+                    "notes",
+                    "shipment"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "orderNumber": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending_confirmation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "confirmed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "preparing"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "shipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "delivered"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "cancelled"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentStatus": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pending"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "collected"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "refunded"
+                          ]
+                        }
+                      ]
+                    },
+                    "paymentMethod": {
+                      "type": "string",
+                      "enum": [
+                        "cash_on_delivery"
+                      ]
+                    },
+                    "customerId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "customerName": {
+                      "type": "string"
+                    },
+                    "customerPhone": {
+                      "type": "string"
+                    },
+                    "customerEmail": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryMethod": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "home_delivery"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "store_pickup"
+                          ]
+                        }
+                      ]
+                    },
+                    "governorate": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "postalCode": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "addressLine": {
+                      "type": "string"
+                    },
+                    "landmark": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deliveryNote": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "variantId",
+                          "productName",
+                          "variantLabel",
+                          "sku",
+                          "quantity",
+                          "unitPriceMinor",
+                          "lineTotalMinor",
+                          "productReference",
+                          "productSlug",
+                          "imageUrl",
+                          "imageAlt",
+                          "selectedOptions",
+                          "sellingUnitLabel",
+                          "shippingProfile"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "variantId": {
+                            "type": "string"
+                          },
+                          "productName": {
+                            "type": "string"
+                          },
+                          "variantLabel": {
+                            "type": "string"
+                          },
+                          "sku": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "unitPriceMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "lineTotalMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "productReference": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "imageUrl": {
+                            "type": "string"
+                          },
+                          "imageAlt": {
+                            "type": "string"
+                          },
+                          "selectedOptions": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "label",
+                                "value"
+                              ],
+                              "properties": {
+                                "label": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "sellingUnitLabel": {
+                            "type": "string"
+                          },
+                          "shippingProfile": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "subtotalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shippingMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "discountMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "totalMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "status",
+                          "label",
+                          "kind",
+                          "reason"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending_confirmation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "confirmed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "preparing"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "shipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "delivered"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "cancelled"
+                                ]
+                              }
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "created"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "status"
+                                ]
+                              }
+                            ]
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "at",
+                          "author",
+                          "userId",
+                          "body"
+                        ],
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "at": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "shipment": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "shippingStatus",
+                        "shippingFeeMinor"
+                      ],
+                      "properties": {
+                        "shippingStatus": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "calculated"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "to_confirm"
+                              ]
+                            }
+                          ]
+                        },
+                        "shippingFeeMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -30251,6 +34175,120 @@
                           }
                         }
                       }
+                    },
+                    "returnInfo": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "status",
+                            "requestedAt",
+                            "reason",
+                            "note",
+                            "resolvedAt",
+                            "resolution",
+                            "restocked",
+                            "refundPayment",
+                            "conditionReason"
+                          ],
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "requested"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolvedAt": {
+                              "anyOf": [
+                                {
+                                  "format": "date-time",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "accepted"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "refused"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "restocked": {
+                              "type": "boolean"
+                            },
+                            "refundPayment": {
+                              "type": "boolean"
+                            },
+                            "conditionReason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "shipment": {
                       "additionalProperties": false,

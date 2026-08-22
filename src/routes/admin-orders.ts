@@ -9,7 +9,10 @@ import type {
   AdminOrderListParams,
   AdminOrderCancellationInput,
   AdminOrderNoteInput,
+  AdminOrderAddressInput,
+  AdminOrderContactInput,
   AdminOrderPaymentUpdateInput,
+  AdminOrderReturnInput,
   AdminOrderShippingUpdateInput,
   AdminOrderStatusUpdateInput,
   PostgresAdminOrderRepository,
@@ -101,6 +104,52 @@ const OrderCancellationBody = Type.Object(
 );
 type OrderCancellationBodyType = Static<typeof OrderCancellationBody>;
 
+const OrderContactBody = Type.Object(
+  {
+    customerName: Type.String({ minLength: 1, maxLength: 121 }),
+    customerPhone: Type.String({ minLength: 8, maxLength: 20 }),
+    customerEmail: Type.Optional(
+      Type.Union([Type.String({ maxLength: 255 }), Type.Null()]),
+    ),
+  },
+  { additionalProperties: false },
+);
+type OrderContactBodyType = Static<typeof OrderContactBody>;
+const OrderAddressBody = Type.Object(
+  {
+    governorate: Type.String({ minLength: 1, maxLength: 120 }),
+    city: Type.String({ minLength: 1, maxLength: 120 }),
+    postalCode: Type.Optional(
+      Type.Union([Type.String({ maxLength: 20 }), Type.Null()]),
+    ),
+    addressLine: Type.String({ minLength: 1, maxLength: 240 }),
+    landmark: Type.Optional(
+      Type.Union([Type.String({ maxLength: 160 }), Type.Null()]),
+    ),
+    deliveryNote: Type.Optional(
+      Type.Union([Type.String({ maxLength: 500 }), Type.Null()]),
+    ),
+  },
+  { additionalProperties: false },
+);
+type OrderAddressBodyType = Static<typeof OrderAddressBody>;
+const OrderReturnBody = Type.Object(
+  {
+    action: Type.Union([
+      Type.Literal("request"),
+      Type.Literal("accept"),
+      Type.Literal("refuse"),
+    ]),
+    reason: Type.String({ minLength: 1, maxLength: 500 }),
+    note: Type.Optional(Type.String({ maxLength: 1_000 })),
+    restock: Type.Optional(Type.Boolean()),
+    conditionReason: Type.Optional(Type.String({ maxLength: 500 })),
+    refundPayment: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: false },
+);
+type OrderReturnBodyType = Static<typeof OrderReturnBody>;
+
 const OrderItemOption = Type.Object(
   { label: Type.String(), value: Type.String() },
   { additionalProperties: false },
@@ -156,6 +205,29 @@ const OrderShipment = Type.Object(
   },
   { additionalProperties: false },
 );
+const OrderReturnInfo = Type.Object(
+  {
+    id: Type.String({ format: "uuid" }),
+    status: Type.Union([
+      Type.Literal("requested"),
+      Type.Literal("accepted"),
+      Type.Literal("refused"),
+    ]),
+    requestedAt: Type.String({ format: "date-time" }),
+    reason: Type.String(),
+    note: Type.Union([Type.String(), Type.Null()]),
+    resolvedAt: Type.Union([Type.String({ format: "date-time" }), Type.Null()]),
+    resolution: Type.Union([
+      Type.Literal("accepted"),
+      Type.Literal("refused"),
+      Type.Null(),
+    ]),
+    restocked: Type.Boolean(),
+    refundPayment: Type.Boolean(),
+    conditionReason: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
 const AdminOrder = Type.Object(
   {
     id: Type.String({ format: "uuid" }),
@@ -190,6 +262,7 @@ const AdminOrder = Type.Object(
     totalMinor: Type.Integer({ minimum: 0 }),
     timeline: Type.Array(OrderEvent),
     notes: Type.Array(OrderNote),
+    returnInfo: Type.Optional(Type.Union([OrderReturnInfo, Type.Null()])),
     shipment: OrderShipment,
   },
   { $id: "AdminOrder", additionalProperties: false },
@@ -229,8 +302,11 @@ export interface AdminOrderRouteDependencies extends AdminGuardDependencies {
     | "updateStatus"
     | "updatePaymentStatus"
     | "updateShipping"
+    | "updateContact"
+    | "updateAddress"
     | "addNote"
     | "cancelOrder"
+    | "returnOrder"
   >;
 }
 
@@ -653,6 +729,222 @@ export function registerAdminOrderRoutes(
         sourceIp: request.ip,
         userAgent: request.headers["user-agent"]?.toString() ?? null,
         metadata: { orderNumber: order.orderNumber },
+      });
+      return order;
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderContactBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/contact",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "updateAdminOrderContact",
+        summary: "Update customer contact details before shipment",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderContactBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "customers.write",
+        request.params.id,
+        "order.contact_update_denied",
+      );
+      const input: AdminOrderContactInput = {
+        orderId: request.params.id,
+        actorUserId: actor.userId,
+        customerName: request.body.customerName,
+        customerPhone: request.body.customerPhone,
+        ...(request.body.customerEmail !== undefined
+          ? { customerEmail: request.body.customerEmail }
+          : {}),
+      };
+      const order =
+        await dependencies.adminOrderRepository.updateContact(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.contact_updated",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: { orderNumber: order.orderNumber },
+      });
+      return order;
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderAddressBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/address",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "updateAdminOrderAddress",
+        summary: "Update the delivery address before shipment",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderAddressBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "orders.confirm",
+        request.params.id,
+        "order.address_update_denied",
+      );
+      const input: AdminOrderAddressInput = {
+        orderId: request.params.id,
+        actorUserId: actor.userId,
+        governorate: request.body.governorate,
+        city: request.body.city,
+        addressLine: request.body.addressLine,
+        ...(request.body.postalCode !== undefined
+          ? { postalCode: request.body.postalCode }
+          : {}),
+        ...(request.body.landmark !== undefined
+          ? { landmark: request.body.landmark }
+          : {}),
+        ...(request.body.deliveryNote !== undefined
+          ? { deliveryNote: request.body.deliveryNote }
+          : {}),
+      };
+      const order =
+        await dependencies.adminOrderRepository.updateAddress(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.address_updated",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: { orderNumber: order.orderNumber },
+      });
+      return order;
+    },
+  );
+
+  app.post<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderReturnBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/return",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "returnAdminOrder",
+        summary: "Request or resolve a customer return",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderReturnBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "orders.cancel",
+        request.params.id,
+        "order.return_update_denied",
+      );
+      if (request.body.refundPayment) {
+        await requireStatusPermission(
+          dependencies,
+          request,
+          actor,
+          "orders.refund",
+          request.params.id,
+          "order.return_refund_denied",
+        );
+      }
+      const input: AdminOrderReturnInput = {
+        orderId: request.params.id,
+        actorUserId: actor.userId,
+        action: request.body.action,
+        reason: request.body.reason,
+        restock: request.body.restock ?? false,
+        refundPayment: request.body.refundPayment ?? false,
+        ...(request.body.note ? { note: request.body.note } : {}),
+        ...(request.body.conditionReason
+          ? { conditionReason: request.body.conditionReason }
+          : {}),
+      };
+      const order = await dependencies.adminOrderRepository.returnOrder(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: `order.return_${request.body.action}`,
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: {
+          orderNumber: order.orderNumber,
+          action: request.body.action,
+          restock: input.restock,
+          refundPayment: input.refundPayment,
+        },
       });
       return order;
     },
