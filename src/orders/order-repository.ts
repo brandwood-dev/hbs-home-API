@@ -839,7 +839,8 @@ export class PostgresOrderRepository implements OrderRepository {
               last_name: customer.lastName,
               email: customer.email ?? existingCustomer.email,
               governorate:
-                input.shippingAddress?.governorate ?? existingCustomer.governorate,
+                input.shippingAddress?.governorate ??
+                existingCustomer.governorate,
               updated_at: new Date(),
             })
             .where("id", "=", existingCustomer.id)
