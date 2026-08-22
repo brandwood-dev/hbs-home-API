@@ -228,7 +228,7 @@ const OrderReturnInfo = Type.Object(
   },
   { additionalProperties: false },
 );
-const AdminOrder = Type.Object(
+export const AdminOrder = Type.Object(
   {
     id: Type.String({ format: "uuid" }),
     orderNumber: Type.String(),

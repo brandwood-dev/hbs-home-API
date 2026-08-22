@@ -325,8 +325,37 @@ export interface CustomerTable {
   last_name: string;
   phone: string;
   email: string | null;
+  governorate: string;
+  preferred_channel: "phone" | "email" | "whatsapp" | null;
+  tags: string[];
+  internal_notes: string;
+  merged_into_customer_id: string | null;
+  merged_at: Date | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
+}
+
+export interface CustomerAddressTable {
+  id: Generated<string>;
+  customer_id: string;
+  label: string | null;
+  governorate: string;
+  city: string;
+  postal_code: string | null;
+  address_line: string;
+  landmark: string | null;
+  is_default: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CustomerNoteTable {
+  id: Generated<string>;
+  customer_id: string;
+  body: string;
+  author_user_id: string;
+  author_name: string;
+  created_at: Generated<Date>;
 }
 
 export interface OrderTable {
@@ -455,6 +484,8 @@ export interface DatabaseSchema {
   "commerce.favorite_items": FavoriteItemTable;
   "commerce.promotions": PromotionTable;
   "commerce.customers": CustomerTable;
+  "commerce.customer_addresses": CustomerAddressTable;
+  "commerce.customer_notes": CustomerNoteTable;
   "commerce.orders": OrderTable;
   "commerce.order_items": OrderItemTable;
   "commerce.order_status_history": OrderStatusHistoryTable;

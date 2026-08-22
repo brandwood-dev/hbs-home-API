@@ -828,6 +828,7 @@ export class PostgresOrderRepository implements OrderRepository {
         .selectFrom("commerce.customers")
         .selectAll()
         .where("phone", "=", phone)
+        .where("merged_into_customer_id", "is", null)
         .orderBy("updated_at", "desc")
         .forUpdate()
         .executeTakeFirst();
@@ -838,6 +839,9 @@ export class PostgresOrderRepository implements OrderRepository {
               first_name: customer.firstName,
               last_name: customer.lastName,
               email: customer.email ?? existingCustomer.email,
+              governorate:
+                input.shippingAddress?.governorate ??
+                existingCustomer.governorate,
               updated_at: new Date(),
             })
             .where("id", "=", existingCustomer.id)
@@ -851,6 +855,12 @@ export class PostgresOrderRepository implements OrderRepository {
               last_name: customer.lastName,
               phone,
               email: customer.email ?? null,
+              governorate: input.shippingAddress?.governorate ?? "",
+              preferred_channel: null,
+              tags: [],
+              internal_notes: "",
+              merged_into_customer_id: null,
+              merged_at: null,
               created_at: new Date(),
               updated_at: new Date(),
             })
