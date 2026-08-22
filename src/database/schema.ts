@@ -327,6 +327,8 @@ export interface OrderTable {
   customer_id: string;
   cart_id: string;
   status: OrderStatus;
+  payment_status: "pending" | "collected" | "refunded";
+  shipping_status: "calculated" | "to_confirm";
   delivery_method: "home_delivery" | "store_pickup";
   payment_method: "cash_on_delivery";
   shipping_address: Record<string, unknown> | null;
@@ -380,6 +382,15 @@ export interface OrderStatusHistoryTable {
   created_at: Generated<Date>;
 }
 
+export interface OrderNoteTable {
+  id: Generated<string>;
+  order_id: string;
+  body: string;
+  author_user_id: string;
+  author_name: string;
+  created_at: Generated<Date>;
+}
+
 export interface OutboxEventTable {
   id: Generated<string>;
   aggregate_type: string;
@@ -421,5 +432,6 @@ export interface DatabaseSchema {
   "commerce.orders": OrderTable;
   "commerce.order_items": OrderItemTable;
   "commerce.order_status_history": OrderStatusHistoryTable;
+  "commerce.order_notes": OrderNoteTable;
   "commerce.outbox_events": OutboxEventTable;
 }

@@ -7,6 +7,10 @@ import {
 } from "../auth/admin-guard.js";
 import type {
   AdminOrderListParams,
+  AdminOrderCancellationInput,
+  AdminOrderNoteInput,
+  AdminOrderPaymentUpdateInput,
+  AdminOrderShippingUpdateInput,
   AdminOrderStatusUpdateInput,
   PostgresAdminOrderRepository,
 } from "../orders/admin-order-repository.js";
@@ -58,6 +62,45 @@ const OrderStatusUpdateBody = Type.Object(
 );
 type OrderStatusUpdateBodyType = Static<typeof OrderStatusUpdateBody>;
 
+const PaymentStatus = Type.Union([
+  Type.Literal("pending"),
+  Type.Literal("collected"),
+  Type.Literal("refunded"),
+]);
+const PaymentUpdateBody = Type.Object(
+  {
+    paymentStatus: PaymentStatus,
+    reason: Type.Optional(Type.String({ maxLength: 500 })),
+    note: Type.Optional(Type.String({ maxLength: 1_000 })),
+  },
+  { additionalProperties: false },
+);
+type PaymentUpdateBodyType = Static<typeof PaymentUpdateBody>;
+const ShippingUpdateBody = Type.Object(
+  {
+    shippingFeeMinor: Type.Integer({ minimum: 0, maximum: 2_000_000_000 }),
+    carrierName: Type.Optional(Type.String({ maxLength: 160 })),
+    note: Type.Optional(Type.String({ maxLength: 1_000 })),
+  },
+  { additionalProperties: false },
+);
+type ShippingUpdateBodyType = Static<typeof ShippingUpdateBody>;
+const OrderNoteBody = Type.Object(
+  { text: Type.String({ minLength: 1, maxLength: 2_000 }) },
+  { additionalProperties: false },
+);
+type OrderNoteBodyType = Static<typeof OrderNoteBody>;
+const OrderCancellationBody = Type.Object(
+  {
+    reason: Type.String({ minLength: 1, maxLength: 500 }),
+    note: Type.Optional(Type.String({ maxLength: 1_000 })),
+    restoreStock: Type.Boolean(),
+    refundPayment: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: false },
+);
+type OrderCancellationBodyType = Static<typeof OrderCancellationBody>;
+
 const OrderItemOption = Type.Object(
   { label: Type.String(), value: Type.String() },
   { additionalProperties: false },
@@ -90,6 +133,16 @@ const OrderEvent = Type.Object(
     label: Type.String(),
     kind: Type.Union([Type.Literal("created"), Type.Literal("status")]),
     reason: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+const OrderNote = Type.Object(
+  {
+    id: Type.String({ format: "uuid" }),
+    at: Type.String({ format: "date-time" }),
+    author: Type.String(),
+    userId: Type.String({ format: "uuid" }),
+    body: Type.String(),
   },
   { additionalProperties: false },
 );
@@ -136,7 +189,7 @@ const AdminOrder = Type.Object(
     discountMinor: Type.Integer({ minimum: 0 }),
     totalMinor: Type.Integer({ minimum: 0 }),
     timeline: Type.Array(OrderEvent),
-    notes: Type.Array(Type.Unknown()),
+    notes: Type.Array(OrderNote),
     shipment: OrderShipment,
   },
   { $id: "AdminOrder", additionalProperties: false },
@@ -171,7 +224,13 @@ const OrderListResponse = Type.Object(
 export interface AdminOrderRouteDependencies extends AdminGuardDependencies {
   adminOrderRepository: Pick<
     PostgresAdminOrderRepository,
-    "list" | "getById" | "updateStatus"
+    | "list"
+    | "getById"
+    | "updateStatus"
+    | "updatePaymentStatus"
+    | "updateShipping"
+    | "addNote"
+    | "cancelOrder"
   >;
 }
 
@@ -195,6 +254,7 @@ async function requireStatusPermission(
   actor: AdminPrincipal,
   permission: string,
   orderId: string,
+  action = "order.status_update_denied",
 ): Promise<void> {
   if (actor.permissions.includes(permission)) return;
   try {
@@ -202,7 +262,7 @@ async function requireStatusPermission(
       requestId: request.id,
       actorUserId: actor.userId,
       actorEmail: actor.email,
-      action: "order.status_update_denied",
+      action,
       resourceType: "order",
       resourceId: orderId,
       outcome: "denied",
@@ -219,6 +279,10 @@ async function requireStatusPermission(
     title: "Permission denied",
     detail: "The current Admin role cannot change this order status.",
   });
+}
+
+function paymentPermission(status: Static<typeof PaymentStatus>): string {
+  return status === "refunded" ? "orders.refund" : "orders.ship";
 }
 
 function parseStatuses(
@@ -395,6 +459,265 @@ export function registerAdminOrderRoutes(
           orderNumber: order.orderNumber,
           status: order.status,
           permission,
+        },
+      });
+      return order;
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof OrderIdParams>;
+    Body: PaymentUpdateBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/payment",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "updateAdminOrderPayment",
+        summary: "Update the persisted payment state of an Admin order",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: PaymentUpdateBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      const permission = paymentPermission(request.body.paymentStatus);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        permission,
+        request.params.id,
+        "order.payment_update_denied",
+      );
+      const input: AdminOrderPaymentUpdateInput = {
+        orderId: request.params.id,
+        paymentStatus: request.body.paymentStatus,
+        actorUserId: actor.userId,
+        ...(request.body.reason ? { reason: request.body.reason } : {}),
+        ...(request.body.note ? { note: request.body.note } : {}),
+      };
+      const order =
+        await dependencies.adminOrderRepository.updatePaymentStatus(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.payment_updated",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: {
+          orderNumber: order.orderNumber,
+          paymentStatus: order.paymentStatus,
+          permission,
+        },
+      });
+      return order;
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof OrderIdParams>;
+    Body: ShippingUpdateBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/shipping",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "updateAdminOrderShipping",
+        summary: "Update the persisted delivery fee of an Admin order",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: ShippingUpdateBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "orders.confirm",
+        request.params.id,
+        "order.shipping_update_denied",
+      );
+      const input: AdminOrderShippingUpdateInput = {
+        orderId: request.params.id,
+        shippingFeeMinor: request.body.shippingFeeMinor,
+        actorUserId: actor.userId,
+        ...(request.body.carrierName
+          ? { carrierName: request.body.carrierName }
+          : {}),
+        ...(request.body.note ? { note: request.body.note } : {}),
+      };
+      const order =
+        await dependencies.adminOrderRepository.updateShipping(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.shipping_updated",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: {
+          orderNumber: order.orderNumber,
+          shippingFeeMinor: order.shipment.shippingFeeMinor,
+        },
+      });
+      return order;
+    },
+  );
+
+  app.post<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderNoteBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/notes",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "addAdminOrderNote",
+        summary: "Append a private note to an Admin order",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderNoteBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "orders.confirm",
+        request.params.id,
+        "order.note_add_denied",
+      );
+      const input: AdminOrderNoteInput = {
+        orderId: request.params.id,
+        actorUserId: actor.userId,
+        actorName: actor.displayName?.trim() || actor.email,
+        text: request.body.text,
+      };
+      const order = await dependencies.adminOrderRepository.addNote(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.note_added",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: { orderNumber: order.orderNumber },
+      });
+      return order;
+    },
+  );
+
+  app.post<{
+    Params: Static<typeof OrderIdParams>;
+    Body: OrderCancellationBodyType;
+  }>(
+    "/api/v1/admin/orders/:id/cancel",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["orders.read"],
+      }),
+      schema: {
+        operationId: "cancelAdminOrder",
+        summary: "Cancel a persisted Admin order and optionally restore stock",
+        tags: ["admin-orders"],
+        security: [{ bearerAuth: [] }],
+        params: OrderIdParams,
+        body: OrderCancellationBody,
+        response: {
+          200: AdminOrder,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      await requireStatusPermission(
+        dependencies,
+        request,
+        actor,
+        "orders.cancel",
+        request.params.id,
+        "order.cancel_denied",
+      );
+      const input: AdminOrderCancellationInput = {
+        orderId: request.params.id,
+        actorUserId: actor.userId,
+        reason: request.body.reason,
+        restoreStock: request.body.restoreStock,
+        refundPayment: request.body.refundPayment ?? false,
+        ...(request.body.note ? { note: request.body.note } : {}),
+      };
+      const order = await dependencies.adminOrderRepository.cancelOrder(input);
+      await dependencies.auditRepository.append({
+        requestId: request.id,
+        actorUserId: actor.userId,
+        actorEmail: actor.email,
+        action: "order.cancelled",
+        resourceType: "order",
+        resourceId: order.id,
+        outcome: "success",
+        sourceIp: request.ip,
+        userAgent: request.headers["user-agent"]?.toString() ?? null,
+        metadata: {
+          orderNumber: order.orderNumber,
+          restoreStock: input.restoreStock,
+          refundPayment: input.refundPayment,
         },
       });
       return order;

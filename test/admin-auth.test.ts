@@ -22,6 +22,37 @@ const environment = loadEnvironment({
   DOCS_ENABLED: "false",
 });
 
+function orderFixture(status: AdminOrder["status"] = "confirmed"): AdminOrder {
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    orderNumber: "HBS-20260821-ABC123",
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+    status,
+    paymentStatus: "pending",
+    paymentMethod: "cash_on_delivery",
+    customerId: "44444444-4444-4444-8444-444444444444",
+    customerName: "Test Client",
+    customerPhone: "+21620123456",
+    customerEmail: null,
+    deliveryMethod: "home_delivery",
+    governorate: "Bizerte",
+    city: "Bizerte",
+    postalCode: null,
+    addressLine: "1 rue de test",
+    landmark: null,
+    deliveryNote: null,
+    items: [],
+    subtotalMinor: 18_900,
+    shippingMinor: 7_000,
+    discountMinor: 0,
+    totalMinor: 25_900,
+    timeline: [],
+    notes: [],
+    shipment: { shippingStatus: "calculated", shippingFeeMinor: 7_000 },
+  };
+}
+
 describe("Admin Auth, MFA and RBAC", () => {
   let app: FastifyInstance;
   let jwtVerifier: FakeJwtVerifier;
@@ -201,6 +232,206 @@ describe("Admin Auth, MFA and RBAC", () => {
         outcome: "success",
       }),
     );
+  });
+
+  it("updates payment state only with the payment permission", async () => {
+    const order = orderFixture();
+    let received: unknown;
+    const adminOrderRepository = {
+      list: () =>
+        Promise.resolve({
+          items: [order],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          pageCount: 1,
+          counters: {
+            total: 1,
+            pendingConfirmation: 0,
+            confirmed: 1,
+            preparing: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0,
+            shippingToConfirm: 0,
+            paymentPending: 1,
+          },
+          governorates: ["Bizerte"],
+        }),
+      getById: () => Promise.resolve(order),
+      updateStatus: () => Promise.resolve(order),
+      updatePaymentStatus: (input: unknown) => {
+        received = input;
+        return Promise.resolve({
+          ...order,
+          paymentStatus: "collected" as const,
+        });
+      },
+      updateShipping: () => Promise.resolve(order),
+      addNote: () => Promise.resolve(order),
+      cancelOrder: () => Promise.resolve(order),
+    } as unknown as PostgresAdminOrderRepository;
+    app = await buildApp({
+      environment,
+      logger: false,
+      database: new FakeDatabaseConnection(),
+      jwtVerifier,
+      adminAccessRepository: accessRepository,
+      auditRepository,
+      adminOrderRepository,
+    });
+    authorize("aal2", ["admin.session_read", "orders.read", "orders.ship"]);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/admin/orders/${order.id}/payment`,
+      headers: { authorization: "Bearer valid-token" },
+      payload: { paymentStatus: "collected" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ paymentStatus: "collected" });
+    expect(received).toMatchObject({
+      orderId: order.id,
+      paymentStatus: "collected",
+      actorUserId: userId,
+    });
+  });
+
+  it("persists a private Admin note through the API", async () => {
+    const order = orderFixture();
+    let received: unknown;
+    const adminOrderRepository = {
+      list: () =>
+        Promise.resolve({
+          items: [order],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          pageCount: 1,
+          counters: {
+            total: 1,
+            pendingConfirmation: 0,
+            confirmed: 1,
+            preparing: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0,
+            shippingToConfirm: 0,
+            paymentPending: 1,
+          },
+          governorates: ["Bizerte"],
+        }),
+      getById: () => Promise.resolve(order),
+      updateStatus: () => Promise.resolve(order),
+      updatePaymentStatus: () => Promise.resolve(order),
+      updateShipping: () => Promise.resolve(order),
+      addNote: (input: unknown) => {
+        received = input;
+        return Promise.resolve({
+          ...order,
+          notes: [
+            {
+              id: "55555555-5555-4555-8555-555555555555",
+              at: new Date(0).toISOString(),
+              author: "HBS HOME Admin",
+              userId,
+              body: "Client rappelé",
+            },
+          ],
+        });
+      },
+      cancelOrder: () => Promise.resolve(order),
+    } as unknown as PostgresAdminOrderRepository;
+    app = await buildApp({
+      environment,
+      logger: false,
+      database: new FakeDatabaseConnection(),
+      jwtVerifier,
+      adminAccessRepository: accessRepository,
+      auditRepository,
+      adminOrderRepository,
+    });
+    authorize("aal2", ["admin.session_read", "orders.read", "orders.confirm"]);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/orders/${order.id}/notes`,
+      headers: { authorization: "Bearer valid-token" },
+      payload: { text: "Client rappelé" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      notes: [{ body: "Client rappelé" }],
+    });
+    expect(received).toMatchObject({
+      orderId: order.id,
+      actorUserId: userId,
+      text: "Client rappelé",
+    });
+  });
+
+  it("uses the cancellation permission and forwards stock restoration", async () => {
+    const order = orderFixture();
+    let received: unknown;
+    const adminOrderRepository = {
+      list: () =>
+        Promise.resolve({
+          items: [order],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          pageCount: 1,
+          counters: {
+            total: 1,
+            pendingConfirmation: 0,
+            confirmed: 1,
+            preparing: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0,
+            shippingToConfirm: 0,
+            paymentPending: 1,
+          },
+          governorates: ["Bizerte"],
+        }),
+      getById: () => Promise.resolve(order),
+      updateStatus: () => Promise.resolve(order),
+      updatePaymentStatus: () => Promise.resolve(order),
+      updateShipping: () => Promise.resolve(order),
+      addNote: () => Promise.resolve(order),
+      cancelOrder: (input: unknown) => {
+        received = input;
+        return Promise.resolve({ ...order, status: "cancelled" as const });
+      },
+    } as unknown as PostgresAdminOrderRepository;
+    app = await buildApp({
+      environment,
+      logger: false,
+      database: new FakeDatabaseConnection(),
+      jwtVerifier,
+      adminAccessRepository: accessRepository,
+      auditRepository,
+      adminOrderRepository,
+    });
+    authorize("aal2", ["admin.session_read", "orders.read", "orders.cancel"]);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/orders/${order.id}/cancel`,
+      headers: { authorization: "Bearer valid-token" },
+      payload: { reason: "Client indisponible", restoreStock: true },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "cancelled" });
+    expect(received).toMatchObject({
+      orderId: order.id,
+      actorUserId: userId,
+      restoreStock: true,
+      refundPayment: false,
+    });
   });
 
   it("rejects an invalid bearer token without leaking verification details", async () => {

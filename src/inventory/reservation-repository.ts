@@ -314,29 +314,39 @@ export class PostgresReservationRepository implements ReservationRepository {
     reservationId: string,
     reason: ReservationReleaseReason,
   ): Promise<StockReservation> {
-    return this.database.transaction().execute(async (trx) => {
-      await sql`select pg_advisory_xact_lock(hashtextextended(${reservationId}, 0))`.execute(
-        trx,
+    return this.database
+      .transaction()
+      .execute((trx) =>
+        this.releaseWithinTransaction(trx, reservationId, reason),
       );
-      const reservation = await trx
-        .selectFrom("inventory.reservations")
-        .selectAll()
-        .where("id", "=", reservationId)
-        .forUpdate()
-        .executeTakeFirst();
-      if (!reservation) {
-        fail(
-          404,
-          "RESERVATION_NOT_FOUND",
-          "Reservation not found",
-          "The requested stock reservation does not exist.",
-        );
-      }
-      if (reservation.status !== "active")
-        return this.getWith(trx, reservationId);
-      await this.releaseActiveReservation(trx, reservation, reason, new Date());
+  }
+
+  async releaseWithinTransaction(
+    trx: Transaction<DatabaseSchema>,
+    reservationId: string,
+    reason: ReservationReleaseReason,
+  ): Promise<StockReservation> {
+    await sql`select pg_advisory_xact_lock(hashtextextended(${reservationId}, 0))`.execute(
+      trx,
+    );
+    const reservation = await trx
+      .selectFrom("inventory.reservations")
+      .selectAll()
+      .where("id", "=", reservationId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!reservation) {
+      fail(
+        404,
+        "RESERVATION_NOT_FOUND",
+        "Reservation not found",
+        "The requested stock reservation does not exist.",
+      );
+    }
+    if (reservation.status !== "active")
       return this.getWith(trx, reservationId);
-    });
+    await this.releaseActiveReservation(trx, reservation, reason, new Date());
+    return this.getWith(trx, reservationId);
   }
 
   async expire(now: Date, limit: number): Promise<ReservationExpiryResult> {

@@ -35,4 +35,4 @@ services:
       - key: SUPABASE_JWT_AUDIENCE
         value: authenticated
       - key: RELEASE_VERSION
-        value: 0.4.0-staging
+        value: 0.5.0-staging
