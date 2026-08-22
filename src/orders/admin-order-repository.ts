@@ -5,18 +5,22 @@ import type {
   DatabaseSchema,
   OrderItemTable,
   OrderNoteTable,
+  OrderReturnTable,
+  OrderReturnStatus,
   OrderStatus,
   OrderStatusHistoryTable,
   OrderTable,
 } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
 import { PostgresReservationRepository } from "../inventory/reservation-repository.js";
+import { syncVariantPayload } from "../inventory/inventory-payload.js";
 
 type OrderRow = Selectable<OrderTable>;
 type CustomerRow = Selectable<CustomerTable>;
 type OrderItemRow = Selectable<OrderItemTable>;
 type OrderHistoryRow = Selectable<OrderStatusHistoryTable>;
 type OrderNoteRow = Selectable<OrderNoteTable>;
+type OrderReturnRow = Selectable<OrderReturnTable>;
 
 export type AdminOrderSort =
   "newest" | "oldest" | "total_desc" | "total_asc" | "status";
@@ -65,6 +69,19 @@ export interface AdminOrderNote {
   body: string;
 }
 
+export interface AdminOrderReturnInfo {
+  id: string;
+  status: OrderReturnStatus;
+  requestedAt: string;
+  reason: string;
+  note: string | null;
+  resolvedAt: string | null;
+  resolution: "accepted" | "refused" | null;
+  restocked: boolean;
+  refundPayment: boolean;
+  conditionReason: string | null;
+}
+
 export interface AdminOrder {
   id: string;
   orderNumber: string;
@@ -91,6 +108,7 @@ export interface AdminOrder {
   totalMinor: number;
   timeline: readonly AdminOrderEvent[];
   notes: readonly AdminOrderNote[];
+  returnInfo?: AdminOrderReturnInfo | null;
   shipment: {
     shippingStatus: "calculated" | "to_confirm";
     shippingFeeMinor: number;
@@ -163,6 +181,36 @@ export interface AdminOrderCancellationInput {
   refundPayment: boolean;
 }
 
+export interface AdminOrderContactInput {
+  orderId: string;
+  actorUserId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+}
+
+export interface AdminOrderAddressInput {
+  orderId: string;
+  actorUserId: string;
+  governorate: string;
+  city: string;
+  postalCode?: string | null;
+  addressLine: string;
+  landmark?: string | null;
+  deliveryNote?: string | null;
+}
+
+export interface AdminOrderReturnInput {
+  orderId: string;
+  actorUserId: string;
+  reason: string;
+  note?: string;
+  action: "request" | "accept" | "refuse";
+  restock: boolean;
+  conditionReason?: string;
+  refundPayment: boolean;
+}
+
 const STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   pending_confirmation: ["confirmed", "cancelled"],
   confirmed: ["preparing", "cancelled"],
@@ -197,6 +245,21 @@ function statusLabel(status: OrderStatus): string {
       cancelled: "Annulée",
     } satisfies Record<OrderStatus, string>
   )[status];
+}
+
+function mapReturn(row: OrderReturnRow): AdminOrderReturnInfo {
+  return {
+    id: row.id,
+    status: row.status,
+    requestedAt: iso(row.requested_at),
+    reason: row.reason,
+    note: row.note,
+    resolvedAt: row.resolved_at ? iso(row.resolved_at) : null,
+    resolution: row.status === "requested" ? null : row.status,
+    restocked: row.restocked,
+    refundPayment: row.refund_payment,
+    conditionReason: row.condition_reason,
+  };
 }
 
 function mapItem(row: OrderItemRow): AdminOrderItem {
@@ -248,6 +311,7 @@ function mapOrder(
   items: readonly OrderItemRow[],
   history: readonly OrderHistoryRow[],
   notes: readonly OrderNoteRow[],
+  returnRow: OrderReturnRow | null,
 ): AdminOrder {
   const address = row.shipping_address;
   const timeline = history.length
@@ -288,6 +352,7 @@ function mapOrder(
     totalMinor: row.total_minor,
     timeline,
     notes: notes.map(mapNote),
+    returnInfo: returnRow ? mapReturn(returnRow) : null,
     shipment: {
       shippingStatus: row.shipping_status,
       shippingFeeMinor: row.shipping_minor,
@@ -313,6 +378,126 @@ function matchesSearch(order: AdminOrder, query: string): boolean {
     ].some((value) => value.toLocaleLowerCase().includes(needle)) ||
     (digits.length > 0 && phone.includes(digits))
   );
+}
+
+function invalidInput(code: string, detail: string): never {
+  throw new AppError({
+    statusCode: 400,
+    code,
+    title: "Invalid order input",
+    detail,
+  });
+}
+
+function assertEditable(current: OrderRow): void {
+  if (["shipped", "delivered", "cancelled"].includes(current.status)) {
+    throw new AppError({
+      statusCode: 409,
+      code: "ORDER_DETAILS_UPDATE_NOT_ALLOWED",
+      title: "Order details update not allowed",
+      detail:
+        "Customer coordinates and delivery address cannot be changed after shipment or cancellation.",
+    });
+  }
+}
+
+function splitCustomerName(value: string): {
+  firstName: string;
+  lastName: string;
+} {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) {
+    invalidInput(
+      "INVALID_ORDER_CONTACT",
+      "The customer name must contain a first name and a last name.",
+    );
+  }
+  const firstName = parts.shift() ?? "";
+  const lastName = parts.join(" ");
+  if (
+    firstName.length < 2 ||
+    firstName.length > 60 ||
+    lastName.length < 2 ||
+    lastName.length > 60
+  ) {
+    invalidInput(
+      "INVALID_ORDER_CONTACT",
+      "The customer first and last names must each contain between 2 and 60 characters.",
+    );
+  }
+  return { firstName, lastName };
+}
+
+function normalizePhone(value: string): string {
+  const phone = value.replace(/[\s.-]/g, "");
+  if (!/^(?:\+216)?[2-59][0-9]{7}$/.test(phone)) {
+    invalidInput(
+      "INVALID_ORDER_CONTACT",
+      "The phone number must be a valid Tunisian number.",
+    );
+  }
+  return phone.startsWith("+216") ? phone : `+216${phone}`;
+}
+
+function normalizeEmail(value: string | null | undefined): string | null {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email) return null;
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    invalidInput("INVALID_ORDER_CONTACT", "The email address is invalid.");
+  }
+  return email;
+}
+
+function normalizeAddress(
+  input: AdminOrderAddressInput,
+): Record<string, unknown> {
+  const governorate = input.governorate.trim();
+  const city = input.city.trim();
+  const addressLine = input.addressLine.trim();
+  if (
+    !governorate ||
+    governorate.length > 120 ||
+    !city ||
+    city.length > 120 ||
+    !addressLine ||
+    addressLine.length > 240
+  ) {
+    invalidInput(
+      "INVALID_ORDER_ADDRESS",
+      "Governorate, city and address are required and must be within their length limits.",
+    );
+  }
+  const optional = (
+    value: string | null | undefined,
+    max: number,
+  ): string | null => {
+    const normalized = value?.trim() ?? "";
+    if (normalized.length > max)
+      invalidInput(
+        "INVALID_ORDER_ADDRESS",
+        "An address field exceeds its length limit.",
+      );
+    return normalized || null;
+  };
+  return {
+    governorate,
+    city,
+    postalCode: optional(input.postalCode, 20),
+    addressLine,
+    landmark: optional(input.landmark, 160),
+    deliveryNote: optional(input.deliveryNote, 500),
+  };
+}
+
+function inventoryAvailabilityFor(
+  onHand: number,
+  threshold: number,
+  current: "in_stock" | "low_stock" | "out_of_stock" | "made_to_order",
+): "in_stock" | "low_stock" | "out_of_stock" | "made_to_order" {
+  if (current === "made_to_order") return current;
+  if (onHand <= 0) return "out_of_stock";
+  if (onHand <= threshold) return "low_stock";
+  return "in_stock";
 }
 
 export class PostgresAdminOrderRepository {
@@ -684,6 +869,94 @@ export class PostgresAdminOrderRepository {
     return updated;
   }
 
+  async updateContact(input: AdminOrderContactInput): Promise<AdminOrder> {
+    const { firstName, lastName } = splitCustomerName(input.customerName);
+    const phone = normalizePhone(input.customerPhone);
+    const email = normalizeEmail(input.customerEmail);
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      assertEditable(current);
+      await trx
+        .updateTable("commerce.customers")
+        .set({
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          email,
+          updated_at: new Date(),
+        })
+        .where("id", "=", current.customer_id)
+        .executeTakeFirstOrThrow();
+      await trx
+        .updateTable("commerce.orders")
+        .set({ updated_at: new Date() })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
+  async updateAddress(input: AdminOrderAddressInput): Promise<AdminOrder> {
+    const address = normalizeAddress(input);
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+      assertEditable(current);
+      await trx
+        .updateTable("commerce.orders")
+        .set({ shipping_address: address, updated_at: new Date() })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
   async addNote(input: AdminOrderNoteInput): Promise<AdminOrder> {
     const body = input.text.trim();
     const authorName = input.actorName.trim();
@@ -837,6 +1110,265 @@ export class PostgresAdminOrderRepository {
     return updated;
   }
 
+  async returnOrder(input: AdminOrderReturnInput): Promise<AdminOrder> {
+    const reason = input.reason.trim();
+    const note = input.note?.trim() ?? null;
+    const conditionReason = input.conditionReason?.trim() ?? null;
+    if (!reason || reason.length > 500) {
+      invalidInput(
+        "INVALID_ORDER_RETURN",
+        "A return reason between 1 and 500 characters is required.",
+      );
+    }
+    if (note && note.length > 1_000) {
+      invalidInput(
+        "INVALID_ORDER_RETURN",
+        "The return note must be at most 1000 characters.",
+      );
+    }
+    if (conditionReason && conditionReason.length > 500) {
+      invalidInput(
+        "INVALID_ORDER_RETURN",
+        "The condition reason must be at most 500 characters.",
+      );
+    }
+    if (input.action !== "accept" && (input.restock || input.refundPayment)) {
+      invalidInput(
+        "INVALID_ORDER_RETURN",
+        "Restocking and refunding are only available when accepting a return.",
+      );
+    }
+
+    await this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("commerce.orders")
+        .selectAll()
+        .where("id", "=", input.orderId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current) {
+        throw new AppError({
+          statusCode: 404,
+          code: "ORDER_NOT_FOUND",
+          title: "Order not found",
+          detail: "The requested order does not exist.",
+        });
+      }
+
+      if (input.action === "request") {
+        if (current.status !== "delivered") {
+          throw new AppError({
+            statusCode: 409,
+            code: "ORDER_RETURN_NOT_ALLOWED",
+            title: "Return request not allowed",
+            detail: "A return can only be requested for a delivered order.",
+          });
+        }
+        const active = await trx
+          .selectFrom("commerce.order_returns")
+          .select("id")
+          .where("order_id", "=", input.orderId)
+          .where("status", "=", "requested")
+          .executeTakeFirst();
+        if (active) {
+          throw new AppError({
+            statusCode: 409,
+            code: "ORDER_RETURN_ALREADY_REQUESTED",
+            title: "Return already requested",
+            detail: "This order already has a return awaiting resolution.",
+          });
+        }
+        await trx
+          .insertInto("commerce.order_returns")
+          .values({
+            id: randomUUID(),
+            order_id: input.orderId,
+            status: "requested",
+            reason,
+            note,
+            condition_reason: null,
+            restocked: false,
+            refund_payment: false,
+            requested_by: input.actorUserId,
+            resolved_by: null,
+            requested_at: new Date(),
+            resolved_at: null,
+          })
+          .executeTakeFirstOrThrow();
+        await trx
+          .insertInto("commerce.order_status_history")
+          .values({
+            id: randomUUID(),
+            order_id: input.orderId,
+            status: "delivered",
+            reason: "return_requested",
+            actor_user_id: input.actorUserId,
+            metadata: { reason, ...(note ? { note } : {}) },
+            created_at: new Date(),
+          })
+          .executeTakeFirstOrThrow();
+        return;
+      }
+
+      const pending = await trx
+        .selectFrom("commerce.order_returns")
+        .selectAll()
+        .where("order_id", "=", input.orderId)
+        .where("status", "=", "requested")
+        .forUpdate()
+        .executeTakeFirst();
+      if (!pending) {
+        throw new AppError({
+          statusCode: 409,
+          code: "ORDER_RETURN_NOT_FOUND",
+          title: "Return request not found",
+          detail: "This order has no return awaiting resolution.",
+        });
+      }
+      if (current.status !== "delivered") {
+        throw new AppError({
+          statusCode: 409,
+          code: "ORDER_RETURN_NOT_ALLOWED",
+          title: "Return resolution not allowed",
+          detail: "Only a delivered order can have its return resolved.",
+        });
+      }
+      const accepted = input.action === "accept";
+      if (
+        accepted &&
+        input.refundPayment &&
+        current.payment_status !== "collected"
+      ) {
+        throw new AppError({
+          statusCode: 409,
+          code: "RETURN_REFUND_NOT_ELIGIBLE",
+          title: "Refund not eligible",
+          detail: "A return can only refund a payment that has been collected.",
+        });
+      }
+
+      if (accepted && input.restock) {
+        const items = await trx
+          .selectFrom("commerce.order_items")
+          .select(["variant_id", "product_id", "quantity"])
+          .where("order_id", "=", input.orderId)
+          .orderBy("line_number", "asc")
+          .execute();
+        for (const item of items) {
+          const balance = await trx
+            .selectFrom("inventory.stock_balances")
+            .selectAll()
+            .where("variant_id", "=", item.variant_id)
+            .forUpdate()
+            .executeTakeFirst();
+          if (balance?.product_id !== item.product_id) {
+            throw new AppError({
+              statusCode: 409,
+              code: "RETURN_RESTOCK_NOT_AVAILABLE",
+              title: "Return restock not available",
+              detail: `Variant ${item.variant_id} no longer has a matching inventory balance.`,
+            });
+          }
+          const nextOnHand = balance.on_hand + item.quantity;
+          const availability = inventoryAvailabilityFor(
+            nextOnHand,
+            balance.low_stock_threshold,
+            balance.availability,
+          );
+          await trx
+            .updateTable("inventory.stock_balances")
+            .set({ on_hand: nextOnHand, availability })
+            .where("variant_id", "=", item.variant_id)
+            .executeTakeFirstOrThrow();
+          await trx
+            .insertInto("inventory.stock_movements")
+            .values({
+              id: randomUUID(),
+              variant_id: item.variant_id,
+              product_id: item.product_id,
+              movement_type: "return",
+              quantity: item.quantity,
+              on_hand_delta: item.quantity,
+              reserved_delta: 0,
+              previous_on_hand: balance.on_hand,
+              resulting_on_hand: nextOnHand,
+              previous_reserved: balance.reserved,
+              resulting_reserved: balance.reserved,
+              reason: "customer_return",
+              note: note ?? conditionReason,
+              operation_key: `return:${pending.id}:${item.variant_id}`,
+              request_fingerprint: null,
+              order_id: input.orderId,
+              actor_user_id: input.actorUserId,
+            })
+            .executeTakeFirstOrThrow();
+          await syncVariantPayload(trx, item.variant_id, {
+            stock: nextOnHand,
+            availableQuantity: Math.max(0, nextOnHand - balance.reserved),
+            lowStockThreshold: balance.low_stock_threshold,
+            availability,
+            trackInventory: balance.track_inventory,
+          });
+        }
+      }
+
+      const resolvedAt = new Date();
+      await trx
+        .updateTable("commerce.order_returns")
+        .set({
+          status: accepted ? "accepted" : "refused",
+          note: note ?? pending.note,
+          condition_reason: conditionReason,
+          restocked: accepted && input.restock,
+          refund_payment: accepted && input.refundPayment,
+          resolved_by: input.actorUserId,
+          resolved_at: resolvedAt,
+        })
+        .where("id", "=", pending.id)
+        .executeTakeFirstOrThrow();
+      await trx
+        .updateTable("commerce.orders")
+        .set({
+          payment_status:
+            accepted && input.refundPayment
+              ? "refunded"
+              : current.payment_status,
+          updated_at: resolvedAt,
+        })
+        .where("id", "=", input.orderId)
+        .executeTakeFirstOrThrow();
+      await trx
+        .insertInto("commerce.order_status_history")
+        .values({
+          id: randomUUID(),
+          order_id: input.orderId,
+          status: "delivered",
+          reason: accepted ? "return_accepted" : "return_refused",
+          actor_user_id: input.actorUserId,
+          metadata: {
+            reason,
+            ...(note ? { note } : {}),
+            ...(conditionReason ? { conditionReason } : {}),
+            restock: accepted && input.restock,
+            refundPayment: accepted && input.refundPayment,
+          },
+          created_at: resolvedAt,
+        })
+        .executeTakeFirstOrThrow();
+    });
+
+    const updated = await this.getById(input.orderId);
+    if (!updated) {
+      throw new AppError({
+        statusCode: 500,
+        code: "ORDER_STATE_INVALID",
+        title: "Order state invalid",
+        detail: "The updated order could not be loaded.",
+      });
+    }
+    return updated;
+  }
+
   private async loadOrders(
     headers: readonly (OrderRow & {
       customer_row_id: string;
@@ -848,7 +1380,7 @@ export class PostgresAdminOrderRepository {
   ): Promise<AdminOrder[]> {
     if (headers.length === 0) return [];
     const ids = headers.map((row) => row.id);
-    const [items, history, notes] = await Promise.all([
+    const [items, history, notes, returns] = await Promise.all([
       this.database
         .selectFrom("commerce.order_items")
         .selectAll()
@@ -866,6 +1398,13 @@ export class PostgresAdminOrderRepository {
         .selectAll()
         .where("order_id", "in", ids)
         .orderBy("created_at", "desc")
+        .orderBy("id", "desc")
+        .execute(),
+      this.database
+        .selectFrom("commerce.order_returns")
+        .selectAll()
+        .where("order_id", "in", ids)
+        .orderBy("requested_at", "desc")
         .orderBy("id", "desc")
         .execute(),
     ]);
@@ -887,6 +1426,11 @@ export class PostgresAdminOrderRepository {
       current.push(note);
       notesByOrder.set(note.order_id, current);
     }
+    const returnsByOrder = new Map<string, OrderReturnRow>();
+    for (const item of returns) {
+      if (!returnsByOrder.has(item.order_id))
+        returnsByOrder.set(item.order_id, item);
+    }
     return headers.map((row) =>
       mapOrder(
         row,
@@ -902,6 +1446,7 @@ export class PostgresAdminOrderRepository {
         itemsByOrder.get(row.id) ?? [],
         historyByOrder.get(row.id) ?? [],
         notesByOrder.get(row.id) ?? [],
+        returnsByOrder.get(row.id) ?? null,
       ),
     );
   }

@@ -391,6 +391,23 @@ export interface OrderNoteTable {
   created_at: Generated<Date>;
 }
 
+export type OrderReturnStatus = "requested" | "accepted" | "refused";
+
+export interface OrderReturnTable {
+  id: Generated<string>;
+  order_id: string;
+  status: OrderReturnStatus;
+  reason: string;
+  note: string | null;
+  condition_reason: string | null;
+  restocked: boolean;
+  refund_payment: boolean;
+  requested_by: string;
+  resolved_by: string | null;
+  requested_at: Generated<Date>;
+  resolved_at: Date | null;
+}
+
 export interface OutboxEventTable {
   id: Generated<string>;
   aggregate_type: string;
@@ -433,5 +450,6 @@ export interface DatabaseSchema {
   "commerce.order_items": OrderItemTable;
   "commerce.order_status_history": OrderStatusHistoryTable;
   "commerce.order_notes": OrderNoteTable;
+  "commerce.order_returns": OrderReturnTable;
   "commerce.outbox_events": OutboxEventTable;
 }
