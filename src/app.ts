@@ -59,6 +59,10 @@ import {
 } from "./orders/order-repository.js";
 import { PostgresAdminOrderRepository } from "./orders/admin-order-repository.js";
 import { PostgresAdminCustomerRepository } from "./customers/admin-customer-repository.js";
+import {
+  PostgresAdminContentRepository,
+  type AdminContentRepository,
+} from "./content/admin-content-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
@@ -69,6 +73,7 @@ import { registerFavoritesRoutes } from "./routes/favorites.js";
 import { registerOrderRoutes } from "./routes/orders.js";
 import { registerAdminOrderRoutes } from "./routes/admin-orders.js";
 import { registerAdminCustomerRoutes } from "./routes/admin-customers.js";
+import { registerAdminContentRoutes } from "./routes/admin-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -88,6 +93,7 @@ export interface BuildAppOptions {
   orderRepository?: OrderRepository;
   adminOrderRepository?: PostgresAdminOrderRepository;
   adminCustomerRepository?: PostgresAdminCustomerRepository;
+  adminContentRepository?: AdminContentRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -133,6 +139,9 @@ export async function buildApp(
   const adminCustomerRepository =
     options.adminCustomerRepository ??
     new PostgresAdminCustomerRepository(database.client, adminOrderRepository);
+  const adminContentRepository =
+    options.adminContentRepository ??
+    new PostgresAdminContentRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -221,6 +230,12 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminCustomerRepository,
+  });
+  registerAdminContentRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminContentRepository,
   });
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });

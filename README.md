@@ -63,6 +63,9 @@ POST /api/v1/admin/promotions
 GET /api/v1/admin/promotions/:id
 PATCH /api/v1/admin/promotions/:id
 POST /api/v1/admin/promotions/:id/archive
+GET /api/v1/admin/media
+POST /api/v1/admin/media
+PATCH /api/v1/admin/media/:id
 ```
 
 ## Phase 1 foundation
