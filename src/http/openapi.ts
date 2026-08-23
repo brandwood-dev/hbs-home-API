@@ -40,6 +40,10 @@ export async function registerOpenApi(
           description: "Public catalog browsing and recommendations.",
         },
         {
+          name: "content",
+          description: "Published editorial pages and reusable content blocks.",
+        },
+        {
           name: "admin-inventory",
           description:
             "Authenticated stock balances, movements and transactional reservations.",

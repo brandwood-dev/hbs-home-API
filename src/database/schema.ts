@@ -215,6 +215,33 @@ export interface ContentMediaAssetTable {
   updated_at: Generated<Date>;
 }
 
+export interface ContentEditorialPageTable {
+  id: Generated<string>;
+  slug: string;
+  title: string;
+  body: string;
+  seo_title: string | null;
+  seo_description: string | null;
+  status: "draft" | "published" | "archived";
+  version: number;
+  published_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentEditorialPageBlockTable {
+  id: Generated<string>;
+  page_id: string;
+  sort_order: number;
+  block_type: string;
+  payload: Record<string, unknown>;
+  media_asset_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export type InventoryAvailability =
   "in_stock" | "low_stock" | "out_of_stock" | "made_to_order";
 
@@ -503,6 +530,8 @@ export interface DatabaseSchema {
   "catalog.product_variants": CatalogProductVariantTable;
   "catalog.product_media": CatalogProductMediaTable;
   "content.media_assets": ContentMediaAssetTable;
+  "content.editorial_pages": ContentEditorialPageTable;
+  "content.editorial_page_blocks": ContentEditorialPageBlockTable;
   "inventory.stock_balances": StockBalanceTable;
   "inventory.stock_movements": StockMovementTable;
   "inventory.reservations": InventoryReservationTable;

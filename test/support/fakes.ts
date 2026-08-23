@@ -37,7 +37,10 @@ import type {
 } from "../../src/promotions/admin-promotion-repository.js";
 import type {
   AdminContentRepository,
+  AdminEditorialPage,
   AdminMediaAsset,
+  EditorialPageInput,
+  EditorialPagePatch,
   MediaAssetInput,
   MediaAssetPatch,
 } from "../../src/content/admin-content-repository.js";
@@ -275,6 +278,7 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
 
 export class FakeAdminContentRepository implements AdminContentRepository {
   readonly media: AdminMediaAsset[] = [];
+  readonly pages: AdminEditorialPage[] = [];
 
   listMedia(): Promise<readonly AdminMediaAsset[]> {
     return Promise.resolve(
@@ -316,6 +320,102 @@ export class FakeAdminContentRepository implements AdminContentRepository {
     if (!item) return Promise.reject(new Error("missing media"));
     Object.assign(item, patch, { updatedAt: new Date().toISOString() });
     return Promise.resolve(item);
+  }
+
+  listPages(includeArchived = false): Promise<readonly AdminEditorialPage[]> {
+    return Promise.resolve(
+      this.pages.filter(
+        (item) => includeArchived || item.status !== "archived",
+      ),
+    );
+  }
+
+  getPage(id: string): Promise<AdminEditorialPage | null> {
+    return Promise.resolve(this.pages.find((item) => item.id === id) ?? null);
+  }
+
+  createPage(
+    input: EditorialPageInput,
+    actorUserId: string,
+  ): Promise<AdminEditorialPage> {
+    void actorUserId;
+    const now = new Date(0).toISOString();
+    const page: AdminEditorialPage = {
+      id: "page-test-1",
+      slug: input.slug,
+      title: input.title,
+      body: input.body ?? "",
+      seoTitle: input.seoTitle ?? null,
+      seoDescription: input.seoDescription ?? null,
+      status: "draft",
+      version: 1,
+      publishedAt: null,
+      updatedAt: now,
+      blocks: (input.blocks ?? []).map((block, index) => ({
+        id: `block-test-${String(index + 1)}`,
+        sortOrder: block.sortOrder,
+        blockType: block.blockType,
+        payload: block.payload,
+        media: null,
+      })),
+    };
+    this.pages.push(page);
+    return Promise.resolve(page);
+  }
+
+  updatePage(
+    id: string,
+    patch: EditorialPagePatch,
+    actorUserId: string,
+  ): Promise<AdminEditorialPage> {
+    void actorUserId;
+    const page = this.pages.find((item) => item.id === id);
+    if (!page) return Promise.reject(new Error("missing page"));
+    Object.assign(page, {
+      ...patch,
+      ...(patch.blocks
+        ? {
+            blocks: patch.blocks.map((block, index) => ({
+              id: `block-test-${String(index + 1)}`,
+              sortOrder: block.sortOrder,
+              blockType: block.blockType,
+              payload: block.payload,
+              media: null,
+            })),
+          }
+        : {}),
+      version: page.version + 1,
+      updatedAt: new Date().toISOString(),
+    });
+    return Promise.resolve(page);
+  }
+
+  publishPage(id: string, actorUserId: string): Promise<AdminEditorialPage> {
+    void actorUserId;
+    const page = this.pages.find((item) => item.id === id);
+    if (!page) return Promise.reject(new Error("missing page"));
+    page.status = "published";
+    page.publishedAt = new Date(0).toISOString();
+    page.version += 1;
+    return Promise.resolve(page);
+  }
+
+  archivePage(id: string, actorUserId: string): Promise<AdminEditorialPage> {
+    void actorUserId;
+    const page = this.pages.find((item) => item.id === id);
+    if (!page) return Promise.reject(new Error("missing page"));
+    page.status = "archived";
+    page.publishedAt = null;
+    page.version += 1;
+    return Promise.resolve(page);
+  }
+
+  getPublishedPageBySlug(slug: string): Promise<AdminEditorialPage | null> {
+    return Promise.resolve(
+      this.pages.find(
+        (item) => item.slug === slug && item.status === "published",
+      ) ?? null,
+    );
   }
 }
 

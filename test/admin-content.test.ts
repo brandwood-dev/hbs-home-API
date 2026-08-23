@@ -178,4 +178,72 @@ describe("Admin content media API", () => {
         .filter((action) => action.startsWith("content.")),
     ).toEqual(["content.media_created", "content.media_updated"]);
   });
+
+  it("keeps editorial pages private until an MFA publication", async () => {
+    authorize("aal1", ["content.read"]);
+    const denied = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/content/pages",
+      headers: { authorization: "Bearer valid-token" },
+      payload: { slug: "a-propos", title: "À propos" },
+    });
+    expect(denied.statusCode).toBe(403);
+
+    authorize("aal2", ["content.write"]);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/content/pages",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        slug: "a-propos",
+        title: "À propos",
+        body: "Notre histoire.",
+        blocks: [
+          {
+            sortOrder: 0,
+            blockType: "hero",
+            payload: { eyebrow: "HBS HOME" },
+          },
+        ],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({
+      slug: "a-propos",
+      status: "draft",
+      blocks: [{ blockType: "hero", media: null }],
+    });
+    const createdBody = created.json<{ id: string }>();
+    const pageId = createdBody.id;
+
+    const hidden = await app.inject({
+      method: "GET",
+      url: "/api/v1/content/pages/a-propos",
+    });
+    expect(hidden.statusCode).toBe(404);
+
+    authorize("aal2", ["content.publish"]);
+    const published = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/content/pages/${pageId}/publish`,
+      headers: { authorization: "Bearer valid-token" },
+      payload: {},
+    });
+    expect(published.statusCode).toBe(200);
+    expect(published.json()).toMatchObject({ status: "published" });
+
+    const publicPage = await app.inject({
+      method: "GET",
+      url: "/api/v1/content/pages/a-propos",
+    });
+    expect(publicPage.statusCode).toBe(200);
+    expect(publicPage.json()).toMatchObject({
+      slug: "a-propos",
+      title: "À propos",
+      blocks: [{ blockType: "hero", payload: { eyebrow: "HBS HOME" } }],
+    });
+    expect(publicPage.json()).not.toHaveProperty("id");
+    const publicBody = publicPage.json<{ blocks: Record<string, unknown>[] }>();
+    expect(publicBody.blocks[0]).not.toHaveProperty("id");
+  });
 });
