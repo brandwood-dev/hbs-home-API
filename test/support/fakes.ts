@@ -277,10 +277,15 @@ export class FakeAdminContentRepository implements AdminContentRepository {
   readonly media: AdminMediaAsset[] = [];
 
   listMedia(): Promise<readonly AdminMediaAsset[]> {
-    return Promise.resolve(this.media.filter((item) => item.status !== "archived"));
+    return Promise.resolve(
+      this.media.filter((item) => item.status !== "archived"),
+    );
   }
 
-  createMedia(input: MediaAssetInput, actorUserId: string): Promise<AdminMediaAsset> {
+  createMedia(
+    input: MediaAssetInput,
+    actorUserId: string,
+  ): Promise<AdminMediaAsset> {
     void actorUserId;
     const now = new Date(0).toISOString();
     const item: AdminMediaAsset = {
@@ -301,7 +306,11 @@ export class FakeAdminContentRepository implements AdminContentRepository {
     return Promise.resolve(item);
   }
 
-  updateMedia(id: string, patch: MediaAssetPatch, actorUserId: string): Promise<AdminMediaAsset> {
+  updateMedia(
+    id: string,
+    patch: MediaAssetPatch,
+    actorUserId: string,
+  ): Promise<AdminMediaAsset> {
     void actorUserId;
     const item = this.media.find((candidate) => candidate.id === id);
     if (!item) return Promise.reject(new Error("missing media"));
