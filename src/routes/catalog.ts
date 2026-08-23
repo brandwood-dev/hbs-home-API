@@ -121,6 +121,7 @@ export const ProductSchema = Type.Object(
     variants: Type.Array(VariantSchema),
     colors: Type.Array(ColorSchema),
     details: Type.Record(Type.String(), Type.Unknown()),
+    attributes: Type.Record(Type.String(), Type.Unknown()),
     seo: Type.Object({ title: Type.String(), description: Type.String() }),
     isThermal: Type.Boolean(),
     isNew: Type.Boolean(),

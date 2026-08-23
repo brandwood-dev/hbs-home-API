@@ -32,6 +32,7 @@ const product = {
   variants: [],
   colors: [],
   details: {},
+  attributes: {},
   seo: { title: "Rideau", description: "Rideau" },
   isThermal: false,
   isNew: true,

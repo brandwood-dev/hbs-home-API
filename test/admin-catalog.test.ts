@@ -201,4 +201,32 @@ describe("Admin catalogue API", () => {
     expect(denied.statusCode).toBe(403);
     expect(denied.json()).toMatchObject({ code: "PERMISSION_DENIED" });
   });
+
+  it("accepts product attribute values in the Admin contract", async () => {
+    authorize("aal2", ["products.write"]);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/products",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        slug: "rideau-lin",
+        name: "Rideau lin",
+        reference: "RID-LIN-001",
+        categoryId: "cat-test-1",
+        material: "lin",
+        sellingMode: "ready_made",
+        attributes: {
+          opacity: "tamisant",
+          machine_washable: true,
+        },
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      attributes: {
+        opacity: "tamisant",
+        machine_washable: true,
+      },
+    });
+  });
 });
