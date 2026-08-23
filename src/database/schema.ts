@@ -242,6 +242,42 @@ export interface ContentEditorialPageBlockTable {
   updated_at: Generated<Date>;
 }
 
+export interface ContentHomeRevisionTable {
+  id: Generated<string>;
+  status: "draft" | "published" | "archived";
+  version: number;
+  published_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentHomeSectionTable {
+  id: Generated<string>;
+  revision_id: string;
+  section_key: string;
+  sort_order: number;
+  is_enabled: boolean;
+  payload: Record<string, unknown>;
+  media_asset_id: string | null;
+  mobile_media_asset_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentHomeShopTheLookHotspotTable {
+  id: Generated<string>;
+  section_id: string;
+  product_id: string;
+  x_percent: number;
+  y_percent: number;
+  label: string | null;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export type InventoryAvailability =
   "in_stock" | "low_stock" | "out_of_stock" | "made_to_order";
 
@@ -532,6 +568,9 @@ export interface DatabaseSchema {
   "content.media_assets": ContentMediaAssetTable;
   "content.editorial_pages": ContentEditorialPageTable;
   "content.editorial_page_blocks": ContentEditorialPageBlockTable;
+  "content.home_revisions": ContentHomeRevisionTable;
+  "content.home_sections": ContentHomeSectionTable;
+  "content.home_shop_the_look_hotspots": ContentHomeShopTheLookHotspotTable;
   "inventory.stock_balances": StockBalanceTable;
   "inventory.stock_movements": StockMovementTable;
   "inventory.reservations": InventoryReservationTable;

@@ -73,6 +73,11 @@ PATCH /api/v1/admin/content/pages/:id
 POST /api/v1/admin/content/pages/:id/publish
 POST /api/v1/admin/content/pages/:id/archive
 GET /api/v1/content/pages/:slug
+GET /api/v1/admin/content/home
+PUT /api/v1/admin/content/home
+POST /api/v1/admin/content/home/publish
+POST /api/v1/admin/content/home/archive
+GET /api/v1/content/home
 ```
 
 Editorial pages use draft, published and archived states. Admin mutations require the explicit
@@ -80,6 +85,13 @@ content permissions and MFA; published pages are immutable in the first CMS incr
 archived before a replacement draft is created. Public reads expose published pages only and return
 `Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300`; missing pages are
 cacheable for 30 seconds.
+
+Homepage merchandising uses the same draft → published → archived workflow. The first increment
+supports the `hero`, `promo_banner` and `shop_the_look` sections. Admin reads require `content.read`;
+draft updates require `content.write` with an `aal2` MFA session; publication and archiving require
+`content.publish` with `aal2`. Shop the Look hotspots store product references and percentage
+coordinates (0–100), while public responses remove internal revision, section, media and hotspot IDs.
+The public endpoint uses the same 60-second shared cache and 5-minute stale-while-revalidate window.
 
 ## Phase 1 foundation
 
