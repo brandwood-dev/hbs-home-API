@@ -14,6 +14,8 @@ type ProductStatus = CategoryStatus;
 type VariantStatus = CategoryStatus;
 type AttributeValueType =
   "text" | "number" | "boolean" | "select" | "color" | "dimension";
+type JsonAttributeValue =
+  Record<string, unknown> | readonly unknown[] | string | number | boolean;
 
 export interface AdminCategory {
   id: string;
@@ -115,6 +117,8 @@ export interface AdminProduct {
   archivedAt: string | null;
   version: number;
   isDemo: boolean;
+  /** Valeurs d'attributs normalisées, indexées par clé technique. */
+  attributes: Record<string, unknown>;
   media: readonly AdminProductMedia[];
   variants: readonly AdminProductVariant[];
   createdAt: string;
@@ -201,6 +205,7 @@ export interface ProductInput {
   isFeatured?: boolean;
   isThermal?: boolean;
   recommendationScore?: number;
+  attributes?: Record<string, unknown>;
   payload?: Record<string, unknown>;
 }
 
@@ -221,6 +226,7 @@ export interface ProductPatch {
   isFeatured?: boolean;
   isThermal?: boolean;
   recommendationScore?: number;
+  attributes?: Record<string, unknown>;
   payload?: Record<string, unknown>;
   expectedVersion?: number;
 }
@@ -606,6 +612,15 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             "An attribute with this key already exists.",
           );
       }
+      const productIdsToRefresh =
+        patch.key !== undefined && patch.key !== current.key
+          ? await trx
+              .selectFrom("catalog.product_attributes")
+              .select("product_id")
+              .distinct()
+              .where("attribute_id", "=", id)
+              .execute()
+          : [];
       if (current.is_system && patch.isSystem === false)
         fail(
           422,
@@ -655,6 +670,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         await replaceAttributeOptions(trx, id, patch.options);
       if (patch.categorySlugs !== undefined)
         await replaceAttributeCategories(trx, id, patch.categorySlugs);
+      for (const product of productIdsToRefresh)
+        await this.refreshProductPayload(product.product_id, trx);
       return this.attributeRecord(trx, row);
     });
   }
@@ -793,6 +810,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         "draft",
         input.imageAlt ?? "",
       );
+      await this.replaceProductAttributes(
+        trx,
+        row.id,
+        category.id,
+        input.attributes ?? {},
+        false,
+      );
+      await this.refreshProductPayload(row.id, trx);
       return this.productRecord(trx, row);
     });
   }
@@ -901,6 +926,17 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           patch.imageAlt ?? current.image_alt ?? "",
         );
       }
+      if (patch.attributes !== undefined || patch.categoryId !== undefined) {
+        const attributes =
+          patch.attributes ?? (await this.productAttributes(trx, id));
+        await this.replaceProductAttributes(
+          trx,
+          id,
+          categoryId,
+          attributes,
+          false,
+        );
+      }
       await this.refreshProductPayload(id, trx);
       return this.productRecord(trx, result);
     });
@@ -929,6 +965,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("product_id", "=", id)
         .where("status", "!=", "archived")
         .execute();
+      const attributes = await this.productAttributes(trx, id);
+      await this.replaceProductAttributes(
+        trx,
+        id,
+        current.category_id,
+        attributes,
+        true,
+      );
       if (
         current.name.trim().length < 2 ||
         current.reference.trim().length < 2 ||
@@ -1195,6 +1239,199 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     return this.productRecord(executor, row);
   }
 
+  private async productAttributes(
+    executor: DbExecutor,
+    productId: string,
+  ): Promise<Record<string, unknown>> {
+    const rows = await executor
+      .selectFrom("catalog.product_attributes as productAttribute")
+      .innerJoin(
+        "catalog.attributes as attribute",
+        "attribute.id",
+        "productAttribute.attribute_id",
+      )
+      .select(["attribute.key", "productAttribute.value"])
+      .where("productAttribute.product_id", "=", productId)
+      .orderBy("attribute.key")
+      .execute();
+    return Object.fromEntries(
+      rows.map((row) => [row.key, row.value as unknown]),
+    );
+  }
+
+  private async replaceProductAttributes(
+    executor: DbExecutor,
+    productId: string,
+    categoryId: string | null,
+    attributes: Record<string, unknown>,
+    requireRequired: boolean,
+  ): Promise<void> {
+    const { values: normalized, definitions } =
+      await this.normalizeProductAttributes(
+        executor,
+        categoryId,
+        attributes,
+        requireRequired,
+      );
+    await executor
+      .deleteFrom("catalog.product_attributes")
+      .where("product_id", "=", productId)
+      .execute();
+    const entries = Object.entries(normalized);
+    if (entries.length === 0) return;
+    const rows = entries.map(([key, value]) => {
+      const attributeId = definitions[key];
+      if (!attributeId)
+        fail(
+          500,
+          "ATTRIBUTE_DEFINITION_MISSING",
+          "Attribute definition missing",
+          `The definition for '${key}' could not be resolved.`,
+        );
+      return {
+        product_id: productId,
+        attribute_id: attributeId,
+        value: value as
+          Record<string, unknown> | unknown[] | string | number | boolean,
+      };
+    });
+    await executor
+      .insertInto("catalog.product_attributes")
+      .values(rows)
+      .execute();
+  }
+
+  private async normalizeProductAttributes(
+    executor: DbExecutor,
+    categoryId: string | null,
+    attributes: Record<string, unknown>,
+    requireRequired: boolean,
+  ): Promise<{
+    values: Record<string, JsonAttributeValue>;
+    definitions: Record<string, string>;
+  }> {
+    if (!categoryId) {
+      if (Object.keys(attributes).length > 0 || requireRequired)
+        fail(
+          422,
+          "PRODUCT_CATEGORY_REQUIRED",
+          "Product category required",
+          "Product attributes require a catalogue category.",
+        );
+      return { values: {}, definitions: {} };
+    }
+    const category = await executor
+      .selectFrom("catalog.categories")
+      .select(["id", "status"])
+      .where("id", "=", categoryId)
+      .executeTakeFirst();
+    if (!category || category.status === "archived")
+      fail(
+        422,
+        "CATEGORY_NOT_FOUND",
+        "Invalid category",
+        "The selected category does not exist or is archived.",
+      );
+
+    const definitions = await executor
+      .selectFrom("catalog.attributes")
+      .selectAll()
+      .where("status", "!=", "archived")
+      .execute();
+    const definitionByKey = new Map(
+      definitions.map((definition) => [definition.key, definition]),
+    );
+    const bindings = await executor
+      .selectFrom("catalog.category_attributes")
+      .select(["attribute_id", "category_id", "is_required"])
+      .execute();
+    const bindingsByAttribute = new Map<string, typeof bindings>();
+    for (const binding of bindings) {
+      const current = bindingsByAttribute.get(binding.attribute_id) ?? [];
+      current.push(binding);
+      bindingsByAttribute.set(binding.attribute_id, current);
+    }
+    const optionRows = definitions.length
+      ? await executor
+          .selectFrom("catalog.attribute_options")
+          .select(["attribute_id", "value", "is_active"])
+          .where(
+            "attribute_id",
+            "in",
+            definitions.map((definition) => definition.id),
+          )
+          .execute()
+      : [];
+    const optionsByAttribute = new Map<string, Set<string>>();
+    for (const option of optionRows) {
+      if (!option.is_active) continue;
+      const values =
+        optionsByAttribute.get(option.attribute_id) ?? new Set<string>();
+      values.add(option.value);
+      optionsByAttribute.set(option.attribute_id, values);
+    }
+
+    const normalized: Record<string, JsonAttributeValue> = {};
+    const definitionIds: Record<string, string> = {};
+    for (const [rawKey, rawValue] of Object.entries(attributes)) {
+      const key = rawKey.trim();
+      if (!key || !hasAttributeValue(rawValue)) continue;
+      const definition = definitionByKey.get(key);
+      if (!definition)
+        fail(
+          422,
+          "ATTRIBUTE_NOT_FOUND",
+          "Invalid product attribute",
+          `The attribute '${key}' does not exist or is archived.`,
+        );
+      const scopedBindings = bindingsByAttribute.get(definition.id) ?? [];
+      if (
+        scopedBindings.length > 0 &&
+        !scopedBindings.some((binding) => binding.category_id === categoryId)
+      )
+        fail(
+          422,
+          "ATTRIBUTE_CATEGORY_MISMATCH",
+          "Invalid product attribute",
+          `The attribute '${key}' is not available for the selected category.`,
+        );
+      const value = normalizeAttributeValue(
+        definition.value_type,
+        rawValue,
+        optionsByAttribute.get(definition.id),
+        key,
+      );
+      normalized[key] = value;
+      definitionIds[key] = definition.id;
+    }
+
+    if (requireRequired) {
+      for (const definition of definitions) {
+        const scopedBindings = bindingsByAttribute.get(definition.id) ?? [];
+        const binding = scopedBindings.find(
+          (item) => item.category_id === categoryId,
+        );
+        const isScoped = scopedBindings.length > 0;
+        const required = isScoped
+          ? binding !== undefined &&
+            (definition.is_required || binding.is_required)
+          : definition.is_required;
+        if (
+          required &&
+          !Object.prototype.hasOwnProperty.call(normalized, definition.key)
+        )
+          fail(
+            422,
+            "ATTRIBUTE_REQUIRED",
+            "Required product attribute missing",
+            `The attribute '${definition.name}' is required before publication.`,
+          );
+      }
+    }
+
+    return { values: normalized, definitions: definitionIds };
+  }
+
   private async productRecord(
     executor: DbExecutor,
     row: ProductRow,
@@ -1220,6 +1457,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .orderBy("sort_order")
       .orderBy("id")
       .execute();
+    const attributes = await this.productAttributes(executor, row.id);
     return {
       id: row.id,
       slug: row.slug,
@@ -1238,6 +1476,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       archivedAt: iso(row.archived_at),
       version: row.version,
       isDemo: row.is_demo,
+      attributes,
       media: media.map(mediaRecord),
       variants: variants.map(variantRecord),
       createdAt: iso(row.created_at) ?? new Date(0).toISOString(),
@@ -1483,6 +1722,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .selectAll()
       .where("product_id", "=", productId)
       .execute();
+    const attributes = await this.productAttributes(executor, productId);
     const balanceByVariant = new Map(
       balances.map((balance) => [balance.variant_id, balance]),
     );
@@ -1545,6 +1785,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       category: row.category,
       material: row.material,
       sellingMode: row.selling_mode,
+      attributes,
       images:
         images.length > 0
           ? images
@@ -1625,6 +1866,121 @@ function categoryRecord(row: CategoryRow): AdminCategory {
   };
 }
 
+function hasAttributeValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  if (Array.isArray(value)) return value.some(hasAttributeValue);
+  return typeof value === "object" && Object.keys(value).length > 0;
+}
+
+function normalizeAttributeValue(
+  valueType: AttributeValueType,
+  value: unknown,
+  allowedOptions: Set<string> | undefined,
+  key: string,
+): JsonAttributeValue {
+  if (valueType === "text") {
+    if (
+      typeof value !== "string" ||
+      value.trim().length === 0 ||
+      value.length > 5000
+    )
+      fail(
+        422,
+        "ATTRIBUTE_VALUE_INVALID",
+        "Invalid product attribute",
+        `The value for '${key}' must be a non-empty text of 5000 characters or less.`,
+      );
+    return value.trim();
+  }
+  if (valueType === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value))
+      fail(
+        422,
+        "ATTRIBUTE_VALUE_INVALID",
+        "Invalid product attribute",
+        `The value for '${key}' must be a finite number.`,
+      );
+    return value;
+  }
+  if (valueType === "boolean") {
+    if (typeof value !== "boolean")
+      fail(
+        422,
+        "ATTRIBUTE_VALUE_INVALID",
+        "Invalid product attribute",
+        `The value for '${key}' must be boolean.`,
+      );
+    return value;
+  }
+  if (valueType === "dimension") {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value) &&
+      typeof (value as Record<string, unknown>).value === "number" &&
+      Number.isFinite((value as Record<string, unknown>).value) &&
+      (value as Record<string, unknown>).unit !== undefined
+    )
+      return {
+        value: (value as Record<string, unknown>).value as number,
+        unit: String((value as Record<string, unknown>).unit),
+      };
+    fail(
+      422,
+      "ATTRIBUTE_VALUE_INVALID",
+      "Invalid product attribute",
+      `The value for '${key}' must be a finite measurement.`,
+    );
+  }
+
+  const candidates = Array.isArray(value) ? value : [value];
+  if (
+    candidates.length === 0 ||
+    candidates.some(
+      (candidate) => typeof candidate !== "string" || !candidate.trim(),
+    )
+  )
+    fail(
+      422,
+      "ATTRIBUTE_VALUE_INVALID",
+      "Invalid product attribute",
+      `The value for '${key}' must be one or more non-empty options.`,
+    );
+  const normalized = [
+    ...new Set(candidates.map((candidate) => (candidate as string).trim())),
+  ];
+  if (!allowedOptions || allowedOptions.size === 0)
+    fail(
+      422,
+      "ATTRIBUTE_OPTIONS_REQUIRED",
+      "Attribute options missing",
+      `The attribute '${key}' has no active options configured.`,
+    );
+  const invalid = normalized.find(
+    (candidate) => !allowedOptions.has(candidate),
+  );
+  if (invalid)
+    fail(
+      422,
+      "ATTRIBUTE_OPTION_INVALID",
+      "Invalid product attribute option",
+      `The option '${invalid}' is not active for '${key}'.`,
+    );
+  const first = normalized[0];
+  if (!first)
+    fail(
+      422,
+      "ATTRIBUTE_VALUE_INVALID",
+      "Invalid product attribute",
+      `The value for '${key}' is empty.`,
+    );
+  return Array.isArray(value) ? normalized : first;
+}
+
 function variantRecord(row: VariantRow): AdminProductVariant {
   return {
     id: row.id,
@@ -1649,26 +2005,79 @@ async function replaceAttributeOptions(
   attributeId: string,
   options: readonly AttributeOptionInput[],
 ): Promise<void> {
-  await executor
-    .deleteFrom("catalog.attribute_options")
+  const prepared = options.map((option, index) => ({
+    ...option,
+    value: option.value.trim(),
+    label: option.label.trim(),
+    sortOrder: option.sortOrder ?? index,
+  }));
+  const seen = new Set<string>();
+  for (const option of prepared) {
+    if (
+      !option.value ||
+      !option.label ||
+      option.value.length > 160 ||
+      option.label.length > 160
+    )
+      fail(
+        422,
+        "ATTRIBUTE_OPTION_INVALID",
+        "Invalid attribute option",
+        "Attribute option values and labels must contain between 1 and 160 characters.",
+      );
+    if (seen.has(option.value))
+      fail(
+        409,
+        "ATTRIBUTE_OPTION_CONFLICT",
+        "Attribute option conflict",
+        `The option '${option.value}' is duplicated.`,
+      );
+    seen.add(option.value);
+  }
+  const existing = await executor
+    .selectFrom("catalog.attribute_options")
+    .selectAll()
     .where("attribute_id", "=", attributeId)
     .execute();
-  if (options.length === 0) return;
-  await executor
-    .insertInto("catalog.attribute_options")
-    .values(
-      options.map((option, index) => ({
+  const requestedValues = new Set(prepared.map((option) => option.value));
+  for (const option of existing) {
+    if (requestedValues.has(option.value)) continue;
+    await executor
+      .updateTable("catalog.attribute_options")
+      .set({ is_active: false })
+      .where("id", "=", option.id)
+      .executeTakeFirst();
+  }
+  for (const option of prepared) {
+    const current = existing.find((item) => item.value === option.value);
+    if (current) {
+      await executor
+        .updateTable("catalog.attribute_options")
+        .set({
+          label: option.label,
+          sort_order: option.sortOrder,
+          hex: option.hex ?? null,
+          family: option.family ?? null,
+          is_active: option.isActive ?? true,
+        })
+        .where("id", "=", current.id)
+        .executeTakeFirst();
+      continue;
+    }
+    await executor
+      .insertInto("catalog.attribute_options")
+      .values({
         id: randomUUID(),
         attribute_id: attributeId,
         value: option.value,
         label: option.label,
-        sort_order: option.sortOrder ?? index,
+        sort_order: option.sortOrder,
         hex: option.hex ?? null,
         family: option.family ?? null,
         is_active: option.isActive ?? true,
-      })),
-    )
-    .execute();
+      })
+      .executeTakeFirst();
+  }
 }
 
 async function replaceAttributeCategories(

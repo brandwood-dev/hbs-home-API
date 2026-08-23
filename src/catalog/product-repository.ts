@@ -181,6 +181,8 @@ export interface Product {
   variants: readonly ProductVariant[];
   colors: readonly ProductColor[];
   details: Record<string, unknown>;
+  /** Attributs de catalogue normalisés, projetés pour la recherche et les filtres. */
+  attributes: Record<string, unknown>;
   seo: { title: string; description: string };
   isThermal: boolean;
   isNew: boolean;
@@ -456,6 +458,7 @@ function parseOptionalBoolean(value: unknown): boolean | undefined {
 function parseProduct(row: CatalogProductRow): Product | null {
   const payload = asRecord(row.product);
   const details = asRecord(payload.details);
+  const attributes = asRecord(payload.attributes);
   const seo = asRecord(payload.seo);
 
   const id = row.id.trim();
@@ -506,6 +509,7 @@ function parseProduct(row: CatalogProductRow): Product | null {
     ),
     colors: colors.filter((value): value is ProductColor => value !== null),
     details: details,
+    attributes,
     seo: {
       title: mergeString(seo.title, row.slug) ?? `${name} — ${category}`,
       description:
