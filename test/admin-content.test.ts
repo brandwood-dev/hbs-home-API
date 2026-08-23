@@ -85,6 +85,42 @@ describe("Admin content media API", () => {
     expect(response.json()).toEqual({ items: [] });
   });
 
+  it("rejects incomplete dimensions and blank media text", async () => {
+    authorize("aal2", ["media.write"]);
+    const incompleteDimensions = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/media",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        publicUrl: "https://example.test/hero.webp",
+        name: "Hero accueil",
+        alt: "Hero accueil",
+        width: 1600,
+        mimeType: "image/webp",
+      },
+    });
+    expect(incompleteDimensions.statusCode).toBe(400);
+    expect(incompleteDimensions.json()).toMatchObject({
+      code: "MEDIA_VALIDATION_ERROR",
+    });
+
+    const blankText = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/media",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        publicUrl: "https://example.test/hero.webp",
+        name: "   ",
+        alt: "Hero accueil",
+        mimeType: "image/webp",
+      },
+    });
+    expect(blankText.statusCode).toBe(400);
+    expect(blankText.json()).toMatchObject({
+      code: "MEDIA_VALIDATION_ERROR",
+    });
+  });
+
   it("requires aal2 to create and archive a media asset", async () => {
     authorize("aal1", ["media.write"]);
     const blocked = await app.inject({

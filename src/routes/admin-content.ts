@@ -11,7 +11,7 @@ import {
   type MediaAssetInput,
   type MediaAssetPatch,
 } from "../content/admin-content-repository.js";
-import { ProblemDetailSchema } from "../http/problem.js";
+import { AppError, ProblemDetailSchema } from "../http/problem.js";
 
 const IdParams = Type.Object(
   { id: Type.String({ minLength: 1, maxLength: 160 }) },
@@ -123,10 +123,45 @@ async function audit(
 }
 
 function mediaInput(input: MediaBodyType): MediaAssetInput {
+  if (!input.name.trim() || !input.alt.trim()) {
+    throw new AppError({
+      statusCode: 400,
+      code: "MEDIA_VALIDATION_ERROR",
+      title: "Invalid media asset",
+      detail:
+        "name and alt must contain at least one non-whitespace character.",
+    });
+  }
+  const hasWidth = input.width !== undefined;
+  const hasHeight = input.height !== undefined;
+  if (
+    hasWidth !== hasHeight ||
+    (hasWidth && (input.width === null) !== (input.height === null))
+  ) {
+    throw new AppError({
+      statusCode: 400,
+      code: "MEDIA_VALIDATION_ERROR",
+      title: "Invalid media asset",
+      detail: "Width and height must be provided together or both be null.",
+    });
+  }
   return input;
 }
 
 function mediaPatch(input: MediaPatchBodyType): MediaAssetPatch {
+  if (
+    (input.name !== undefined && !input.name.trim()) ||
+    (input.alt !== undefined && !input.alt.trim()) ||
+    (input.usage !== undefined && !input.usage.trim())
+  ) {
+    throw new AppError({
+      statusCode: 400,
+      code: "MEDIA_VALIDATION_ERROR",
+      title: "Invalid media asset",
+      detail:
+        "Media text fields must contain at least one non-whitespace character.",
+    });
+  }
   return input;
 }
 

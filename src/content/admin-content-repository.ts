@@ -66,6 +66,50 @@ function fail(
   throw new AppError({ statusCode, code, title, detail });
 }
 
+function requiredText(value: string, field: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    fail(
+      400,
+      "MEDIA_VALIDATION_ERROR",
+      "Invalid media asset",
+      `${field} must contain at least one non-whitespace character.`,
+    );
+  }
+  return normalized;
+}
+
+function validateDimensions(width: number | null, height: number | null): void {
+  if ((width === null) !== (height === null)) {
+    fail(
+      400,
+      "MEDIA_VALIDATION_ERROR",
+      "Invalid media asset",
+      "Width and height must be provided together or both be null.",
+    );
+  }
+  if (
+    (width !== null && (!Number.isInteger(width) || width < 1)) ||
+    (height !== null && (!Number.isInteger(height) || height < 1))
+  ) {
+    fail(
+      400,
+      "MEDIA_VALIDATION_ERROR",
+      "Invalid media asset",
+      "Width and height must be positive integers.",
+    );
+  }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
 function iso(value: Date | string): string {
   return value instanceof Date
     ? value.toISOString()
@@ -108,6 +152,12 @@ export class PostgresAdminContentRepository implements AdminContentRepository {
     actorUserId: string,
   ): Promise<AdminMediaAsset> {
     const storagePath = input.storagePath?.trim() ?? `external/${randomUUID()}`;
+    const name = requiredText(input.name, "name");
+    const alt = requiredText(input.alt, "alt");
+    const usage = requiredText(input.usage?.trim() ?? "unassigned", "usage");
+    const width = input.width ?? null;
+    const height = input.height ?? null;
+    validateDimensions(width, height);
     const duplicate = await this.database
       .selectFrom("content.media_assets")
       .select("id")
@@ -121,23 +171,35 @@ export class PostgresAdminContentRepository implements AdminContentRepository {
         "A media asset already exists for this storage path.",
       );
 
-    const row = await this.database
-      .insertInto("content.media_assets")
-      .values({
-        storage_path: storagePath,
-        public_url: input.publicUrl.trim(),
-        name: input.name.trim(),
-        alt: input.alt.trim(),
-        width: input.width ?? null,
-        height: input.height ?? null,
-        mime_type: input.mimeType,
-        status: input.status ?? "draft",
-        usage: input.usage?.trim() ?? "unassigned",
-        created_by: actorUserId,
-        updated_by: actorUserId,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    let row: MediaRow;
+    try {
+      row = await this.database
+        .insertInto("content.media_assets")
+        .values({
+          storage_path: storagePath,
+          public_url: input.publicUrl.trim(),
+          name,
+          alt,
+          width,
+          height,
+          mime_type: input.mimeType,
+          status: input.status ?? "draft",
+          usage,
+          created_by: actorUserId,
+          updated_by: actorUserId,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    } catch (error) {
+      if (isUniqueViolation(error))
+        fail(
+          409,
+          "MEDIA_PATH_CONFLICT",
+          "Media conflict",
+          "A media asset already exists for this storage path.",
+        );
+      throw error;
+    }
     return mediaRecord(row);
   }
 
@@ -159,15 +221,25 @@ export class PostgresAdminContentRepository implements AdminContentRepository {
         "The requested media asset does not exist.",
       );
 
+    const width = patch.width === undefined ? current.width : patch.width;
+    const height = patch.height === undefined ? current.height : patch.height;
+    validateDimensions(width, height);
+
     const row = await this.database
       .updateTable("content.media_assets")
       .set({
-        ...(patch.name === undefined ? {} : { name: patch.name.trim() }),
-        ...(patch.alt === undefined ? {} : { alt: patch.alt.trim() }),
+        ...(patch.name === undefined
+          ? {}
+          : { name: requiredText(patch.name, "name") }),
+        ...(patch.alt === undefined
+          ? {}
+          : { alt: requiredText(patch.alt, "alt") }),
         ...(patch.width === undefined ? {} : { width: patch.width }),
         ...(patch.height === undefined ? {} : { height: patch.height }),
         ...(patch.status === undefined ? {} : { status: patch.status }),
-        ...(patch.usage === undefined ? {} : { usage: patch.usage.trim() }),
+        ...(patch.usage === undefined
+          ? {}
+          : { usage: requiredText(patch.usage, "usage") }),
         updated_by: actorUserId,
       })
       .where("id", "=", id)
