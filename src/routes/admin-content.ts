@@ -81,8 +81,119 @@ const MediaPatchBody = Type.Partial(
   ),
 );
 
+const EditorialPageBlockSchema = Type.Object(
+  {
+    id: Type.String({ format: "uuid" }),
+    sortOrder: Type.Integer({ minimum: 0 }),
+    blockType: Type.String({ minLength: 1, maxLength: 80 }),
+    payload: Type.Record(Type.String(), Type.Unknown()),
+    media: Type.Union([
+      Type.Null(),
+      Type.Object(
+        {
+          id: Type.String({ format: "uuid" }),
+          publicUrl: Type.String({ format: "uri" }),
+          alt: Type.String(),
+        },
+        { additionalProperties: false },
+      ),
+    ]),
+  },
+  { $id: "AdminEditorialPageBlock", additionalProperties: false },
+);
+const EditorialPageSchema = Type.Object(
+  {
+    id: Type.String({ format: "uuid" }),
+    slug: Type.String(),
+    title: Type.String(),
+    body: Type.String(),
+    seoTitle: Type.Union([Type.String(), Type.Null()]),
+    seoDescription: Type.Union([Type.String(), Type.Null()]),
+    status: Type.Union([
+      Type.Literal("draft"),
+      Type.Literal("published"),
+      Type.Literal("archived"),
+    ]),
+    version: Type.Integer({ minimum: 1 }),
+    publishedAt: Type.Union([
+      Type.String({ format: "date-time" }),
+      Type.Null(),
+    ]),
+    updatedAt: Type.String({ format: "date-time" }),
+    blocks: Type.Array(EditorialPageBlockSchema),
+  },
+  { $id: "AdminEditorialPage", additionalProperties: false },
+);
+const EditorialPagesResponse = Type.Object(
+  { items: Type.Array(EditorialPageSchema) },
+  { $id: "AdminEditorialPagesResponse", additionalProperties: false },
+);
+const EditorialPageBlockInputSchema = Type.Object(
+  {
+    sortOrder: Type.Integer({ minimum: 0 }),
+    blockType: Type.String({
+      minLength: 1,
+      maxLength: 80,
+      pattern: "^[a-z][a-z0-9_-]{0,79}$",
+    }),
+    payload: Type.Record(Type.String(), Type.Unknown()),
+    mediaAssetId: Type.Optional(
+      Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    ),
+  },
+  { additionalProperties: false },
+);
+const EditorialPageBody = Type.Object(
+  {
+    slug: Type.String({
+      minLength: 1,
+      maxLength: 160,
+      pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+    }),
+    title: Type.String({ minLength: 1, maxLength: 240 }),
+    body: Type.Optional(Type.String({ maxLength: 200000 })),
+    seoTitle: Type.Optional(
+      Type.Union([Type.String({ minLength: 1, maxLength: 160 }), Type.Null()]),
+    ),
+    seoDescription: Type.Optional(
+      Type.Union([Type.String({ minLength: 1, maxLength: 320 }), Type.Null()]),
+    ),
+    blocks: Type.Optional(
+      Type.Array(EditorialPageBlockInputSchema, { maxItems: 100 }),
+    ),
+  },
+  { additionalProperties: false },
+);
+const EditorialPagePatchBody = Type.Partial(
+  Type.Object(
+    {
+      slug: Type.String({
+        minLength: 1,
+        maxLength: 160,
+        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      }),
+      title: Type.String({ minLength: 1, maxLength: 240 }),
+      body: Type.String({ maxLength: 200000 }),
+      seoTitle: Type.Union([
+        Type.String({ minLength: 1, maxLength: 160 }),
+        Type.Null(),
+      ]),
+      seoDescription: Type.Union([
+        Type.String({ minLength: 1, maxLength: 320 }),
+        Type.Null(),
+      ]),
+      blocks: Type.Array(EditorialPageBlockInputSchema, { maxItems: 100 }),
+      expectedVersion: Type.Integer({ minimum: 1 }),
+    },
+    { additionalProperties: false },
+  ),
+);
+const EmptyBody = Type.Object({}, { additionalProperties: false });
+
 type MediaBodyType = Static<typeof MediaBody>;
 type MediaPatchBodyType = Static<typeof MediaPatchBody>;
+type EditorialPageBodyType = Static<typeof EditorialPageBody>;
+type EditorialPagePatchBodyType = Static<typeof EditorialPagePatchBody>;
 
 export interface AdminContentRouteDependencies extends AdminGuardDependencies {
   adminContentRepository: AdminContentRepository;
@@ -171,6 +282,8 @@ export function registerAdminContentRoutes(
 ): void {
   app.addSchema(MediaSchema);
   app.addSchema(MediaResponse);
+  app.addSchema(EditorialPageSchema);
+  app.addSchema(EditorialPagesResponse);
 
   app.get(
     "/api/v1/admin/media",
@@ -269,6 +382,230 @@ export function registerAdminContentRoutes(
         actor,
         "content.media_updated",
         "media",
+        item.id,
+      );
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.get(
+    "/api/v1/admin/content/pages",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: false,
+        permissions: ["content.read"],
+      }),
+      schema: {
+        operationId: "adminListEditorialPages",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: EditorialPagesResponse,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+        },
+      },
+    },
+    async () => ({
+      items: await dependencies.adminContentRepository.listPages(),
+    }),
+  );
+
+  app.get<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/content/pages/:id",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: false,
+        permissions: ["content.read"],
+      }),
+      schema: {
+        operationId: "adminGetEditorialPage",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        response: {
+          200: EditorialPageSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const item = await dependencies.adminContentRepository.getPage(
+        request.params.id,
+      );
+      if (!item) {
+        return reply.code(404).send({
+          type: "https://hbs-home.com/problems/editorial-page-not-found",
+          title: "Editorial page not found",
+          status: 404,
+          code: "EDITORIAL_PAGE_NOT_FOUND",
+          detail: "The requested page does not exist.",
+          instance: request.url,
+          requestId: request.id,
+        });
+      }
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.post<{ Body: EditorialPageBodyType }>(
+    "/api/v1/admin/content/pages",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.write"],
+      }),
+      schema: {
+        operationId: "adminCreateEditorialPage",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        body: EditorialPageBody,
+        response: {
+          201: EditorialPageSchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminContentRepository.createPage(
+        request.body,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.page_created",
+        "editorial_page",
+        item.id,
+      );
+      return reply.code(201).send(item);
+    },
+  );
+
+  app.patch<{
+    Params: Static<typeof IdParams>;
+    Body: EditorialPagePatchBodyType;
+  }>(
+    "/api/v1/admin/content/pages/:id",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.write"],
+      }),
+      schema: {
+        operationId: "adminUpdateEditorialPage",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: EditorialPagePatchBody,
+        response: {
+          200: EditorialPageSchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminContentRepository.updatePage(
+        request.params.id,
+        request.body,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.page_updated",
+        "editorial_page",
+        item.id,
+      );
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.post<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/content/pages/:id/publish",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.publish"],
+      }),
+      schema: {
+        operationId: "adminPublishEditorialPage",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: EmptyBody,
+        response: {
+          200: EditorialPageSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminContentRepository.publishPage(
+        request.params.id,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.page_published",
+        "editorial_page",
+        item.id,
+      );
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.post<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/content/pages/:id/archive",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.publish"],
+      }),
+      schema: {
+        operationId: "adminArchiveEditorialPage",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: EmptyBody,
+        response: {
+          200: EditorialPageSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminContentRepository.archivePage(
+        request.params.id,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.page_archived",
+        "editorial_page",
         item.id,
       );
       return reply.code(200).send(item);

@@ -74,6 +74,7 @@ import { registerOrderRoutes } from "./routes/orders.js";
 import { registerAdminOrderRoutes } from "./routes/admin-orders.js";
 import { registerAdminCustomerRoutes } from "./routes/admin-customers.js";
 import { registerAdminContentRoutes } from "./routes/admin-content.js";
+import { registerContentRoutes } from "./routes/content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -237,6 +238,7 @@ export async function buildApp(
     auditRepository,
     adminContentRepository,
   });
+  registerContentRoutes(app, { adminContentRepository });
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });
   registerOrderRoutes(app, { orderRepository });

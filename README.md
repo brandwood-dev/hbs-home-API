@@ -66,7 +66,18 @@ POST /api/v1/admin/promotions/:id/archive
 GET /api/v1/admin/media
 POST /api/v1/admin/media
 PATCH /api/v1/admin/media/:id
+GET /api/v1/admin/content/pages
+GET /api/v1/admin/content/pages/:id
+POST /api/v1/admin/content/pages
+PATCH /api/v1/admin/content/pages/:id
+POST /api/v1/admin/content/pages/:id/publish
+POST /api/v1/admin/content/pages/:id/archive
+GET /api/v1/content/pages/:slug
 ```
+
+Editorial pages use draft, published and archived states. Admin mutations require the explicit
+content permissions and MFA; published pages are immutable in the first CMS increment and must be
+archived before a replacement draft is created. Public reads expose published pages only.
 
 ## Phase 1 foundation
 
