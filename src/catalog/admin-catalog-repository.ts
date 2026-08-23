@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Kysely, Selectable, Transaction } from "kysely";
+import { sql, type Kysely, type Selectable, type Transaction } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
 
@@ -1291,7 +1291,10 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       return {
         product_id: productId,
         attribute_id: attributeId,
-        value: value as
+        // PostgreSQL serializes bound JavaScript strings as text.  This column
+        // is JSONB, so bind an explicit JSON representation for every value
+        // (including primitive text/number/boolean attributes).
+        value: sql`cast(${JSON.stringify(value)} as jsonb)` as unknown as
           Record<string, unknown> | unknown[] | string | number | boolean,
       };
     });
