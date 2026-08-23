@@ -221,7 +221,7 @@ export function registerAdminContentRoutes(
         },
       },
     },
-    async (request) => {
+    async (request, reply) => {
       const actor = principal(request);
       const item = await dependencies.adminContentRepository.updateMedia(
         request.params.id,
@@ -236,7 +236,7 @@ export function registerAdminContentRoutes(
         "media",
         item.id,
       );
-      return item;
+      return reply.send(item);
     },
   );
 }
