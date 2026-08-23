@@ -537,6 +537,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     const rows = await this.database
       .selectFrom("catalog.attributes")
       .selectAll()
+      .where("status", "!=", "archived")
       .orderBy("key")
       .execute();
     return Promise.all(
