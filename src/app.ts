@@ -63,6 +63,10 @@ import {
   PostgresAdminContentRepository,
   type AdminContentRepository,
 } from "./content/admin-content-repository.js";
+import {
+  PostgresHomeContentRepository,
+  type HomeContentRepository,
+} from "./content/home-content-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
@@ -74,7 +78,9 @@ import { registerOrderRoutes } from "./routes/orders.js";
 import { registerAdminOrderRoutes } from "./routes/admin-orders.js";
 import { registerAdminCustomerRoutes } from "./routes/admin-customers.js";
 import { registerAdminContentRoutes } from "./routes/admin-content.js";
+import { registerAdminHomeContentRoutes } from "./routes/admin-home-content.js";
 import { registerContentRoutes } from "./routes/content.js";
+import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -95,6 +101,7 @@ export interface BuildAppOptions {
   adminOrderRepository?: PostgresAdminOrderRepository;
   adminCustomerRepository?: PostgresAdminCustomerRepository;
   adminContentRepository?: AdminContentRepository;
+  homeContentRepository?: HomeContentRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -143,6 +150,9 @@ export async function buildApp(
   const adminContentRepository =
     options.adminContentRepository ??
     new PostgresAdminContentRepository(database.client);
+  const homeContentRepository =
+    options.homeContentRepository ??
+    new PostgresHomeContentRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -174,7 +184,7 @@ export async function buildApp(
   await app.register(cors, {
     origin: environment.corsOrigins,
     credentials: true,
-    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
   await registerOpenApi(app, environment);
 
@@ -242,6 +252,13 @@ export async function buildApp(
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });
   registerOrderRoutes(app, { orderRepository });
+  registerAdminHomeContentRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    homeContentRepository,
+  });
+  registerHomeContentRoutes(app, { homeContentRepository });
 
   await app.ready();
   return app;

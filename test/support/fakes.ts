@@ -44,6 +44,13 @@ import type {
   MediaAssetInput,
   MediaAssetPatch,
 } from "../../src/content/admin-content-repository.js";
+import type {
+  AdminHomeContent,
+  AdminHomeRevision,
+  HomeContentRepository,
+  HomeDraftInput,
+  PublicHomeContent,
+} from "../../src/content/home-content-repository.js";
 
 export class FakeDatabaseConnection implements DatabaseConnection {
   readonly client = undefined as unknown as Kysely<DatabaseSchema>;
@@ -416,6 +423,106 @@ export class FakeAdminContentRepository implements AdminContentRepository {
         (item) => item.slug === slug && item.status === "published",
       ) ?? null,
     );
+  }
+}
+
+export class FakeHomeContentRepository implements HomeContentRepository {
+  draft: AdminHomeRevision | null = null;
+  published: AdminHomeRevision | null = null;
+
+  getAdminHome(): Promise<AdminHomeContent> {
+    return Promise.resolve({ draft: this.draft, published: this.published });
+  }
+
+  updateDraft(input: HomeDraftInput): Promise<AdminHomeRevision> {
+    const now = new Date(0).toISOString();
+    const currentVersion = this.draft?.version ?? this.published?.version ?? 0;
+    if (
+      input.expectedVersion !== undefined &&
+      input.expectedVersion !== currentVersion
+    ) {
+      return Promise.reject(new Error("HOME_VERSION_CONFLICT"));
+    }
+    this.draft = {
+      id: this.draft?.id ?? "home-draft-test-1",
+      status: "draft",
+      version: currentVersion + 1,
+      publishedAt: null,
+      updatedAt: now,
+      sections: input.sections.map((section, index) => ({
+        id: `home-section-test-${String(index + 1)}`,
+        sectionKey: section.sectionKey,
+        sortOrder: section.sortOrder,
+        isEnabled: section.isEnabled ?? true,
+        payload: section.payload ?? {},
+        media: null,
+        mobileMedia: null,
+        hotspots: (section.hotspots ?? []).map((hotspot, hotspotIndex) => ({
+          id: `home-hotspot-test-${String(hotspotIndex + 1)}`,
+          productId: hotspot.productId,
+          xPercent: hotspot.xPercent,
+          yPercent: hotspot.yPercent,
+          label: hotspot.label ?? null,
+          sortOrder: hotspot.sortOrder,
+          product: null,
+        })),
+      })),
+    };
+    return Promise.resolve(this.draft);
+  }
+
+  publishDraft(): Promise<AdminHomeRevision> {
+    if (!this.draft) return Promise.reject(new Error("HOME_DRAFT_NOT_FOUND"));
+    this.published = {
+      ...this.draft,
+      id: "home-published-test-1",
+      status: "published",
+      publishedAt: new Date(0).toISOString(),
+    };
+    return Promise.resolve(this.published);
+  }
+
+  archivePublished(): Promise<AdminHomeRevision> {
+    if (!this.published) {
+      return Promise.reject(new Error("HOME_PUBLISHED_NOT_FOUND"));
+    }
+    this.published = {
+      ...this.published,
+      status: "archived",
+      publishedAt: null,
+    };
+    return Promise.resolve(this.published);
+  }
+
+  getPublishedHome(): Promise<PublicHomeContent | null> {
+    if (this.published?.status !== "published") return Promise.resolve(null);
+    return Promise.resolve({
+      version: this.published.version,
+      publishedAt: this.published.publishedAt ?? new Date(0).toISOString(),
+      sections: this.published.sections.map((section) => ({
+        sectionKey: section.sectionKey,
+        sortOrder: section.sortOrder,
+        isEnabled: section.isEnabled,
+        payload: section.payload,
+        media: section.media
+          ? { publicUrl: section.media.publicUrl, alt: section.media.alt }
+          : null,
+        mobileMedia: section.mobileMedia
+          ? {
+              publicUrl: section.mobileMedia.publicUrl,
+              alt: section.mobileMedia.alt,
+            }
+          : null,
+        hotspots: section.hotspots.map((hotspot) => ({
+          productId: hotspot.productId,
+          xPercent: hotspot.xPercent,
+          yPercent: hotspot.yPercent,
+          label: hotspot.label,
+          sortOrder: hotspot.sortOrder,
+          product: hotspot.product,
+        })),
+      })),
+    });
   }
 }
 

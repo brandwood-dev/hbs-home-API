@@ -41,7 +41,13 @@ export async function registerOpenApi(
         },
         {
           name: "content",
-          description: "Published editorial pages and reusable content blocks.",
+          description:
+            "Published homepage configuration, editorial pages and reusable content blocks.",
+        },
+        {
+          name: "admin-content",
+          description:
+            "Authenticated Admin media, homepage configuration and editorial content.",
         },
         {
           name: "admin-inventory",
