@@ -236,7 +236,7 @@ export function registerAdminContentRoutes(
         "media",
         item.id,
       );
-      return reply.send(item);
+      return reply.code(200).send(item);
     },
   );
 }
