@@ -45,6 +45,10 @@ const PublicEditorialPageSchema = Type.Object(
   { $id: "PublicEditorialPage", additionalProperties: false },
 );
 
+const PUBLIC_PAGE_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const PUBLIC_PAGE_NOT_FOUND_CACHE_CONTROL = "public, max-age=30";
+
 function publicPage(
   page: NonNullable<
     Awaited<ReturnType<AdminContentRepository["getPublishedPageBySlug"]>>
@@ -98,17 +102,23 @@ export function registerContentRoutes(
           request.params.slug,
         );
       if (!page) {
-        return reply.code(404).send({
-          type: "https://hbs-home.com/problems/editorial-page-not-found",
-          title: "Editorial page not found",
-          status: 404,
-          code: "EDITORIAL_PAGE_NOT_FOUND",
-          detail: "The requested published page does not exist.",
-          instance: request.url,
-          requestId: request.id,
-        });
+        return reply
+          .header("cache-control", PUBLIC_PAGE_NOT_FOUND_CACHE_CONTROL)
+          .code(404)
+          .send({
+            type: "https://hbs-home.com/problems/editorial-page-not-found",
+            title: "Editorial page not found",
+            status: 404,
+            code: "EDITORIAL_PAGE_NOT_FOUND",
+            detail: "The requested published page does not exist.",
+            instance: request.url,
+            requestId: request.id,
+          });
       }
-      return reply.code(200).send(publicPage(page));
+      return reply
+        .header("cache-control", PUBLIC_PAGE_CACHE_CONTROL)
+        .code(200)
+        .send(publicPage(page));
     },
   );
 }

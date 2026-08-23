@@ -221,6 +221,7 @@ describe("Admin content media API", () => {
       url: "/api/v1/content/pages/a-propos",
     });
     expect(hidden.statusCode).toBe(404);
+    expect(hidden.headers["cache-control"]).toBe("public, max-age=30");
 
     authorize("aal2", ["content.publish"]);
     const published = await app.inject({
@@ -237,6 +238,9 @@ describe("Admin content media API", () => {
       url: "/api/v1/content/pages/a-propos",
     });
     expect(publicPage.statusCode).toBe(200);
+    expect(publicPage.headers["cache-control"]).toBe(
+      "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+    );
     expect(publicPage.json()).toMatchObject({
       slug: "a-propos",
       title: "À propos",

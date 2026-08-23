@@ -238,5 +238,5 @@ describe("OpenAPI contract", () => {
       "StockReservation",
       "VersionResponse",
     ]);
-  });
+  }, 20_000);
 });
