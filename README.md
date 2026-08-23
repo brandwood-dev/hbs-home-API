@@ -77,7 +77,9 @@ GET /api/v1/content/pages/:slug
 
 Editorial pages use draft, published and archived states. Admin mutations require the explicit
 content permissions and MFA; published pages are immutable in the first CMS increment and must be
-archived before a replacement draft is created. Public reads expose published pages only.
+archived before a replacement draft is created. Public reads expose published pages only and return
+`Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300`; missing pages are
+cacheable for 30 seconds.
 
 ## Phase 1 foundation
 
