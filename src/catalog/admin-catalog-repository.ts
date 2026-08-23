@@ -612,6 +612,15 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             "An attribute with this key already exists.",
           );
       }
+      const productIdsToRefresh =
+        patch.key !== undefined && patch.key !== current.key
+          ? await trx
+              .selectFrom("catalog.product_attributes")
+              .select("product_id")
+              .distinct()
+              .where("attribute_id", "=", id)
+              .execute()
+          : [];
       if (current.is_system && patch.isSystem === false)
         fail(
           422,
@@ -661,6 +670,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         await replaceAttributeOptions(trx, id, patch.options);
       if (patch.categorySlugs !== undefined)
         await replaceAttributeCategories(trx, id, patch.categorySlugs);
+      for (const product of productIdsToRefresh)
+        await this.refreshProductPayload(product.product_id, trx);
       return this.attributeRecord(trx, row);
     });
   }
@@ -1400,8 +1411,11 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         const binding = scopedBindings.find(
           (item) => item.category_id === categoryId,
         );
-        const required =
-          definition.is_required || binding?.is_required === true;
+        const isScoped = scopedBindings.length > 0;
+        const required = isScoped
+          ? binding !== undefined &&
+            (definition.is_required || binding.is_required)
+          : definition.is_required;
         if (
           required &&
           !Object.prototype.hasOwnProperty.call(normalized, definition.key)
