@@ -35,6 +35,12 @@ import type {
   AdminPromotionPatch,
   AdminPromotionRepository,
 } from "../../src/promotions/admin-promotion-repository.js";
+import type {
+  AdminContentRepository,
+  AdminMediaAsset,
+  MediaAssetInput,
+  MediaAssetPatch,
+} from "../../src/content/admin-content-repository.js";
 
 export class FakeDatabaseConnection implements DatabaseConnection {
   readonly client = undefined as unknown as Kysely<DatabaseSchema>;
@@ -264,6 +270,43 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
   archiveVariant(productId: string, _variantId: string): Promise<AdminProduct> {
     void _variantId;
     return this.getProduct(productId);
+  }
+}
+
+export class FakeAdminContentRepository implements AdminContentRepository {
+  readonly media: AdminMediaAsset[] = [];
+
+  listMedia(): Promise<readonly AdminMediaAsset[]> {
+    return Promise.resolve(this.media.filter((item) => item.status !== "archived"));
+  }
+
+  createMedia(input: MediaAssetInput, actorUserId: string): Promise<AdminMediaAsset> {
+    void actorUserId;
+    const now = new Date(0).toISOString();
+    const item: AdminMediaAsset = {
+      id: "media-test-1",
+      storagePath: input.storagePath ?? "external/media-test-1",
+      publicUrl: input.publicUrl,
+      name: input.name,
+      alt: input.alt,
+      width: input.width ?? null,
+      height: input.height ?? null,
+      mimeType: input.mimeType,
+      status: input.status ?? "draft",
+      usage: input.usage ?? "unassigned",
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.media.push(item);
+    return Promise.resolve(item);
+  }
+
+  updateMedia(id: string, patch: MediaAssetPatch, actorUserId: string): Promise<AdminMediaAsset> {
+    void actorUserId;
+    const item = this.media.find((candidate) => candidate.id === id);
+    if (!item) return Promise.reject(new Error("missing media"));
+    Object.assign(item, patch, { updatedAt: new Date().toISOString() });
+    return Promise.resolve(item);
   }
 }
 

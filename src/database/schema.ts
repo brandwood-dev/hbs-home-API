@@ -198,6 +198,23 @@ export interface CatalogProductMediaTable {
   updated_at: Generated<Date>;
 }
 
+export interface ContentMediaAssetTable {
+  id: Generated<string>;
+  storage_path: string;
+  public_url: string;
+  name: string;
+  alt: string;
+  width: number | null;
+  height: number | null;
+  mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif";
+  status: "draft" | "active" | "archived";
+  usage: string;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export type InventoryAvailability =
   "in_stock" | "low_stock" | "out_of_stock" | "made_to_order";
 
@@ -485,6 +502,7 @@ export interface DatabaseSchema {
   "catalog.product_attributes": CatalogProductAttributeTable;
   "catalog.product_variants": CatalogProductVariantTable;
   "catalog.product_media": CatalogProductMediaTable;
+  "content.media_assets": ContentMediaAssetTable;
   "inventory.stock_balances": StockBalanceTable;
   "inventory.stock_movements": StockMovementTable;
   "inventory.reservations": InventoryReservationTable;
