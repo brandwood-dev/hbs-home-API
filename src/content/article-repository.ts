@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Kysely, Selectable, Transaction } from "kysely";
+import { sql, type Kysely, type Selectable, type Transaction } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
 
@@ -673,7 +673,15 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
         version,
         title: input.title,
         excerpt: input.excerpt,
-        body_blocks: input.bodyBlocks,
+        // PostgreSQL does not infer JSONB from a JavaScript object/array
+        // binding reliably through pg. Bind an explicit JSONB expression so
+        // article creation and updates work with the same contract as the
+        // other JSONB-backed repositories.
+        body_blocks:
+          sql`cast(${JSON.stringify(input.bodyBlocks)} as jsonb)` as unknown as readonly Record<
+            string,
+            unknown
+          >[],
         cover_media_asset_id: input.coverMediaAssetId,
         reading_time_minutes: input.readingTimeMinutes,
         seo_title: input.seoTitle,
@@ -892,7 +900,11 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
           version: 1,
           title: source.title,
           excerpt: source.excerpt,
-          body_blocks: source.body_blocks,
+          body_blocks:
+            sql`cast(${JSON.stringify(source.body_blocks)} as jsonb)` as unknown as readonly Record<
+              string,
+              unknown
+            >[],
           cover_media_asset_id: source.cover_media_asset_id,
           reading_time_minutes: source.reading_time_minutes,
           seo_title: source.seo_title,
