@@ -119,7 +119,13 @@ function fail(
 
 function iso(value: Date | string | null): string | null {
   if (value === null) return null;
-  return value instanceof Date ? value.toISOString() : value;
+  // The postgres driver normally returns timestamptz columns as Date objects,
+  // but deployments using a string parser can return a SQL timestamp string
+  // (for example `2026-08-24 01:08:05.146+00`). Fastify's `date-time`
+  // response schema only accepts RFC 3339, so normalize both representations
+  // at the repository boundary.
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function isUniqueViolation(error: unknown): boolean {
