@@ -153,6 +153,8 @@ export interface Product {
   slug: string;
   name: string;
   reference: string;
+  /** Chemin public canonique complet, ex. /rideaux/lin/rideau-lin-naturel. */
+  canonicalPath?: string;
   category: string;
   material: string;
   opacityLevel?: string;
@@ -207,6 +209,7 @@ export interface ProductRepository {
 interface CatalogProductRow {
   id: string;
   slug: string;
+  category_id: string | null;
   is_published: boolean;
   is_demo: boolean;
   category: string;
@@ -223,6 +226,20 @@ interface CatalogProductRow {
   recommendation_score: number;
   product: Record<string, unknown>;
   created_at: string | Date;
+  /** Chemin de catégorie actif calculé par le repository. */
+  canonical_category_path?: string | null;
+}
+
+interface CatalogCategoryPathRow {
+  id: string;
+  slug: string;
+  parent_id: string | null;
+  status: "draft" | "active" | "archived";
+}
+
+interface CategoryPaths {
+  byId: Map<string, string>;
+  bySlug: Map<string, string>;
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -499,6 +516,9 @@ function parseProduct(row: CatalogProductRow): Product | null {
     slug,
     name,
     reference,
+    ...(row.canonical_category_path
+      ? { canonicalPath: `${row.canonical_category_path}/${slug}` }
+      : {}),
     category,
     material,
     sellingMode,
@@ -868,6 +888,11 @@ function toScopeParams(scope?: CatalogScope): ProductListParams {
 }
 
 export class PostgresProductRepository implements ProductRepository {
+  private categoryPathsCache: {
+    expiresAt: number;
+    value: CategoryPaths;
+  } | null = null;
+
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
   async listProducts(input: ProductListParams): Promise<PaginatedProducts> {
@@ -912,7 +937,8 @@ export class PostgresProductRepository implements ProductRepository {
 
     const row = rows[0];
     if (!row) return null;
-    return parseProduct(row);
+    const [hydrated] = await this.withCanonicalPaths([row]);
+    return hydrated ? parseProduct(hydrated) : null;
   }
 
   async getByIds(ids: readonly string[]): Promise<Product[]> {
@@ -932,7 +958,7 @@ export class PostgresProductRepository implements ProductRepository {
       .execute();
 
     const byId = new Map<string, Product>();
-    for (const row of rows) {
+    for (const row of await this.withCanonicalPaths(rows)) {
       const product = parseProduct(row);
       if (product) byId.set(product.id, product);
     }
@@ -1097,7 +1123,67 @@ export class PostgresProductRepository implements ProductRepository {
       query = query.where("blind_type", "in", [...params.blindTypes]);
     }
 
-    return await query.execute();
+    return this.withCanonicalPaths(await query.execute());
+  }
+
+  /**
+   * Hydrate the active category path without adding a join to every catalogue
+   * query. The category tree is small and cached briefly in the API process;
+   * this keeps list/detail requests to one product query plus one bounded tree
+   * query per cache window.
+   */
+  private async withCanonicalPaths<TRow extends CatalogProductRow>(
+    rows: readonly TRow[],
+  ): Promise<TRow[]> {
+    if (rows.length === 0) return [];
+    const paths = await this.getCategoryPaths();
+    return rows.map((row) => {
+      const categoryPath =
+        (row.category_id ? paths.byId.get(row.category_id) : undefined) ??
+        paths.bySlug.get(row.category);
+      return {
+        ...row,
+        canonical_category_path: categoryPath ?? null,
+      };
+    });
+  }
+
+  private async getCategoryPaths(): Promise<CategoryPaths> {
+    const now = Date.now();
+    if (this.categoryPathsCache && this.categoryPathsCache.expiresAt > now) {
+      return this.categoryPathsCache.value;
+    }
+
+    const rows = await this.database
+      .selectFrom("catalog.categories")
+      .select(["id", "slug", "parent_id", "status"])
+      .where("status", "=", "active")
+      .execute();
+    const nodes = new Map<string, CatalogCategoryPathRow>(
+      rows.map((row) => [row.id, row]),
+    );
+    const byId = new Map<string, string>();
+    const bySlug = new Map<string, string>();
+
+    const resolve = (id: string, trail: ReadonlySet<string>): string | null => {
+      if (trail.has(id)) return null;
+      const node = nodes.get(id);
+      if (node?.status !== "active") return null;
+      if (!node.slug.trim()) return null;
+      const parentPath = node.parent_id
+        ? resolve(node.parent_id, new Set([...trail, id]))
+        : "";
+      if (parentPath === null) return null;
+      const path = `${parentPath}/${node.slug.trim()}`;
+      byId.set(node.id, path);
+      bySlug.set(node.slug.trim(), path);
+      return path;
+    };
+
+    for (const node of nodes.values()) resolve(node.id, new Set());
+    const value = { byId, bySlug };
+    this.categoryPathsCache = { value, expiresAt: now + 60_000 };
+    return value;
   }
 }
 

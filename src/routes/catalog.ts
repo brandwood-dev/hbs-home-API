@@ -90,6 +90,7 @@ export const ProductSchema = Type.Object(
     slug: Type.String(),
     name: Type.String(),
     reference: Type.String(),
+    canonicalPath: Type.Optional(Type.String()),
     category: Type.String(),
     material: Type.String(),
     opacityLevel: Type.Optional(Type.String()),
