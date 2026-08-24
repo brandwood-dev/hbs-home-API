@@ -731,6 +731,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async createProduct(input: ProductInput): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const category = await this.assertCategory(trx, input.categoryId);
+      const rootCategorySlug = await this.rootCategorySlug(trx, category);
       const duplicate = await trx
         .selectFrom("catalog.products")
         .select("id")
@@ -780,7 +781,9 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           published_at: null,
           archived_at: null,
           version: 1,
-          category: category.slug,
+          // Keep the legacy public field at the catalog root. The normalized
+          // category_id/product_categories tables retain the subcategory.
+          category: rootCategorySlug,
           material: input.material,
           opacity_level: null,
           selling_mode: input.sellingMode,
@@ -830,6 +833,9 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       const category = categoryId
         ? await this.assertCategory(trx, categoryId)
         : null;
+      const rootCategorySlug = category
+        ? await this.rootCategorySlug(trx, category)
+        : current.category;
       if (patch.slug && patch.slug !== current.slug)
         await this.assertProductIdentifier(trx, "slug", patch.slug, id);
       if (patch.reference && patch.reference !== current.reference)
@@ -849,7 +855,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           ? {}
           : {
               category_id: patch.categoryId,
-              category: category?.slug ?? current.category,
+              category: rootCategorySlug,
             }),
         ...(patch.material === undefined ? {} : { material: patch.material }),
         ...(patch.sellingMode === undefined
@@ -1559,6 +1565,26 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         "An archived category cannot receive new catalogue products.",
       );
     return row;
+  }
+
+  private async rootCategorySlug(
+    executor: DbExecutor,
+    category: CategoryRow,
+  ): Promise<string> {
+    let current = category;
+    const visited = new Set<string>();
+    while (current.parent_id) {
+      if (visited.has(current.id))
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category hierarchy",
+          "The category hierarchy contains a cycle.",
+        );
+      visited.add(current.id);
+      current = await this.assertCategory(executor, current.parent_id);
+    }
+    return current.slug;
   }
 
   private async assertCategoryParent(

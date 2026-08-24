@@ -83,6 +83,7 @@ import { registerContentRoutes } from "./routes/content.js";
 import { registerArticleRoutes } from "./routes/articles.js";
 import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
+import { registerCatalogCategoryRoutes } from "./routes/catalog-categories.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import {
   PostgresAdminArticleRepository,
@@ -209,6 +210,7 @@ export async function buildApp(
   registerErrorHandling(app);
   registerSystemRoutes(app, environment, database);
   registerCatalogRoutes(app, { database });
+  registerCatalogCategoryRoutes(app, { database });
   registerAdminRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
