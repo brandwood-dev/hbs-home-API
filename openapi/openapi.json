@@ -317,6 +317,9 @@
           "reference": {
             "type": "string"
           },
+          "canonicalPath": {
+            "type": "string"
+          },
           "category": {
             "type": "string"
           },
@@ -10409,6 +10412,9 @@
                           "reference": {
                             "type": "string"
                           },
+                          "canonicalPath": {
+                            "type": "string"
+                          },
                           "category": {
                             "type": "string"
                           },
@@ -11112,6 +11118,9 @@
                       "reference": {
                         "type": "string"
                       },
+                      "canonicalPath": {
+                        "type": "string"
+                      },
                       "category": {
                         "type": "string"
                       },
@@ -11650,6 +11659,9 @@
                           "reference": {
                             "type": "string"
                           },
+                          "canonicalPath": {
+                            "type": "string"
+                          },
                           "category": {
                             "type": "string"
                           },
@@ -12180,6 +12192,9 @@
                       "type": "string"
                     },
                     "reference": {
+                      "type": "string"
+                    },
+                    "canonicalPath": {
                       "type": "string"
                     },
                     "category": {
@@ -12789,6 +12804,9 @@
                         "type": "string"
                       },
                       "reference": {
+                        "type": "string"
+                      },
+                      "canonicalPath": {
                         "type": "string"
                       },
                       "category": {
