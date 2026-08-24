@@ -128,6 +128,16 @@ function iso(value: Date | string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+/**
+ * PostgreSQL numeric columns are returned as strings by the default `pg`
+ * type parser. Normalize them at the repository boundary so the API contract
+ * (and Fastify's response serializer) always receives JSON numbers.
+ */
+function numeric(value: number | string): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return parsed;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -420,8 +430,8 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       items.push({
         id: row.id,
         productId: row.product_id,
-        xPercent: row.x_percent,
-        yPercent: row.y_percent,
+        xPercent: numeric(row.x_percent),
+        yPercent: numeric(row.y_percent),
         label: row.label,
         sortOrder: row.sort_order,
         product:
