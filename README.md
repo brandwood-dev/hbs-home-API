@@ -2,7 +2,7 @@
 
 Modular backend for the HBS HOME public storefront and administration application.
 
-## Current scope (Phase 5B)
+## Current scope (Phase 9D.3)
 
 The API now provides the secure identity foundation used by HBS HOME Admin:
 
@@ -22,8 +22,16 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - opaque-token guest carts with server-side price, availability and shipping recalculation;
 - one-code V1 promotion evaluation (the redemption counter is consumed by checkout in Phase 6).
 - MFA-protected Admin promotion CRUD with RBAC, deactivation and audit events;
+- guest checkout and customer/order persistence with server-side totals and idempotency;
+- inventory, stock reservations and Admin order/customer workflows;
+- guest favorites, editorial pages and the versioned homepage content workflow;
+- public catalogue search through the paginated `/api/v1/products` endpoint (`q`, filters and
+  sorting), consumed by the frontend search adapter;
+- public and Admin media management with Supabase Storage metadata persistence.
 
-Checkout/order creation, customer profiles and Brevo workflows remain in their dedicated phases.
+Brevo notifications, the outbox worker, newsletter, custom quote and professional lead endpoints
+remain in their dedicated phases. The API is currently deployed to staging; the production service
+and production domain are not yet part of this repository's deployment configuration.
 Adding to a cart never reserves stock.
 
 Public cart endpoints:
