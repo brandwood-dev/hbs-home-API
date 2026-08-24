@@ -114,8 +114,9 @@ This first phase provides only the API foundation:
 - generated OpenAPI 3.1 contract;
 - unit and integration tests.
 
-Inventory is implemented through Phase 4. Checkout and customer/order business behavior remains
-in the subsequent phases.
+Inventory was introduced through Phase 4. Checkout and customer/order persistence are now
+implemented; the remaining commerce roadmap covers Brevo notifications, the outbox worker and the
+future online-payment/customer-account surfaces.
 
 ## Phase 0 delivery foundation
 
