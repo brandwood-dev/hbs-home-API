@@ -80,9 +80,14 @@ import { registerAdminCustomerRoutes } from "./routes/admin-customers.js";
 import { registerAdminContentRoutes } from "./routes/admin-content.js";
 import { registerAdminHomeContentRoutes } from "./routes/admin-home-content.js";
 import { registerContentRoutes } from "./routes/content.js";
+import { registerArticleRoutes } from "./routes/articles.js";
 import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerSystemRoutes } from "./routes/system.js";
+import {
+  PostgresAdminArticleRepository,
+  type ArticleRepository,
+} from "./content/article-repository.js";
 
 export interface BuildAppOptions {
   environment?: Environment;
@@ -102,6 +107,7 @@ export interface BuildAppOptions {
   adminCustomerRepository?: PostgresAdminCustomerRepository;
   adminContentRepository?: AdminContentRepository;
   homeContentRepository?: HomeContentRepository;
+  articleRepository?: ArticleRepository;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -153,6 +159,9 @@ export async function buildApp(
   const homeContentRepository =
     options.homeContentRepository ??
     new PostgresHomeContentRepository(database.client);
+  const articleRepository =
+    options.articleRepository ??
+    new PostgresAdminArticleRepository(database.client);
   const app = Fastify({
     logger:
       options.logger ??
@@ -249,6 +258,12 @@ export async function buildApp(
     adminContentRepository,
   });
   registerContentRoutes(app, { adminContentRepository });
+  registerArticleRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    articleRepository,
+    auditRepository,
+  });
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });
   registerOrderRoutes(app, { orderRepository });
