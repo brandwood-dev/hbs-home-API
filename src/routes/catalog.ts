@@ -164,6 +164,7 @@ const ProductsListQuerySchema = Type.Object(
       ]),
     ),
     categories: Type.Optional(Type.String()),
+    categorySlugs: Type.Optional(Type.String()),
     materials: Type.Optional(Type.String()),
     colors: Type.Optional(Type.String()),
     opacityLevels: Type.Optional(Type.String()),
@@ -204,6 +205,7 @@ const ProductsListQuerySchema = Type.Object(
 const ScopeQuerySchema = Type.Object(
   {
     categories: Type.Optional(Type.String()),
+    categorySlugs: Type.Optional(Type.String()),
     materials: Type.Optional(Type.String()),
     opacityLevels: Type.Optional(Type.String()),
     curtainHeaders: Type.Optional(Type.String()),
@@ -273,6 +275,7 @@ function parseCatalogQuery(
     sort: query.sort ?? "recommended",
     query: query.q,
     categories: asStringList(query.categories),
+    categorySlugs: asStringList(query.categorySlugs),
     materials: asStringList(query.materials),
     colors: asStringList(query.colors),
     opacityLevels: asStringList(query.opacityLevels),
@@ -327,6 +330,7 @@ function parseScopeQuery(query: Static<typeof ScopeQuerySchema>): Omit<
 } {
   return {
     categories: asStringList(query.categories),
+    categorySlugs: asStringList(query.categorySlugs),
     materials: asStringList(query.materials),
     opacityLevels: asStringList(query.opacityLevels),
     curtainHeaders: asStringList(query.curtainHeaders),
@@ -409,6 +413,7 @@ export function registerCatalogRoutes(
       const parsed = parseScopeQuery(request.query);
       const scope: CatalogScope = {
         categories: parsed.categories,
+        categorySlugs: parsed.categorySlugs,
         materials: parsed.materials,
         opacityLevels: parsed.opacityLevels,
         curtainHeaders: parsed.curtainHeaders,

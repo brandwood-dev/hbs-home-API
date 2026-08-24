@@ -18,6 +18,8 @@ export interface ProductListParams {
   query?: string | undefined;
 
   categories?: readonly string[] | undefined;
+  /** Normalized taxonomy slugs, including child categories selected by the caller. */
+  categorySlugs?: readonly string[] | undefined;
   materials?: readonly string[] | undefined;
   colors?: readonly string[] | undefined;
   opacityLevels?: readonly string[] | undefined;
@@ -55,6 +57,7 @@ export interface ProductListParams {
 
 export interface CatalogScope {
   categories?: readonly string[] | undefined;
+  categorySlugs?: readonly string[] | undefined;
   materials?: readonly string[] | undefined;
   opacityLevels?: readonly string[] | undefined;
   curtainHeaders?: readonly string[] | undefined;
@@ -844,6 +847,7 @@ function toScopeParams(scope?: CatalogScope): ProductListParams {
     pageSize: 500,
     sort: "recommended",
     categories: uniqueList(scope?.categories),
+    categorySlugs: uniqueList(scope?.categorySlugs),
     materials: uniqueList(scope?.materials),
     opacityLevels: uniqueList(scope?.opacityLevels),
     curtainHeaders: uniqueList(scope?.curtainHeaders),
@@ -1053,6 +1057,24 @@ export class PostgresProductRepository implements ProductRepository {
     if (params.categories?.length) {
       query = query.where("category", "in", [...params.categories]);
     }
+    const categorySlugs = params.categorySlugs;
+    if (categorySlugs?.length) {
+      query = query.where((expressionBuilder) =>
+        expressionBuilder.exists(
+          expressionBuilder
+            .selectFrom("catalog.product_categories as productCategory")
+            .innerJoin(
+              "catalog.categories as category",
+              "category.id",
+              "productCategory.category_id",
+            )
+            .select("productCategory.product_id")
+            .whereRef("productCategory.product_id", "=", "catalog.products.id")
+            .where("category.status", "=", "active")
+            .where("category.slug", "in", [...categorySlugs]),
+        ),
+      );
+    }
     if (params.materials?.length) {
       query = query.where("material", "in", [...params.materials]);
     }
@@ -1086,6 +1108,7 @@ function normalizeListParams(input: ProductListParams): ProductListParams {
     sort: input.sort,
     query: normalizeSearchQuery(input.query),
     categories: uniqueList(input.categories),
+    categorySlugs: uniqueList(input.categorySlugs),
     materials: uniqueList(input.materials),
     colors: uniqueList(input.colors),
     opacityLevels: uniqueList(input.opacityLevels),
