@@ -68,6 +68,7 @@ import {
   type HomeContentRepository,
 } from "./content/home-content-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
 import { registerAdminInventoryRoutes } from "./routes/admin-inventory.js";
@@ -215,6 +216,13 @@ export async function buildApp(
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
+  });
+  registerAdminDashboardRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminOrderRepository,
+    inventoryRepository,
   });
   registerAdminCatalogRoutes(app, {
     jwtVerifier,

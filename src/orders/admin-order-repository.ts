@@ -503,7 +503,7 @@ function inventoryAvailabilityFor(
 export class PostgresAdminOrderRepository {
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
-  async list(params: AdminOrderListParams): Promise<AdminOrderList> {
+  async listAll(): Promise<AdminOrder[]> {
     const headers = await this.database
       .selectFrom("commerce.orders as o")
       .innerJoin("commerce.customers as c", "c.id", "o.customer_id")
@@ -517,7 +517,11 @@ export class PostgresAdminOrderRepository {
       ])
       .execute();
 
-    const orders = await this.loadOrders(headers);
+    return this.loadOrders(headers);
+  }
+
+  async list(params: AdminOrderListParams): Promise<AdminOrderList> {
+    const orders = await this.listAll();
     const filtered = orders.filter((order) => {
       if (params.status?.length && !params.status.includes(order.status))
         return false;
