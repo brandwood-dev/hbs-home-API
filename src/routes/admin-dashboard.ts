@@ -189,7 +189,9 @@ export function registerAdminDashboardRoutes(
     {
       preHandler: createAdminGuard(dependencies, {
         requireMfa: true,
-        permissions: ["dashboard.read"],
+        // The dashboard aggregates two existing read surfaces. Reusing these
+        // permissions keeps RBAC aligned with the seeded permission catalog.
+        permissions: ["orders.read", "inventory.read"],
       }),
       schema: {
         operationId: "getAdminDashboard",

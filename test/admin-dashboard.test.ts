@@ -165,7 +165,7 @@ describe("Admin dashboard API", () => {
       displayName: "HBS HOME Admin",
       status: "active",
       roles: ["super_admin"],
-      permissions: ["dashboard.read"],
+      permissions: ["orders.read", "inventory.read"],
     });
   }
 
