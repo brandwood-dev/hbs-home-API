@@ -3,7 +3,7 @@
   "info": {
     "title": "HBS HOME API",
     "description": "Canonical HTTP contract for the HBS HOME public and administration applications.",
-    "version": "1.4.0"
+    "version": "1.5.0"
   },
   "components": {
     "securitySchemes": {
@@ -233,7 +233,7 @@
           "contractVersion": {
             "type": "string",
             "enum": [
-              "1.4.0"
+              "1.5.0"
             ]
           },
           "releaseVersion": {
@@ -1180,6 +1180,183 @@
                 "metadata": {
                   "type": "object",
                   "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      },
+      "AdminDashboard": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revenueMinor",
+          "deliveredCount",
+          "averageOrderValueMinor",
+          "totalOrders",
+          "pendingConfirmationCount",
+          "preparingCount",
+          "shippedCount",
+          "cancelledCount",
+          "lowStockCount",
+          "statusBreakdown",
+          "recentOrders",
+          "topProducts",
+          "lowStockRows",
+          "salesByDay"
+        ],
+        "properties": {
+          "revenueMinor": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deliveredCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "averageOrderValueMinor": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalOrders": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pendingConfirmationCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "preparingCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shippedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cancelledCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lowStockCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "statusBreakdown": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "pending_confirmation"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "confirmed"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "preparing"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "shipped"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "delivered"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "cancelled"
+                      ]
+                    }
+                  ]
+                },
+                "count": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "recentOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminOrder"
+            }
+          },
+          "topProducts": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "productId",
+                "name",
+                "quantity",
+                "revenueMinor"
+              ],
+              "properties": {
+                "productId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "revenueMinor": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "lowStockRows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminInventoryRow"
+            }
+          },
+          "salesByDay": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "date",
+                "revenueMinor"
+              ],
+              "properties": {
+                "date": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "revenueMinor": {
+                  "minimum": 0,
+                  "type": "integer"
                 }
               }
             }
@@ -9904,7 +10081,7 @@
                     "contractVersion": {
                       "type": "string",
                       "enum": [
-                        "1.4.0"
+                        "1.5.0"
                       ]
                     },
                     "releaseVersion": {
@@ -14122,6 +14299,342 @@
                           "metadata": {
                             "type": "object",
                             "additionalProperties": {}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "operationId": "getAdminDashboard",
+        "summary": "Read aggregated Admin dashboard metrics",
+        "tags": [
+          "admin-dashboard"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "revenueMinor",
+                    "deliveredCount",
+                    "averageOrderValueMinor",
+                    "totalOrders",
+                    "pendingConfirmationCount",
+                    "preparingCount",
+                    "shippedCount",
+                    "cancelledCount",
+                    "lowStockCount",
+                    "statusBreakdown",
+                    "recentOrders",
+                    "topProducts",
+                    "lowStockRows",
+                    "salesByDay"
+                  ],
+                  "properties": {
+                    "revenueMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "deliveredCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "averageOrderValueMinor": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "totalOrders": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "pendingConfirmationCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "preparingCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "shippedCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "cancelledCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "lowStockCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "statusBreakdown": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "status",
+                          "count"
+                        ],
+                        "properties": {
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending_confirmation"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "confirmed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "preparing"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "shipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "delivered"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "cancelled"
+                                ]
+                              }
+                            ]
+                          },
+                          "count": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "recentOrders": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminOrder"
+                      }
+                    },
+                    "topProducts": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "name",
+                          "quantity",
+                          "revenueMinor"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "revenueMinor": {
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "lowStockRows": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AdminInventoryRow"
+                      }
+                    },
+                    "salesByDay": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "date",
+                          "revenueMinor"
+                        ],
+                        "properties": {
+                          "date": {
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "revenueMinor": {
+                            "minimum": 0,
+                            "type": "integer"
                           }
                         }
                       }

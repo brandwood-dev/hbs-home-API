@@ -48,7 +48,7 @@ const InventoryVariantSchema = Type.Object(
   },
   { $id: "AdminInventoryVariant", additionalProperties: false },
 );
-const InventoryRowSchema = Type.Object(
+export const InventoryRowSchema = Type.Object(
   {
     productId: Type.String(),
     productName: Type.String(),
