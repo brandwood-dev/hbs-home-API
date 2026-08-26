@@ -125,6 +125,7 @@ describe("Admin dashboard API", () => {
   let jwtVerifier: FakeJwtVerifier;
   let accessRepository: FakeAdminAccessRepository;
   let auditRepository: FakeAuditRepository;
+  let requestedPeriod: { dateFrom?: string; dateTo?: string } | undefined;
 
   beforeEach(async () => {
     jwtVerifier = new FakeJwtVerifier();
@@ -135,7 +136,18 @@ describe("Admin dashboard API", () => {
       orderFixture("pending_confirmation", "2026-08-21T10:00:00.000Z"),
     ];
     const adminOrderRepository = {
-      listAll: () => Promise.resolve(orders),
+      listAll: (period: { dateFrom?: string; dateTo?: string } = {}) => {
+        requestedPeriod = period;
+        return Promise.resolve(
+          orders.filter((order) => {
+            const date = order.createdAt.slice(0, 10);
+            return (
+              (!period.dateFrom || date >= period.dateFrom) &&
+              (!period.dateTo || date <= period.dateTo)
+            );
+          }),
+        );
+      },
     } as unknown as PostgresAdminOrderRepository;
 
     app = await buildApp({
@@ -198,5 +210,42 @@ describe("Admin dashboard API", () => {
         { productId: "product-1", quantity: 2, revenueMinor: 37_800 },
       ],
     });
+  });
+
+  it("passes an inclusive date range to the order repository", async () => {
+    authorize("aal2");
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/dashboard?dateFrom=2026-08-21&dateTo=2026-08-21",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(requestedPeriod).toEqual({
+      dateFrom: "2026-08-21",
+      dateTo: "2026-08-21",
+    });
+    expect(response.json()).toMatchObject({
+      revenueMinor: 0,
+      deliveredCount: 0,
+      totalOrders: 1,
+      pendingConfirmationCount: 1,
+    });
+  });
+
+  it("rejects an invalid or excessively large date range", async () => {
+    authorize("aal2");
+    const reversed = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/dashboard?dateFrom=2026-08-22&dateTo=2026-08-21",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(reversed.statusCode).toBe(400);
+
+    const tooLarge = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/dashboard?dateFrom=2025-01-01&dateTo=2026-08-21",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(tooLarge.statusCode).toBe(400);
   });
 });
