@@ -13,7 +13,17 @@ import type {
   AdminOrder,
   PostgresAdminOrderRepository,
 } from "../orders/admin-order-repository.js";
-import { ProblemDetailSchema } from "../http/problem.js";
+import { AppError, ProblemDetailSchema } from "../http/problem.js";
+
+const DashboardPeriodQuery = Type.Object(
+  {
+    dateFrom: Type.Optional(Type.String({ format: "date" })),
+    dateTo: Type.Optional(Type.String({ format: "date" })),
+  },
+  { additionalProperties: false },
+);
+
+type DashboardPeriodQueryType = Static<typeof DashboardPeriodQuery>;
 
 const DashboardStatus = Type.Union([
   Type.Literal("pending_confirmation"),
@@ -184,7 +194,7 @@ export function registerAdminDashboardRoutes(
   dependencies: AdminDashboardRouteDependencies,
 ): void {
   app.addSchema(AdminDashboardSchema);
-  app.get(
+  app.get<{ Querystring: DashboardPeriodQueryType }>(
     "/api/v1/admin/dashboard",
     {
       preHandler: createAdminGuard(dependencies, {
@@ -198,17 +208,55 @@ export function registerAdminDashboardRoutes(
         summary: "Read aggregated Admin dashboard metrics",
         tags: ["admin-dashboard"],
         security: [{ bearerAuth: [] }],
+        querystring: DashboardPeriodQuery,
         response: {
           200: AdminDashboardSchema,
+          400: ProblemDetailSchema,
           401: ProblemDetailSchema,
           403: ProblemDetailSchema,
         },
       },
     },
-    async () =>
-      buildAdminDashboard(
-        await dependencies.adminOrderRepository.listAll(),
-        await dependencies.inventoryRepository.list(),
-      ),
+    async (request) => {
+      const { dateFrom, dateTo } = request.query;
+      if (Boolean(dateFrom) !== Boolean(dateTo)) {
+        throw new AppError({
+          statusCode: 400,
+          code: "INVALID_DASHBOARD_PERIOD",
+          title: "Invalid dashboard period",
+          detail: "dateFrom and dateTo must be provided together.",
+        });
+      }
+      if (dateFrom && dateTo && dateFrom > dateTo) {
+        throw new AppError({
+          statusCode: 400,
+          code: "INVALID_DASHBOARD_PERIOD",
+          title: "Invalid dashboard period",
+          detail: "dateFrom must be before or equal to dateTo.",
+        });
+      }
+      if (dateFrom && dateTo) {
+        const start = new Date(`${dateFrom}T00:00:00.000Z`).getTime();
+        const end = new Date(`${dateTo}T00:00:00.000Z`).getTime();
+        const days = Math.floor((end - start) / 86_400_000) + 1;
+        if (days > 366) {
+          throw new AppError({
+            statusCode: 400,
+            code: "DASHBOARD_PERIOD_TOO_LARGE",
+            title: "Dashboard period too large",
+            detail: "The dashboard period cannot exceed 366 days.",
+          });
+        }
+      }
+      const period = {
+        ...(dateFrom ? { dateFrom } : {}),
+        ...(dateTo ? { dateTo } : {}),
+      };
+      const [orders, inventory] = await Promise.all([
+        dependencies.adminOrderRepository.listAll(period),
+        dependencies.inventoryRepository.list(),
+      ]);
+      return buildAdminDashboard(orders, inventory);
+    },
   );
 }

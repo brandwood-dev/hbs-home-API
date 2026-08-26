@@ -503,8 +503,10 @@ function inventoryAvailabilityFor(
 export class PostgresAdminOrderRepository {
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
-  async listAll(): Promise<AdminOrder[]> {
-    const headers = await this.database
+  async listAll(
+    period: { dateFrom?: string; dateTo?: string } = {},
+  ): Promise<AdminOrder[]> {
+    let query = this.database
       .selectFrom("commerce.orders as o")
       .innerJoin("commerce.customers as c", "c.id", "o.customer_id")
       .selectAll("o")
@@ -514,8 +516,22 @@ export class PostgresAdminOrderRepository {
         "c.last_name as customer_last_name",
         "c.phone as customer_phone",
         "c.email as customer_email",
-      ])
-      .execute();
+      ]);
+
+    if (period.dateFrom) {
+      query = query.where(
+        "o.created_at",
+        ">=",
+        new Date(`${period.dateFrom}T00:00:00.000Z`),
+      );
+    }
+    if (period.dateTo) {
+      const exclusiveEnd = new Date(`${period.dateTo}T00:00:00.000Z`);
+      exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + 1);
+      query = query.where("o.created_at", "<", exclusiveEnd);
+    }
+
+    const headers = await query.execute();
 
     return this.loadOrders(headers);
   }
