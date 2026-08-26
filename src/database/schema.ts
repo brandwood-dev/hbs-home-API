@@ -63,6 +63,535 @@ export interface AuditEventTable {
   metadata: Record<string, unknown>;
 }
 
+export interface CatalogProductTable {
+  id: string;
+  slug: string;
+  is_published: Generated<boolean>;
+  is_demo: Generated<boolean>;
+  name: string;
+  reference: string;
+  short_description: string | null;
+  long_description: string | null;
+  image_alt: string | null;
+  status: "draft" | "active" | "archived";
+  category_id: string | null;
+  published_at: NullableTimestamp;
+  archived_at: NullableTimestamp;
+  version: Generated<number>;
+  category: string;
+  material: string;
+  opacity_level: string | null;
+  selling_mode: string;
+  pattern: string | null;
+  blind_type: string | null;
+  is_large_width: boolean;
+  is_new: boolean;
+  is_best_seller: boolean;
+  is_featured: boolean;
+  is_thermal: boolean;
+  recommendation_score: number;
+  product: Record<string, unknown>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogCategoryTable {
+  id: Generated<string>;
+  slug: string;
+  name: string;
+  description: string | null;
+  parent_id: string | null;
+  status: "draft" | "active" | "archived";
+  sort_order: number;
+  image_url: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  show_in_navigation: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogAttributeTable {
+  id: Generated<string>;
+  key: string;
+  name: string;
+  value_type: "text" | "number" | "boolean" | "select" | "color" | "dimension";
+  is_filterable: boolean;
+  is_required: boolean;
+  status: "draft" | "active" | "archived";
+  is_variant_axis: boolean;
+  sort_order: number;
+  is_system: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogAttributeOptionTable {
+  id: Generated<string>;
+  attribute_id: string;
+  value: string;
+  label: string;
+  sort_order: number;
+  hex: string | null;
+  family: string | null;
+  is_active: boolean;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogProductCategoryTable {
+  product_id: string;
+  category_id: string;
+  is_primary: boolean;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogCategoryAttributeTable {
+  category_id: string;
+  attribute_id: string;
+  is_required: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+}
+
+export interface CatalogProductAttributeTable {
+  product_id: string;
+  attribute_id: string;
+  value: Record<string, unknown> | unknown[] | string | number | boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogProductVariantTable {
+  id: Generated<string>;
+  product_id: string;
+  sku: string;
+  title: string | null;
+  price_amount_minor: number;
+  compare_at_price_amount_minor: number | null;
+  currency: "TND";
+  status: "draft" | "active" | "archived";
+  options: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  is_default: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CatalogProductMediaTable {
+  id: Generated<string>;
+  product_id: string;
+  variant_id: string | null;
+  storage_path: string;
+  public_url: string | null;
+  alt: string;
+  media_type:
+    | "front"
+    | "lifestyle"
+    | "fabric_detail"
+    | "header_detail"
+    | "mechanism_detail";
+  status: "draft" | "active" | "archived";
+  is_primary: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentMediaAssetTable {
+  id: Generated<string>;
+  storage_path: string;
+  public_url: string;
+  name: string;
+  alt: string;
+  width: number | null;
+  height: number | null;
+  mime_type: "image/jpeg" | "image/png" | "image/webp" | "image/avif";
+  status: "draft" | "active" | "archived";
+  usage: string;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentEditorialPageTable {
+  id: Generated<string>;
+  slug: string;
+  title: string;
+  body: string;
+  seo_title: string | null;
+  seo_description: string | null;
+  status: "draft" | "published" | "archived";
+  version: number;
+  published_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentEditorialPageBlockTable {
+  id: Generated<string>;
+  page_id: string;
+  sort_order: number;
+  block_type: string;
+  payload: Record<string, unknown>;
+  media_asset_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentArticleCategoryTable {
+  id: Generated<string>;
+  slug: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentArticleTable {
+  id: Generated<string>;
+  slug: string;
+  category_id: string;
+  status: "draft" | "published" | "archived";
+  is_featured: boolean;
+  home_sort_order: number;
+  author_name: string;
+  published_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentArticleRevisionTable {
+  id: Generated<string>;
+  article_id: string;
+  status: "draft" | "published" | "archived";
+  version: number;
+  title: string;
+  excerpt: string;
+  body_blocks: readonly Record<string, unknown>[];
+  cover_media_asset_id: string | null;
+  reading_time_minutes: number;
+  seo_title: string | null;
+  seo_description: string | null;
+  created_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentHomeRevisionTable {
+  id: Generated<string>;
+  status: "draft" | "published" | "archived";
+  version: number;
+  published_at: Date | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentHomeSectionTable {
+  id: Generated<string>;
+  revision_id: string;
+  section_key: string;
+  sort_order: number;
+  is_enabled: boolean;
+  payload: Record<string, unknown>;
+  media_asset_id: string | null;
+  mobile_media_asset_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface ContentHomeShopTheLookHotspotTable {
+  id: Generated<string>;
+  section_id: string;
+  product_id: string;
+  x_percent: number;
+  y_percent: number;
+  label: string | null;
+  sort_order: number;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type InventoryAvailability =
+  "in_stock" | "low_stock" | "out_of_stock" | "made_to_order";
+
+export interface StockBalanceTable {
+  variant_id: string;
+  product_id: string;
+  on_hand: number;
+  reserved: number;
+  low_stock_threshold: number;
+  track_inventory: boolean;
+  availability: InventoryAvailability;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type StockMovementType =
+  | "initial"
+  | "adjustment_in"
+  | "adjustment_out"
+  | "reservation"
+  | "reservation_release"
+  | "sale"
+  | "return"
+  | "damage"
+  | "correction";
+
+export interface StockMovementTable {
+  id: Generated<string>;
+  variant_id: string;
+  product_id: string;
+  movement_type: StockMovementType;
+  quantity: number;
+  on_hand_delta: number;
+  reserved_delta: number;
+  previous_on_hand: number;
+  resulting_on_hand: number;
+  previous_reserved: number;
+  resulting_reserved: number;
+  reason: string;
+  note: string | null;
+  operation_key: string;
+  request_fingerprint: string | null;
+  order_id: string | null;
+  actor_user_id: string | null;
+  created_at: Generated<Date>;
+}
+
+export type ReservationStatus = "active" | "released" | "expired" | "converted";
+
+export interface InventoryReservationTable {
+  id: Generated<string>;
+  reservation_key: string;
+  order_id: string | null;
+  status: ReservationStatus;
+  expires_at: Date;
+  released_at: NullableTimestamp;
+  release_reason: string | null;
+  converted_at: NullableTimestamp;
+  request_fingerprint: string;
+  actor_user_id: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface InventoryReservationItemTable {
+  reservation_id: string;
+  variant_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: Generated<Date>;
+}
+
+export type CartStatus = "active" | "expired" | "converted";
+
+export interface CartTable {
+  id: Generated<string>;
+  token_hash: string;
+  auth_user_id: string | null;
+  status: CartStatus;
+  currency: "TND";
+  promo_code: string | null;
+  expires_at: Date;
+  last_accessed_at: Generated<Date>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CartItemTable {
+  cart_id: string;
+  product_id: string;
+  variant_id: string;
+  quantity: number;
+  price_at_add_minor: number;
+  added_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface FavoriteItemTable {
+  token_hash: string;
+  product_id: string;
+  added_at: Generated<Date>;
+  expires_at: Date;
+  last_accessed_at: Generated<Date>;
+}
+
+export type PromotionDiscountType = "percentage" | "fixed_amount";
+
+export interface PromotionTable {
+  id: Generated<string>;
+  name: string;
+  code: string;
+  discount_type: PromotionDiscountType;
+  discount_value: number;
+  currency: "TND";
+  min_subtotal_minor: number;
+  starts_at: Date | null;
+  ends_at: Date | null;
+  max_redemptions: number | null;
+  redeemed_count: number;
+  is_active: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export type OrderStatus =
+  | "pending_confirmation"
+  | "confirmed"
+  | "preparing"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+export interface CustomerTable {
+  id: Generated<string>;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  preferred_channel: "phone" | "email" | "whatsapp" | null;
+  tags: string[];
+  internal_notes: string;
+  merged_into_customer_id: string | null;
+  merged_at: Date | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CustomerAddressTable {
+  id: Generated<string>;
+  customer_id: string;
+  label: string | null;
+  governorate: string;
+  city: string;
+  postal_code: string | null;
+  address_line: string;
+  landmark: string | null;
+  is_default: boolean;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface CustomerNoteTable {
+  id: Generated<string>;
+  customer_id: string;
+  body: string;
+  author_user_id: string;
+  author_name: string;
+  created_at: Generated<Date>;
+}
+
+export interface OrderTable {
+  id: Generated<string>;
+  order_number: string;
+  customer_id: string;
+  cart_id: string;
+  status: OrderStatus;
+  payment_status: "pending" | "collected" | "refunded";
+  shipping_status: "calculated" | "to_confirm";
+  delivery_method: "home_delivery" | "store_pickup";
+  payment_method: "cash_on_delivery";
+  shipping_address: Record<string, unknown> | null;
+  currency: "TND";
+  subtotal_minor: number;
+  discount_minor: number;
+  shipping_minor: number;
+  total_minor: number;
+  promo_code: string | null;
+  idempotency_key: string;
+  request_fingerprint: string;
+  reservation_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
+export interface OrderItemTable {
+  order_id: string;
+  line_number: number;
+  product_id: string;
+  variant_id: string;
+  product_slug: string;
+  product_name: string;
+  product_reference: string;
+  sku: string;
+  image_url: string;
+  image_alt: string;
+  category: string;
+  color_label: string | null;
+  width_cm: number | null;
+  height_cm: number | null;
+  curtain_header_label: string | null;
+  eyelet_color_label: string | null;
+  lining_label: string | null;
+  selected_options: readonly { label: string; value: string }[];
+  selling_unit_label: string;
+  shipping_profile: string | null;
+  quantity: number;
+  unit_price_minor: number;
+  line_total_minor: number;
+  created_at: Generated<Date>;
+}
+
+export interface OrderStatusHistoryTable {
+  id: Generated<string>;
+  order_id: string;
+  status: OrderStatus;
+  reason: string | null;
+  actor_user_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: Generated<Date>;
+}
+
+export interface OrderNoteTable {
+  id: Generated<string>;
+  order_id: string;
+  body: string;
+  author_user_id: string;
+  author_name: string;
+  created_at: Generated<Date>;
+}
+
+export type OrderReturnStatus = "requested" | "accepted" | "refused";
+
+export interface OrderReturnTable {
+  id: Generated<string>;
+  order_id: string;
+  status: OrderReturnStatus;
+  reason: string;
+  note: string | null;
+  condition_reason: string | null;
+  restocked: boolean;
+  refund_payment: boolean;
+  requested_by: string;
+  resolved_by: string | null;
+  requested_at: Generated<Date>;
+  resolved_at: Date | null;
+}
+
+export interface OutboxEventTable {
+  id: Generated<string>;
+  aggregate_type: string;
+  aggregate_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  status: "pending" | "processing" | "processed" | "dead_letter";
+  attempts: number;
+  available_at: Generated<Date>;
+  processed_at: Date | null;
+  last_error: string | null;
+  created_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -70,4 +599,39 @@ export interface DatabaseSchema {
   "iam.role_permissions": RolePermissionTable;
   "iam.admin_user_roles": AdminUserRoleTable;
   "audit.events": AuditEventTable;
+  "catalog.categories": CatalogCategoryTable;
+  "catalog.attributes": CatalogAttributeTable;
+  "catalog.attribute_options": CatalogAttributeOptionTable;
+  "catalog.products": CatalogProductTable;
+  "catalog.product_categories": CatalogProductCategoryTable;
+  "catalog.category_attributes": CatalogCategoryAttributeTable;
+  "catalog.product_attributes": CatalogProductAttributeTable;
+  "catalog.product_variants": CatalogProductVariantTable;
+  "catalog.product_media": CatalogProductMediaTable;
+  "content.media_assets": ContentMediaAssetTable;
+  "content.editorial_pages": ContentEditorialPageTable;
+  "content.editorial_page_blocks": ContentEditorialPageBlockTable;
+  "content.article_categories": ContentArticleCategoryTable;
+  "content.articles": ContentArticleTable;
+  "content.article_revisions": ContentArticleRevisionTable;
+  "content.home_revisions": ContentHomeRevisionTable;
+  "content.home_sections": ContentHomeSectionTable;
+  "content.home_shop_the_look_hotspots": ContentHomeShopTheLookHotspotTable;
+  "inventory.stock_balances": StockBalanceTable;
+  "inventory.stock_movements": StockMovementTable;
+  "inventory.reservations": InventoryReservationTable;
+  "inventory.reservation_items": InventoryReservationItemTable;
+  "commerce.carts": CartTable;
+  "commerce.cart_items": CartItemTable;
+  "commerce.favorite_items": FavoriteItemTable;
+  "commerce.promotions": PromotionTable;
+  "commerce.customers": CustomerTable;
+  "commerce.customer_addresses": CustomerAddressTable;
+  "commerce.customer_notes": CustomerNoteTable;
+  "commerce.orders": OrderTable;
+  "commerce.order_items": OrderItemTable;
+  "commerce.order_status_history": OrderStatusHistoryTable;
+  "commerce.order_notes": OrderNoteTable;
+  "commerce.order_returns": OrderReturnTable;
+  "commerce.outbox_events": OutboxEventTable;
 }

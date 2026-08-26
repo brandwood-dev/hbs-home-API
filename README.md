@@ -2,7 +2,7 @@
 
 Modular backend for the HBS HOME public storefront and administration application.
 
-## Phase 2 scope
+## Current scope (Phase 9D.3)
 
 The API now provides the secure identity foundation used by HBS HOME Admin:
 
@@ -14,15 +14,92 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - public product media plus private quote/import Storage buckets;
 - append-only security audit events;
 - an operator-only invitation command for the first Admin.
+- Admin catalogue CRUD for categories, typed attributes and products;
+- variant management with integer TND pricing and SKU uniqueness;
+- explicit draft, publish and archive transitions;
+- MFA-protected mutations, granular RBAC and append-only mutation audits;
+- optimistic product version checks and synchronization with the public JSONB read model.
+- opaque-token guest carts with server-side price, availability and shipping recalculation;
+- one-code V1 promotion evaluation (the redemption counter is consumed by checkout in Phase 6).
+- MFA-protected Admin promotion CRUD with RBAC, deactivation and audit events;
+- guest checkout and customer/order persistence with server-side totals and idempotency;
+- inventory, stock reservations and Admin order/customer workflows;
+- guest favorites, editorial pages and the versioned homepage content workflow;
+- public catalogue search through the paginated `/api/v1/products` endpoint (`q`, filters and
+  sorting), consumed by the frontend search adapter;
+- public and Admin media management with Supabase Storage metadata persistence.
 
-Business catalogue, inventory, customer and order data remain mocked until their dedicated phases.
+Brevo notifications, the outbox worker, newsletter, custom quote and professional lead endpoints
+remain in their dedicated phases. The API is currently deployed to staging; the production service
+and production domain are not yet part of this repository's deployment configuration.
+Adding to a cart never reserves stock.
+
+Public cart endpoints:
+
+```text
+GET /api/v1/cart
+POST /api/v1/cart/items
+PATCH /api/v1/cart/items/:lineId
+DELETE /api/v1/cart/items/:lineId
+DELETE /api/v1/cart
+POST /api/v1/cart/promotion
+DELETE /api/v1/cart/promotion
+```
 
 Protected endpoints:
 
 ```text
 GET /api/v1/admin/session
 GET /api/v1/admin/audit-events
+GET /api/v1/admin/categories
+POST /api/v1/admin/categories
+PATCH /api/v1/admin/categories/:id
+GET /api/v1/admin/attributes
+POST /api/v1/admin/attributes
+PATCH /api/v1/admin/attributes/:id
+GET /api/v1/admin/products
+POST /api/v1/admin/products
+GET /api/v1/admin/products/:id
+PATCH /api/v1/admin/products/:id
+POST /api/v1/admin/products/:id/publish
+POST /api/v1/admin/products/:id/archive
+POST /api/v1/admin/products/:id/variants
+PATCH /api/v1/admin/products/:productId/variants/:variantId
+POST /api/v1/admin/products/:productId/variants/:variantId/archive
+GET /api/v1/admin/promotions
+POST /api/v1/admin/promotions
+GET /api/v1/admin/promotions/:id
+PATCH /api/v1/admin/promotions/:id
+POST /api/v1/admin/promotions/:id/archive
+GET /api/v1/admin/media
+POST /api/v1/admin/media
+PATCH /api/v1/admin/media/:id
+GET /api/v1/admin/content/pages
+GET /api/v1/admin/content/pages/:id
+POST /api/v1/admin/content/pages
+PATCH /api/v1/admin/content/pages/:id
+POST /api/v1/admin/content/pages/:id/publish
+POST /api/v1/admin/content/pages/:id/archive
+GET /api/v1/content/pages/:slug
+GET /api/v1/admin/content/home
+PUT /api/v1/admin/content/home
+POST /api/v1/admin/content/home/publish
+POST /api/v1/admin/content/home/archive
+GET /api/v1/content/home
 ```
+
+Editorial pages use draft, published and archived states. Admin mutations require the explicit
+content permissions and MFA; published pages are immutable in the first CMS increment and must be
+archived before a replacement draft is created. Public reads expose published pages only and return
+`Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300`; missing pages are
+cacheable for 30 seconds.
+
+Homepage merchandising uses the same draft → published → archived workflow. The first increment
+supports the `hero`, `promo_banner` and `shop_the_look` sections. Admin reads require `content.read`;
+draft updates require `content.write` with an `aal2` MFA session; publication and archiving require
+`content.publish` with `aal2`. Shop the Look hotspots store product references and percentage
+coordinates (0–100), while public responses remove internal revision, section, media and hotspot IDs.
+The public endpoint uses the same 60-second shared cache and 5-minute stale-while-revalidate window.
 
 ## Phase 1 foundation
 
@@ -37,7 +114,9 @@ This first phase provides only the API foundation:
 - generated OpenAPI 3.1 contract;
 - unit and integration tests.
 
-No catalogue, inventory, customer, or order business behavior is implemented yet.
+Inventory was introduced through Phase 4. Checkout and customer/order persistence are now
+implemented; the remaining commerce roadmap covers Brevo notifications, the outbox worker and the
+future online-payment/customer-account surfaces.
 
 ## Phase 0 delivery foundation
 
@@ -86,6 +165,9 @@ GET /health/ready
 GET /api/v1/version
 GET /api/v1/admin/session
 GET /api/v1/admin/audit-events
+GET /api/v1/admin/categories
+GET /api/v1/admin/attributes
+GET /api/v1/admin/products
 GET /documentation
 ```
 

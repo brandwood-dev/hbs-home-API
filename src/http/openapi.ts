@@ -30,6 +30,40 @@ export async function registerOpenApi(
           name: "admin-audit",
           description: "Immutable security and business audit events.",
         },
+        {
+          name: "admin-orders",
+          description:
+            "Persisted customer orders for the authenticated Admin back-office.",
+        },
+        {
+          name: "catalog",
+          description: "Public catalog browsing and recommendations.",
+        },
+        {
+          name: "content",
+          description:
+            "Published homepage configuration, editorial pages and reusable content blocks.",
+        },
+        {
+          name: "admin-content",
+          description:
+            "Authenticated Admin media, homepage configuration and editorial content.",
+        },
+        {
+          name: "admin-inventory",
+          description:
+            "Authenticated stock balances, movements and transactional reservations.",
+        },
+        {
+          name: "cart",
+          description:
+            "Opaque-token guest cart, authoritative prices and single-code promotions.",
+        },
+        {
+          name: "favorites",
+          description:
+            "Opaque-token guest favorites resolved against the published catalog.",
+        },
       ],
       components: {
         securitySchemes: {

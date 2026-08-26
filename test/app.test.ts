@@ -75,6 +75,24 @@ describe("HBS HOME API foundation", () => {
     });
   });
 
+  it("allows browser preflight for Admin product updates", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/admin/products/product-test-1",
+      headers: {
+        origin: "http://localhost:3001",
+        "access-control-request-method": "PATCH",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:3001",
+    );
+    expect(response.headers["access-control-allow-methods"]).toContain("PATCH");
+  });
+
   it("reports release and contract versions", async () => {
     const response = await app.inject({
       method: "GET",
@@ -84,7 +102,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.json()).toEqual({
       service: "hbs-home-api",
       apiVersion: "v1",
-      contractVersion: "1.1.0",
+      contractVersion: "1.5.0",
       releaseVersion: "0.2.0-test",
       gitSha: "test-sha",
       builtAt: "2026-08-18T00:00:00.000Z",
@@ -113,7 +131,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       openapi: "3.1.0",
-      info: { title: "HBS HOME API", version: "1.1.0" },
+      info: { title: "HBS HOME API", version: "1.5.0" },
     });
   });
 
