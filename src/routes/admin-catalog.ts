@@ -433,8 +433,14 @@ function imageHeader(
   fallback: string,
   maxLength: number,
 ): string {
-  const candidate = (Array.isArray(value) ? value[0] : value)?.trim();
-  if (!candidate) return fallback;
+  const encodedCandidate = (Array.isArray(value) ? value[0] : value)?.trim();
+  if (!encodedCandidate) return fallback;
+  let candidate = encodedCandidate;
+  try {
+    candidate = decodeURIComponent(encodedCandidate);
+  } catch {
+    // Keep the raw value when a legacy client sends a literal '%' character.
+  }
   const normalized = Array.from(candidate)
     .filter((character) => {
       const code = character.charCodeAt(0);
