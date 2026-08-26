@@ -219,6 +219,14 @@ export function registerAdminDashboardRoutes(
     },
     async (request) => {
       const { dateFrom, dateTo } = request.query;
+      if (Boolean(dateFrom) !== Boolean(dateTo)) {
+        throw new AppError({
+          statusCode: 400,
+          code: "INVALID_DASHBOARD_PERIOD",
+          title: "Invalid dashboard period",
+          detail: "dateFrom and dateTo must be provided together.",
+        });
+      }
       if (dateFrom && dateTo && dateFrom > dateTo) {
         throw new AppError({
           statusCode: 400,
