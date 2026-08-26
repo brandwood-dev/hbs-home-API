@@ -1375,6 +1375,7 @@
           "status",
           "sortOrder",
           "imageUrl",
+          "imageMediaAssetId",
           "seoTitle",
           "seoDescription",
           "showInNavigation",
@@ -1441,6 +1442,16 @@
               {
                 "minLength": 1,
                 "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "imageMediaAssetId": {
+            "anyOf": [
+              {
                 "type": "string"
               },
               {
@@ -2363,6 +2374,7 @@
                 "status",
                 "sortOrder",
                 "imageUrl",
+                "imageMediaAssetId",
                 "seoTitle",
                 "seoDescription",
                 "showInNavigation",
@@ -2429,6 +2441,16 @@
                     {
                       "minLength": 1,
                       "maxLength": 2048,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "imageMediaAssetId": {
+                  "anyOf": [
+                    {
                       "type": "string"
                     },
                     {
@@ -3084,6 +3106,45 @@
             "type": "integer"
           },
           "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "AdminCategoryImageUpload": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mediaAssetId",
+          "storagePath",
+          "publicUrl",
+          "mimeType",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "mediaAssetId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "storagePath": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string",
+            "enum": [
+              "image/webp"
+            ]
+          },
+          "width": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 1,
             "type": "integer"
           }
         }
@@ -14908,6 +14969,7 @@
                           "status",
                           "sortOrder",
                           "imageUrl",
+                          "imageMediaAssetId",
                           "seoTitle",
                           "seoDescription",
                           "showInNavigation",
@@ -14974,6 +15036,16 @@
                               {
                                 "minLength": 1,
                                 "maxLength": 2048,
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "imageMediaAssetId": {
+                            "anyOf": [
+                              {
                                 "type": "string"
                               },
                               {
@@ -15248,6 +15320,17 @@
                       }
                     ]
                   },
+                  "imageMediaAssetId": {
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "seoTitle": {
                     "anyOf": [
                       {
@@ -15302,6 +15385,7 @@
                     "status",
                     "sortOrder",
                     "imageUrl",
+                    "imageMediaAssetId",
                     "seoTitle",
                     "seoDescription",
                     "showInNavigation",
@@ -15368,6 +15452,16 @@
                         {
                           "minLength": 1,
                           "maxLength": 2048,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "imageMediaAssetId": {
+                      "anyOf": [
+                        {
                           "type": "string"
                         },
                         {
@@ -15690,6 +15784,429 @@
         }
       }
     },
+    "/api/v1/admin/categories/image": {
+      "post": {
+        "operationId": "adminUploadCategoryImage",
+        "summary": "Upload and convert a category image",
+        "tags": [
+          "admin-catalog"
+        ],
+        "description": "Accepts a JPEG, PNG or WebP binary payload. The API converts it to WebP before storing it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "mediaAssetId",
+                    "storagePath",
+                    "publicUrl",
+                    "mimeType",
+                    "width",
+                    "height"
+                  ],
+                  "properties": {
+                    "mediaAssetId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "storagePath": {
+                      "type": "string"
+                    },
+                    "publicUrl": {
+                      "format": "uri",
+                      "type": "string"
+                    },
+                    "mimeType": {
+                      "type": "string",
+                      "enum": [
+                        "image/webp"
+                      ]
+                    },
+                    "width": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "height": {
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/categories/{id}": {
       "patch": {
         "operationId": "adminUpdateCategory",
@@ -15773,6 +16290,17 @@
                       }
                     ]
                   },
+                  "imageMediaAssetId": {
+                    "anyOf": [
+                      {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "seoTitle": {
                     "anyOf": [
                       {
@@ -15839,6 +16367,7 @@
                     "status",
                     "sortOrder",
                     "imageUrl",
+                    "imageMediaAssetId",
                     "seoTitle",
                     "seoDescription",
                     "showInNavigation",
@@ -15905,6 +16434,16 @@
                         {
                           "minLength": 1,
                           "maxLength": 2048,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "imageMediaAssetId": {
+                      "anyOf": [
+                        {
                           "type": "string"
                         },
                         {
@@ -16367,6 +16906,7 @@
                     "status",
                     "sortOrder",
                     "imageUrl",
+                    "imageMediaAssetId",
                     "seoTitle",
                     "seoDescription",
                     "showInNavigation",
@@ -16433,6 +16973,16 @@
                         {
                           "minLength": 1,
                           "maxLength": 2048,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "imageMediaAssetId": {
+                      "anyOf": [
+                        {
                           "type": "string"
                         },
                         {

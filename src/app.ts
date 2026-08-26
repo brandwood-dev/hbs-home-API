@@ -87,6 +87,11 @@ import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCatalogCategoryRoutes } from "./routes/catalog-categories.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import {
+  CATEGORY_IMAGE_MAX_BYTES,
+  createCategoryMediaStorage,
+  type CategoryMediaStorage,
+} from "./media/category-media-storage.js";
+import {
   PostgresAdminArticleRepository,
   type ArticleRepository,
 } from "./content/article-repository.js";
@@ -110,6 +115,7 @@ export interface BuildAppOptions {
   adminContentRepository?: AdminContentRepository;
   homeContentRepository?: HomeContentRepository;
   articleRepository?: ArticleRepository;
+  categoryMediaStorage?: CategoryMediaStorage | null;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -164,6 +170,10 @@ export async function buildApp(
   const articleRepository =
     options.articleRepository ??
     new PostgresAdminArticleRepository(database.client);
+  const categoryMediaStorage =
+    options.categoryMediaStorage === undefined
+      ? createCategoryMediaStorage(environment)
+      : options.categoryMediaStorage;
   const app = Fastify({
     logger:
       options.logger ??
@@ -196,7 +206,20 @@ export async function buildApp(
     origin: environment.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "accept",
+      "authorization",
+      "content-type",
+      "x-request-id",
+      "x-image-alt",
+      "x-image-name",
+    ],
   });
+  app.addContentTypeParser(
+    /^image\/.+$/,
+    { parseAs: "buffer", bodyLimit: CATEGORY_IMAGE_MAX_BYTES },
+    (_request, body, done) => done(null, body),
+  );
   await registerOpenApi(app, environment);
 
   app.addHook("onSend", async (request, reply) => {
@@ -229,6 +252,8 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminCatalogRepository,
+    adminContentRepository,
+    categoryMediaStorage,
   });
   registerAdminPromotionRoutes(app, {
     jwtVerifier,

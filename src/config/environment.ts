@@ -35,6 +35,8 @@ const EnvironmentSchema = Type.Object(
     }),
     supabaseUrl: Type.String({ minLength: 1 }),
     supabaseJwtAudience: Type.String({ minLength: 1, maxLength: 128 }),
+    supabaseStorageSecretKey: Type.Optional(Type.String({ minLength: 1 })),
+    supabaseStorageBucket: Type.String({ minLength: 1, maxLength: 80 }),
     releaseVersion: Type.String({ minLength: 1 }),
     gitSha: Type.String({ minLength: 1, maxLength: 64 }),
     buildTime: Type.String({ minLength: 1 }),
@@ -157,6 +159,10 @@ export function loadEnvironment(
     ),
     supabaseUrl: source.SUPABASE_URL ?? "http://127.0.0.1:54321",
     supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    ...(source.SUPABASE_STORAGE_SECRET_KEY?.trim()
+      ? { supabaseStorageSecretKey: source.SUPABASE_STORAGE_SECRET_KEY.trim() }
+      : {}),
+    supabaseStorageBucket: source.SUPABASE_STORAGE_BUCKET ?? "catalog-media",
     releaseVersion: source.RELEASE_VERSION ?? "0.2.0",
     gitSha: source.GIT_SHA ?? source.RENDER_GIT_COMMIT ?? "local",
     buildTime: source.BUILD_TIME ?? "1970-01-01T00:00:00.000Z",

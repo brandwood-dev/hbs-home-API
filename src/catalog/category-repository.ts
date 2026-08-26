@@ -73,6 +73,26 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
 
     if (rows.length === 0) return [];
 
+    const mediaAssetIds = [
+      ...new Set(
+        rows
+          .map((row) => row.image_media_asset_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const mediaUrls =
+      mediaAssetIds.length === 0
+        ? []
+        : await this.database
+            .selectFrom("content.media_assets")
+            .select(["id", "public_url as publicUrl"])
+            .where("id", "in", mediaAssetIds)
+            .where("status", "=", "active")
+            .execute();
+    const publicUrlByMediaId = new Map(
+      mediaUrls.map((asset) => [asset.id, asset.publicUrl]),
+    );
+
     const categoryIds = rows.map((row) => row.id);
     const attributeRows = await this.database
       .selectFrom("catalog.category_attributes as categoryAttribute")
@@ -161,7 +181,11 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
           ? (byId.get(row.parent_id)?.slug ?? null)
           : null,
         path: pathFor(row, byId),
-        imageUrl: row.image_url,
+        imageUrl:
+          row.image_url ??
+          (row.image_media_asset_id
+            ? (publicUrlByMediaId.get(row.image_media_asset_id) ?? null)
+            : null),
         seoTitle: row.seo_title,
         seoDescription: row.seo_description,
         attributes: attributesByCategory.get(row.id) ?? [],

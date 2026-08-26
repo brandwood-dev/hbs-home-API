@@ -26,6 +26,7 @@ export interface AdminCategory {
   status: CategoryStatus;
   sortOrder: number;
   imageUrl: string | null;
+  imageMediaAssetId: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   showInNavigation: boolean;
@@ -133,6 +134,7 @@ export interface CategoryInput {
   status?: CategoryStatus;
   sortOrder?: number;
   imageUrl?: string | null;
+  imageMediaAssetId?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   showInNavigation?: boolean;
@@ -146,6 +148,7 @@ export interface CategoryPatch {
   status?: CategoryStatus;
   sortOrder?: number;
   imageUrl?: string | null;
+  imageMediaAssetId?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   showInNavigation?: boolean;
@@ -435,6 +438,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         null,
         input.status ?? "draft",
       );
+      await this.assertCategoryMediaAsset(trx, input.imageMediaAssetId ?? null);
       const existing = await trx
         .selectFrom("catalog.categories")
         .select("id")
@@ -458,6 +462,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           status: input.status ?? "draft",
           sort_order: input.sortOrder ?? 0,
           image_url: input.imageUrl ?? null,
+          image_media_asset_id: input.imageMediaAssetId ?? null,
           seo_title: input.seoTitle ?? null,
           seo_description: input.seoDescription ?? null,
           show_in_navigation: input.showInNavigation ?? true,
@@ -492,6 +497,12 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         parentId,
         id,
         patch.status ?? current.status,
+      );
+      await this.assertCategoryMediaAsset(
+        trx,
+        patch.imageMediaAssetId === undefined
+          ? current.image_media_asset_id
+          : patch.imageMediaAssetId,
       );
       if (parentId && parentId !== current.parent_id) {
         const child = await trx
@@ -542,6 +553,9 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           ...(patch.imageUrl === undefined
             ? {}
             : { image_url: patch.imageUrl }),
+          ...(patch.imageMediaAssetId === undefined
+            ? {}
+            : { image_media_asset_id: patch.imageMediaAssetId }),
           ...(patch.seoTitle === undefined
             ? {}
             : { seo_title: patch.seoTitle }),
@@ -1741,6 +1755,25 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     }
   }
 
+  private async assertCategoryMediaAsset(
+    executor: DbExecutor,
+    mediaAssetId: string | null | undefined,
+  ): Promise<void> {
+    if (!mediaAssetId) return;
+    const media = await executor
+      .selectFrom("content.media_assets")
+      .select(["id", "status"])
+      .where("id", "=", mediaAssetId)
+      .executeTakeFirst();
+    if (!media || media.status === "archived")
+      fail(
+        400,
+        "CATEGORY_MEDIA_INVALID",
+        "Invalid category media",
+        "The category image does not exist or is archived.",
+      );
+  }
+
   private async assertCategoryArchivable(
     executor: DbExecutor,
     id: string,
@@ -2013,6 +2046,7 @@ function categoryRecord(row: CategoryRow): AdminCategory {
     status: row.status,
     sortOrder: row.sort_order,
     imageUrl: row.image_url,
+    imageMediaAssetId: row.image_media_asset_id,
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
     showInNavigation: row.show_in_navigation,
