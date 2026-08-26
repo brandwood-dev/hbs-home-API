@@ -164,6 +164,16 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
     };
     return Promise.resolve(item);
   }
+  reorderCategory(
+    id: string,
+    direction: "up" | "down",
+  ): Promise<AdminCategory> {
+    void direction;
+    const current = this.categories.find((item) => item.id === id);
+    return current
+      ? Promise.resolve(current)
+      : Promise.reject(new Error("missing category"));
+  }
   listAttributes(): Promise<readonly AdminAttribute[]> {
     return Promise.resolve(this.attributes);
   }

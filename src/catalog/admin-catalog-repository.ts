@@ -260,6 +260,7 @@ export interface AdminCatalogRepository {
   listCategories(): Promise<readonly AdminCategory[]>;
   createCategory(input: CategoryInput): Promise<AdminCategory>;
   updateCategory(id: string, patch: CategoryPatch): Promise<AdminCategory>;
+  reorderCategory(id: string, direction: "up" | "down"): Promise<AdminCategory>;
   listAttributes(): Promise<readonly AdminAttribute[]>;
   createAttribute(input: AttributeInput): Promise<AdminAttribute>;
   updateAttribute(id: string, patch: AttributePatch): Promise<AdminAttribute>;
@@ -419,6 +420,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     const rows = await this.database
       .selectFrom("catalog.categories")
       .selectAll()
+      .where("status", "!=", "archived")
       .orderBy("sort_order")
       .orderBy("name")
       .execute();
@@ -427,7 +429,12 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
 
   async createCategory(input: CategoryInput): Promise<AdminCategory> {
     return this.database.transaction().execute(async (trx) => {
-      await this.assertCategoryParent(trx, input.parentId ?? null, null);
+      await this.assertCategoryParent(
+        trx,
+        input.parentId ?? null,
+        null,
+        input.status ?? "draft",
+      );
       const existing = await trx
         .selectFrom("catalog.categories")
         .select("id")
@@ -480,7 +487,26 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       const parentId =
         patch.parentId === undefined ? current.parent_id : patch.parentId;
-      await this.assertCategoryParent(trx, parentId, id);
+      await this.assertCategoryParent(
+        trx,
+        parentId,
+        id,
+        patch.status ?? current.status,
+      );
+      if (parentId && parentId !== current.parent_id) {
+        const child = await trx
+          .selectFrom("catalog.categories")
+          .select("id")
+          .where("parent_id", "=", id)
+          .executeTakeFirst();
+        if (child)
+          fail(
+            422,
+            "CATEGORY_PARENT_INVALID",
+            "Invalid category parent",
+            "A category with children cannot be moved below another category.",
+          );
+      }
       if (patch.status === "archived" && current.status !== "archived")
         await this.assertCategoryArchivable(trx, id);
       if (patch.slug && patch.slug !== current.slug) {
@@ -530,6 +556,83 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .returningAll()
         .executeTakeFirstOrThrow();
       return categoryRecord(row);
+    });
+  }
+
+  async reorderCategory(
+    id: string,
+    direction: "up" | "down",
+  ): Promise<AdminCategory> {
+    return this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirst();
+      if (!current)
+        fail(
+          404,
+          "CATEGORY_NOT_FOUND",
+          "Category not found",
+          "The requested category does not exist.",
+        );
+      if (current.status === "archived")
+        fail(
+          409,
+          "CATEGORY_ARCHIVED",
+          "Category archived",
+          "An archived category cannot be reordered.",
+        );
+
+      // Lock and order only the current sibling set. This prevents a child
+      // from being swapped with a root category and keeps the operation
+      // atomic when two Admin users reorder at the same time.
+      const siblingQuery = trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("status", "!=", "archived");
+      const siblings = current.parent_id
+        ? await siblingQuery
+            .where("parent_id", "=", current.parent_id)
+            .orderBy("sort_order")
+            .orderBy("name")
+            .orderBy("id")
+            .forUpdate()
+            .execute()
+        : await siblingQuery
+            .where("parent_id", "is", null)
+            .orderBy("sort_order")
+            .orderBy("name")
+            .orderBy("id")
+            .forUpdate()
+            .execute();
+
+      const currentIndex = siblings.findIndex((item) => item.id === id);
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length)
+        return categoryRecord(current);
+
+      const reordered = [...siblings];
+      const [moved] = reordered.splice(currentIndex, 1);
+      if (!moved) return categoryRecord(current);
+      reordered.splice(targetIndex, 0, moved);
+
+      for (const [sortOrder, sibling] of reordered.entries()) {
+        if (sibling.sort_order === sortOrder) continue;
+        await trx
+          .updateTable("catalog.categories")
+          .set({ sort_order: sortOrder })
+          .where("id", "=", sibling.id)
+          .execute();
+      }
+
+      const updated = await trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+      return categoryRecord(updated);
     });
   }
 
@@ -1591,6 +1694,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     executor: DbExecutor,
     parentId: string | null,
     selfId: string | null,
+    childStatus: CategoryStatus,
   ): Promise<void> {
     if (!parentId) return;
     if (parentId === selfId)
@@ -1612,6 +1716,27 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       visited.add(cursor);
       const parent = await this.assertCategory(executor, cursor);
+      if (parent.status === "archived")
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "An archived category cannot contain a child.",
+        );
+      if (childStatus === "active" && parent.status !== "active")
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "An active category must have an active parent.",
+        );
+      if (parent.parent_id)
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "Category nesting is limited to a root category and one subcategory.",
+        );
       cursor = parent.parent_id;
     }
   }
