@@ -220,6 +220,12 @@ const CategoryBody = Type.Object(
   { additionalProperties: false },
 );
 const CategoryPatchBody = Type.Partial(CategoryBody);
+const CategoryReorderBody = Type.Object(
+  {
+    direction: Type.Union([Type.Literal("up"), Type.Literal("down")]),
+  },
+  { additionalProperties: false },
+);
 const AttributeOptionBody = Type.Object(
   {
     value: Type.String({ minLength: 1, maxLength: 160 }),
@@ -514,6 +520,50 @@ export function registerAdminCatalogRoutes(
         "catalog.category_updated",
         "category",
         item.id,
+      );
+      return reply.type("application/json").send(item);
+    },
+  );
+  app.post<{
+    Params: Static<typeof IdParams>;
+    Body: Static<typeof CategoryReorderBody>;
+  }>(
+    "/api/v1/admin/categories/:id/reorder",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["categories.write"],
+      }),
+      schema: {
+        operationId: "adminReorderCategory",
+        tags: ["admin-catalog"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: CategoryReorderBody,
+        response: {
+          200: CategorySchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminCatalogRepository.reorderCategory(
+        request.params.id,
+        request.body.direction,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "catalog.category_reordered",
+        "category",
+        item.id,
+        { direction: request.body.direction },
       );
       return reply.type("application/json").send(item);
     },

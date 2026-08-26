@@ -176,6 +176,49 @@ describe("Admin catalogue API", () => {
     });
   });
 
+  it("protects category reordering with MFA and records the mutation", async () => {
+    authorize("aal1", ["categories.write"]);
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/cat-test-1/reorder",
+      headers: { authorization: "Bearer valid-token" },
+      payload: { direction: "down" },
+    });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json()).toMatchObject({ code: "MFA_REQUIRED" });
+
+    authorize("aal2", ["categories.write"]);
+    catalogRepository.categories.push({
+      id: "cat-test-1",
+      slug: "rideaux",
+      name: "Rideaux",
+      description: null,
+      parentId: null,
+      status: "active",
+      sortOrder: 0,
+      imageUrl: null,
+      seoTitle: null,
+      seoDescription: null,
+      showInNavigation: true,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/cat-test-1/reorder",
+      headers: { authorization: "Bearer valid-token" },
+      payload: { direction: "down" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: "cat-test-1" });
+    expect(auditRepository.events).toContainEqual(
+      expect.objectContaining({
+        action: "catalog.category_reordered",
+        outcome: "success",
+      }),
+    );
+  });
+
   it("enforces products.publish separately from products.write", async () => {
     authorize("aal2", ["products.write"]);
     const create = await app.inject({
