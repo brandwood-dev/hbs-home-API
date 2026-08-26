@@ -27,7 +27,9 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - guest favorites, editorial pages and the versioned homepage content workflow;
 - public catalogue search through the paginated `/api/v1/products` endpoint (`q`, filters and
   sorting), consumed by the frontend search adapter;
-- public and Admin media management with Supabase Storage metadata persistence.
+- public and Admin media management with Supabase Storage metadata persistence;
+- Admin category and subcategory image uploads with server-side WebP conversion, dimension
+  normalization and an 8 MiB payload limit.
 
 Brevo notifications, the outbox worker, newsletter, custom quote and professional lead endpoints
 remain in their dedicated phases. The API is currently deployed to staging; the production service
@@ -53,6 +55,7 @@ GET /api/v1/admin/session
 GET /api/v1/admin/audit-events
 GET /api/v1/admin/categories
 POST /api/v1/admin/categories
+POST /api/v1/admin/categories/image (JPEG, PNG or WebP binary; converted to WebP)
 PATCH /api/v1/admin/categories/:id
 GET /api/v1/admin/attributes
 POST /api/v1/admin/attributes

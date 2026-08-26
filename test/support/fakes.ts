@@ -145,6 +145,7 @@ export class FakeAdminCatalogRepository implements AdminCatalogRepository {
       status: input.status ?? "draft",
       sortOrder: input.sortOrder ?? 0,
       imageUrl: input.imageUrl ?? null,
+      imageMediaAssetId: input.imageMediaAssetId ?? null,
       seoTitle: input.seoTitle ?? null,
       seoDescription: input.seoDescription ?? null,
       showInNavigation: input.showInNavigation ?? true,

@@ -26,7 +26,16 @@ Supabase HBS HOME staging doit être provisionné seulement après validation ex
 La configuration non sensible de staging est décrite dans `render.yaml`. Render doit recevoir :
 
 - `DATABASE_URL` : connexion PostgreSQL Supabase du login restreint `hbs_api` ;
-- `SUPABASE_URL` : URL publique du projet staging.
+- `SUPABASE_URL` : URL publique du projet staging ;
+- `SUPABASE_STORAGE_SECRET_KEY` : clé secrète Supabase serveur (jamais la publishable key), utilisée
+  uniquement par l'API pour écrire dans Storage ;
+- `SUPABASE_STORAGE_BUCKET` : `catalog-media`.
+
+La migration `20260826181903_phase_10d_category_media_upload.sql` crée le bucket public
+`catalog-media`, limite les uploads à 8 MiB et ajoute le lien `image_media_asset_id` aux catégories.
+Le décodeur rejette également les images dépassant 25 mégapixels afin de limiter les risques de
+décompression excessive.
+Elle doit être appliquée avant de démarrer une version de l'API qui utilise cette route.
 
 La clé secrète Supabase utilisée pour inviter un Admin est un secret opérateur ponctuel : elle ne
 doit pas être placée dans le frontend et n'est pas nécessaire au processus API courant. Les futures

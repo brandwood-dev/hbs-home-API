@@ -104,6 +104,7 @@ export interface CatalogCategoryTable {
   status: "draft" | "active" | "archived";
   sort_order: number;
   image_url: string | null;
+  image_media_asset_id: string | null;
   seo_title: string | null;
   seo_description: string | null;
   show_in_navigation: boolean;

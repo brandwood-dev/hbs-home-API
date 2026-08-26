@@ -7,8 +7,19 @@ import {
   FakeAdminCatalogRepository,
   FakeAuditRepository,
   FakeDatabaseConnection,
+  FakeAdminContentRepository,
   FakeJwtVerifier,
 } from "./support/fakes.js";
+
+class UploadTestContentRepository extends FakeAdminContentRepository {
+  override async createMedia(
+    input: Parameters<FakeAdminContentRepository["createMedia"]>[0],
+    actorUserId: string,
+  ) {
+    const item = await super.createMedia(input, actorUserId);
+    return { ...item, id: "44444444-4444-4444-8444-444444444444" };
+  }
+}
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const environment = loadEnvironment({
@@ -24,12 +35,19 @@ describe("Admin catalogue API", () => {
   let accessRepository: FakeAdminAccessRepository;
   let auditRepository: FakeAuditRepository;
   let catalogRepository: FakeAdminCatalogRepository;
+  let contentRepository: FakeAdminContentRepository;
+  let mediaUploads: {
+    bytes: Buffer;
+    contentType: "image/jpeg" | "image/png" | "image/webp";
+  }[];
 
   beforeEach(async () => {
     jwtVerifier = new FakeJwtVerifier();
     accessRepository = new FakeAdminAccessRepository();
     auditRepository = new FakeAuditRepository();
     catalogRepository = new FakeAdminCatalogRepository();
+    contentRepository = new UploadTestContentRepository();
+    mediaUploads = [];
     app = await buildApp({
       environment,
       logger: false,
@@ -38,6 +56,20 @@ describe("Admin catalogue API", () => {
       adminAccessRepository: accessRepository,
       auditRepository,
       adminCatalogRepository: catalogRepository,
+      adminContentRepository: contentRepository,
+      categoryMediaStorage: {
+        upload: (input) => {
+          mediaUploads.push(input);
+          return Promise.resolve({
+            storagePath: "catalog/categories/uploads/test.webp",
+            publicUrl:
+              "https://example.test/storage/v1/object/public/catalog-media/catalog/categories/uploads/test.webp",
+            mimeType: "image/webp",
+            width: 120,
+            height: 80,
+          });
+        },
+      },
     });
   });
 
@@ -81,6 +113,48 @@ describe("Admin catalogue API", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ items: [] });
+  });
+
+  it("uploads a category image through the Admin media pipeline", async () => {
+    authorize("aal2", ["categories.write"]);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/image",
+      headers: {
+        authorization: "Bearer valid-token",
+        "content-type": "image/png",
+        "x-image-name": "Rideaux",
+        "x-image-alt": "Rideaux en lin",
+      },
+      payload: Buffer.from("fake-png"),
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      mediaAssetId: "44444444-4444-4444-8444-444444444444",
+      mimeType: "image/webp",
+      width: 120,
+      height: 80,
+    });
+    expect(mediaUploads).toHaveLength(1);
+    expect(mediaUploads[0]).toMatchObject({ contentType: "image/png" });
+    expect(auditRepository.events).toContainEqual(
+      expect.objectContaining({ action: "catalog.category_image_uploaded" }),
+    );
+
+    const unsupported = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/image",
+      headers: {
+        authorization: "Bearer valid-token",
+        "content-type": "image/gif",
+      },
+      payload: Buffer.from("fake-gif"),
+    });
+    expect(unsupported.statusCode).toBe(400);
+    expect(unsupported.json()).toMatchObject({
+      code: "MEDIA_TYPE_NOT_ALLOWED",
+    });
   });
 
   it("requires aal2 and records a successful category mutation", async () => {
@@ -197,6 +271,7 @@ describe("Admin catalogue API", () => {
       status: "active",
       sortOrder: 0,
       imageUrl: null,
+      imageMediaAssetId: null,
       seoTitle: null,
       seoDescription: null,
       showInNavigation: true,
