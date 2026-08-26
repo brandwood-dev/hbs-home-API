@@ -448,7 +448,7 @@ function imageHeader(
     })
     .join("")
     .trim();
-  return normalized.slice(0, maxLength) || fallback;
+  return Array.from(normalized).slice(0, maxLength).join("") || fallback;
 }
 
 function imageContentType(

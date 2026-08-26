@@ -159,6 +159,20 @@ describe("Admin catalogue API", () => {
       alt: "Image d’été",
     });
 
+    const unicodeMetadata = `${"a".repeat(239)}😀`;
+    const unicodeResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/image",
+      headers: {
+        authorization: "Bearer valid-token",
+        "content-type": "image/png",
+        "x-image-name": encodeURIComponent(unicodeMetadata),
+      },
+      payload: Buffer.from("fake-png"),
+    });
+    expect(unicodeResponse.statusCode).toBe(201);
+    expect(contentRepository.media.at(-1)?.name).toBe(unicodeMetadata);
+
     const unsupported = await app.inject({
       method: "POST",
       url: "/api/v1/admin/categories/image",
