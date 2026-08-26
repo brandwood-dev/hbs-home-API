@@ -22,13 +22,19 @@ export function registerErrorHandling(app: FastifyInstance): void {
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
     if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+      const isCategoryImageUpload =
+        problemInstance(request) === "/api/v1/admin/categories/image";
       const problem: ProblemDetail = {
         type: "https://api.hbs-home.com/problems/payload-too-large",
         title: "Payload too large",
         status: 413,
-        detail: "The uploaded image must not exceed 8 MiB.",
+        detail: isCategoryImageUpload
+          ? "The uploaded image must not exceed 8 MiB."
+          : "The request payload is too large.",
         instance: problemInstance(request),
-        code: "MEDIA_PAYLOAD_TOO_LARGE",
+        code: isCategoryImageUpload
+          ? "MEDIA_PAYLOAD_TOO_LARGE"
+          : "PAYLOAD_TOO_LARGE",
         requestId: request.id,
       };
       return reply.type("application/problem+json").status(413).send(problem);
