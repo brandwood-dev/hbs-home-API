@@ -129,6 +129,65 @@ describe("Admin homepage content API", () => {
     expect(invalid.statusCode).toBe(400);
   });
 
+  it("normalizes a legacy promo payload and validates multi-message rows", async () => {
+    authorize("aal2", ["content.write"]);
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sections: [
+          {
+            sectionKey: "promo_banner",
+            sortOrder: 0,
+            payload: {
+              label: "Info",
+              text: "Livraison offerte",
+              href: "/promotions",
+            },
+          },
+        ],
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+    const savedBody = saved.json<{
+      sections: { payload: Record<string, unknown> }[];
+    }>();
+    expect(savedBody.sections[0]?.payload).toEqual({
+      messages: [
+        {
+          id: "legacy-promo",
+          label: "Info",
+          text: "Livraison offerte",
+          href: "/promotions",
+          isEnabled: true,
+          sortOrder: 0,
+        },
+      ],
+    });
+
+    const unsafe = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sections: [
+          {
+            sectionKey: "promo_banner",
+            sortOrder: 0,
+            payload: {
+              messages: [
+                { id: "unsafe", text: "Test", href: "javascript:alert(1)" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(unsafe.statusCode).toBe(400);
+    expect(unsafe.json()).toMatchObject({ code: "HOME_PROMO_INVALID" });
+  });
+
   it("publishes a homepage snapshot and strips internal identifiers publicly", async () => {
     authorize("aal2", ["content.write"]);
     const saved = await app.inject({

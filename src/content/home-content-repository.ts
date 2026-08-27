@@ -8,6 +8,24 @@ type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
 export type HomeRevisionStatus = "draft" | "published" | "archived";
 export type HomeSectionKey = "hero" | "promo_banner" | "shop_the_look";
 
+export const HOME_PROMO_BANNER_MAX_MESSAGES = 20;
+const HOME_PROMO_BANNER_MAX_TEXT_LENGTH = 240;
+const HOME_PROMO_BANNER_MAX_LABEL_LENGTH = 80;
+const HOME_PROMO_BANNER_MAX_HREF_LENGTH = 2048;
+
+export interface HomePromoBannerMessage {
+  id: string;
+  label?: string;
+  text: string;
+  href?: string;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+export interface HomePromoBannerPayload {
+  messages: HomePromoBannerMessage[];
+}
+
 export interface HomeMediaReference {
   id: string;
   publicUrl: string;
@@ -163,6 +181,220 @@ function sectionKey(value: string): HomeSectionKey {
   return value;
 }
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function requiredText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+  messageIndex: number,
+): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `Message ${String(messageIndex + 1)} requires a non-empty ${field}.`,
+    );
+  }
+  const text = value.trim();
+  if (text.length > maxLength) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `${field} must not exceed ${String(maxLength)} characters.`,
+    );
+  }
+  return text;
+}
+
+function optionalText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+  messageIndex: number,
+): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `Message ${String(messageIndex + 1)} has an invalid ${field}.`,
+    );
+  }
+  const text = value.trim();
+  if (!text) return undefined;
+  if (text.length > maxLength) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `${field} must not exceed ${String(maxLength)} characters.`,
+    );
+  }
+  return text;
+}
+
+function safePromoHref(
+  value: unknown,
+  messageIndex: number,
+): string | undefined {
+  const href = optionalText(
+    value,
+    "href",
+    HOME_PROMO_BANNER_MAX_HREF_LENGTH,
+    messageIndex,
+  );
+  if (!href) return undefined;
+  if (href.startsWith("/") && !href.startsWith("//")) return href;
+  try {
+    const parsed = new URL(href);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:")
+      return parsed.toString();
+  } catch {
+    // Fall through to the same validation error below.
+  }
+  fail(
+    400,
+    "HOME_PROMO_INVALID",
+    "Invalid promotional banner",
+    `Message ${String(messageIndex + 1)} has an invalid href. Use a relative path or an HTTP(S) URL.`,
+  );
+}
+
+/**
+ * Convert the legacy { label, text, href } payload and validate the current
+ * multi-message payload before it is persisted or exposed publicly.
+ */
+export function normalizePromoBannerPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const rawMessages = payload.messages;
+  const source =
+    rawMessages === undefined
+      ? payload.text === undefined
+        ? []
+        : [
+            {
+              id: "legacy-promo",
+              label: payload.label,
+              text: payload.text,
+              href: payload.href,
+              isEnabled: true,
+              sortOrder: 0,
+            },
+          ]
+      : rawMessages;
+  if (!Array.isArray(source)) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      "messages must be an array.",
+    );
+  }
+  if (source.length > HOME_PROMO_BANNER_MAX_MESSAGES) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `A promotional banner cannot contain more than ${String(HOME_PROMO_BANNER_MAX_MESSAGES)} messages.`,
+    );
+  }
+
+  const ids = new Set<string>();
+  const orders = new Set<number>();
+  const messages = source.map((value, index) => {
+    const row = objectRecord(value);
+    if (!row) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        `Message ${String(index + 1)} must be an object.`,
+      );
+    }
+    const id =
+      optionalText(row.id, "id", 120, index) ?? `promo-${String(index + 1)}`;
+    if (ids.has(id)) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        "Message ids must be unique.",
+      );
+    }
+    const rawOrder = row.sortOrder;
+    const sortOrder =
+      rawOrder === undefined
+        ? index
+        : typeof rawOrder === "number" &&
+            Number.isInteger(rawOrder) &&
+            rawOrder >= 0
+          ? rawOrder
+          : (() => {
+              fail(
+                400,
+                "HOME_PROMO_INVALID",
+                "Invalid promotional banner",
+                `Message ${String(index + 1)} has an invalid sortOrder.`,
+              );
+            })();
+    if (orders.has(sortOrder)) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        "Message sortOrder values must be unique.",
+      );
+    }
+    const enabled = row.isEnabled === undefined ? true : row.isEnabled;
+    if (typeof enabled !== "boolean") {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        `Message ${String(index + 1)} has an invalid isEnabled value.`,
+      );
+    }
+    ids.add(id);
+    orders.add(sortOrder);
+    const label = optionalText(
+      row.label,
+      "label",
+      HOME_PROMO_BANNER_MAX_LABEL_LENGTH,
+      index,
+    );
+    const href = safePromoHref(row.href, index);
+    return {
+      id,
+      ...(label ? { label } : {}),
+      text: requiredText(
+        row.text,
+        "text",
+        HOME_PROMO_BANNER_MAX_TEXT_LENGTH,
+        index,
+      ),
+      ...(href ? { href } : {}),
+      isEnabled: enabled,
+      sortOrder,
+    } satisfies HomePromoBannerMessage;
+  });
+  messages.sort((a, b) => a.sortOrder - b.sortOrder);
+  return {
+    messages: messages.map((message, index) => ({
+      ...message,
+      sortOrder: index,
+    })),
+  } satisfies HomePromoBannerPayload;
+}
+
 function validateSections(
   sections: readonly HomeSectionInput[],
 ): HomeSectionInput[] {
@@ -179,7 +411,10 @@ function validateSections(
     sectionKey: sectionKey(section.sectionKey),
     sortOrder: section.sortOrder,
     isEnabled: section.isEnabled ?? true,
-    payload: section.payload ?? {},
+    payload:
+      section.sectionKey === "promo_banner"
+        ? normalizePromoBannerPayload(section.payload ?? {})
+        : (section.payload ?? {}),
     hotspots: section.hotspots ?? [],
   }));
   const keys = new Set<string>();
@@ -261,6 +496,13 @@ function validateSections(
     }
   }
   return normalized;
+}
+
+export function normalizeHomeDraftInput(input: HomeDraftInput): HomeDraftInput {
+  return {
+    ...input,
+    sections: validateSections(input.sections),
+  };
 }
 
 function mediaReference(
@@ -362,7 +604,10 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         sectionKey: sectionKey(row.section_key),
         sortOrder: row.sort_order,
         isEnabled: row.is_enabled,
-        payload: row.payload,
+        payload:
+          row.section_key === "promo_banner"
+            ? normalizePromoBannerPayload(row.payload)
+            : row.payload,
         media: mediaReference(
           {
             id: row.media_id,
@@ -854,7 +1099,10 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
           sectionKey: section.sectionKey,
           sortOrder: section.sortOrder,
           isEnabled: section.isEnabled,
-          payload: section.payload,
+          payload:
+            section.sectionKey === "promo_banner"
+              ? normalizePromoBannerPayload(section.payload)
+              : section.payload,
           media: section.media
             ? { publicUrl: section.media.publicUrl, alt: section.media.alt }
             : null,

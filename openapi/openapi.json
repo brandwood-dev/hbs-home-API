@@ -3,7 +3,7 @@
   "info": {
     "title": "HBS HOME API",
     "description": "Canonical HTTP contract for the HBS HOME public and administration applications.",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "components": {
     "securitySchemes": {
@@ -233,7 +233,7 @@
           "contractVersion": {
             "type": "string",
             "enum": [
-              "1.5.0"
+              "1.6.0"
             ]
           },
           "releaseVersion": {
@@ -9135,8 +9135,62 @@
                   "type": "boolean"
                 },
                 "payload": {
-                  "type": "object",
-                  "additionalProperties": {}
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "messages"
+                      ],
+                      "properties": {
+                        "messages": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "text",
+                              "isEnabled",
+                              "sortOrder"
+                            ],
+                            "properties": {
+                              "id": {
+                                "minLength": 1,
+                                "maxLength": 120,
+                                "type": "string"
+                              },
+                              "label": {
+                                "maxLength": 80,
+                                "type": "string"
+                              },
+                              "text": {
+                                "minLength": 1,
+                                "maxLength": 240,
+                                "type": "string"
+                              },
+                              "href": {
+                                "maxLength": 2048,
+                                "type": "string"
+                              },
+                              "isEnabled": {
+                                "type": "boolean"
+                              },
+                              "sortOrder": {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  ]
                 },
                 "mediaAssetId": {
                   "anyOf": [
@@ -9333,8 +9387,62 @@
                           "type": "boolean"
                         },
                         "payload": {
-                          "type": "object",
-                          "additionalProperties": {}
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "messages"
+                              ],
+                              "properties": {
+                                "messages": {
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "type": "object",
+                                    "required": [
+                                      "id",
+                                      "text",
+                                      "isEnabled",
+                                      "sortOrder"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "minLength": 1,
+                                        "maxLength": 120,
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "minLength": 1,
+                                        "maxLength": 240,
+                                        "type": "string"
+                                      },
+                                      "href": {
+                                        "maxLength": 2048,
+                                        "type": "string"
+                                      },
+                                      "isEnabled": {
+                                        "type": "boolean"
+                                      },
+                                      "sortOrder": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
+                          ]
                         },
                         "media": {
                           "anyOf": [
@@ -9589,8 +9697,62 @@
                           "type": "boolean"
                         },
                         "payload": {
-                          "type": "object",
-                          "additionalProperties": {}
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "messages"
+                              ],
+                              "properties": {
+                                "messages": {
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "type": "object",
+                                    "required": [
+                                      "id",
+                                      "text",
+                                      "isEnabled",
+                                      "sortOrder"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "minLength": 1,
+                                        "maxLength": 120,
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "minLength": 1,
+                                        "maxLength": 240,
+                                        "type": "string"
+                                      },
+                                      "href": {
+                                        "maxLength": 2048,
+                                        "type": "string"
+                                      },
+                                      "isEnabled": {
+                                        "type": "boolean"
+                                      },
+                                      "sortOrder": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
+                          ]
                         },
                         "media": {
                           "anyOf": [
@@ -9800,8 +9962,62 @@
                   "type": "boolean"
                 },
                 "payload": {
-                  "type": "object",
-                  "additionalProperties": {}
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "messages"
+                      ],
+                      "properties": {
+                        "messages": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "text",
+                              "isEnabled",
+                              "sortOrder"
+                            ],
+                            "properties": {
+                              "id": {
+                                "minLength": 1,
+                                "maxLength": 120,
+                                "type": "string"
+                              },
+                              "label": {
+                                "maxLength": 80,
+                                "type": "string"
+                              },
+                              "text": {
+                                "minLength": 1,
+                                "maxLength": 240,
+                                "type": "string"
+                              },
+                              "href": {
+                                "maxLength": 2048,
+                                "type": "string"
+                              },
+                              "isEnabled": {
+                                "type": "boolean"
+                              },
+                              "sortOrder": {
+                                "minimum": 0,
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  ]
                 },
                 "media": {
                   "anyOf": [
@@ -10142,7 +10358,7 @@
                     "contractVersion": {
                       "type": "string",
                       "enum": [
-                        "1.5.0"
+                        "1.6.0"
                       ]
                     },
                     "releaseVersion": {
@@ -63953,8 +64169,62 @@
                                     "type": "boolean"
                                   },
                                   "payload": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "type": "object",
+                                        "required": [
+                                          "messages"
+                                        ],
+                                        "properties": {
+                                          "messages": {
+                                            "maxItems": 20,
+                                            "type": "array",
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "type": "object",
+                                              "required": [
+                                                "id",
+                                                "text",
+                                                "isEnabled",
+                                                "sortOrder"
+                                              ],
+                                              "properties": {
+                                                "id": {
+                                                  "minLength": 1,
+                                                  "maxLength": 120,
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "maxLength": 80,
+                                                  "type": "string"
+                                                },
+                                                "text": {
+                                                  "minLength": 1,
+                                                  "maxLength": 240,
+                                                  "type": "string"
+                                                },
+                                                "href": {
+                                                  "maxLength": 2048,
+                                                  "type": "string"
+                                                },
+                                                "isEnabled": {
+                                                  "type": "boolean"
+                                                },
+                                                "sortOrder": {
+                                                  "minimum": 0,
+                                                  "type": "integer"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    ]
                                   },
                                   "media": {
                                     "anyOf": [
@@ -64209,8 +64479,62 @@
                                     "type": "boolean"
                                   },
                                   "payload": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "type": "object",
+                                        "required": [
+                                          "messages"
+                                        ],
+                                        "properties": {
+                                          "messages": {
+                                            "maxItems": 20,
+                                            "type": "array",
+                                            "items": {
+                                              "additionalProperties": false,
+                                              "type": "object",
+                                              "required": [
+                                                "id",
+                                                "text",
+                                                "isEnabled",
+                                                "sortOrder"
+                                              ],
+                                              "properties": {
+                                                "id": {
+                                                  "minLength": 1,
+                                                  "maxLength": 120,
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "maxLength": 80,
+                                                  "type": "string"
+                                                },
+                                                "text": {
+                                                  "minLength": 1,
+                                                  "maxLength": 240,
+                                                  "type": "string"
+                                                },
+                                                "href": {
+                                                  "maxLength": 2048,
+                                                  "type": "string"
+                                                },
+                                                "isEnabled": {
+                                                  "type": "boolean"
+                                                },
+                                                "sortOrder": {
+                                                  "minimum": 0,
+                                                  "type": "integer"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {}
+                                      }
+                                    ]
                                   },
                                   "media": {
                                     "anyOf": [
@@ -64556,8 +64880,62 @@
                           "type": "boolean"
                         },
                         "payload": {
-                          "type": "object",
-                          "additionalProperties": {}
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "messages"
+                              ],
+                              "properties": {
+                                "messages": {
+                                  "maxItems": 20,
+                                  "type": "array",
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "type": "object",
+                                    "required": [
+                                      "id",
+                                      "text",
+                                      "isEnabled",
+                                      "sortOrder"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "minLength": 1,
+                                        "maxLength": 120,
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "maxLength": 80,
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "minLength": 1,
+                                        "maxLength": 240,
+                                        "type": "string"
+                                      },
+                                      "href": {
+                                        "maxLength": 2048,
+                                        "type": "string"
+                                      },
+                                      "isEnabled": {
+                                        "type": "boolean"
+                                      },
+                                      "sortOrder": {
+                                        "minimum": 0,
+                                        "type": "integer"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
+                          ]
                         },
                         "mediaAssetId": {
                           "anyOf": [
@@ -64757,8 +65135,62 @@
                             "type": "boolean"
                           },
                           "payload": {
-                            "type": "object",
-                            "additionalProperties": {}
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "messages"
+                                ],
+                                "properties": {
+                                  "messages": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "type": "object",
+                                      "required": [
+                                        "id",
+                                        "text",
+                                        "isEnabled",
+                                        "sortOrder"
+                                      ],
+                                      "properties": {
+                                        "id": {
+                                          "minLength": 1,
+                                          "maxLength": 120,
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "maxLength": 80,
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "minLength": 1,
+                                          "maxLength": 240,
+                                          "type": "string"
+                                        },
+                                        "href": {
+                                          "maxLength": 2048,
+                                          "type": "string"
+                                        },
+                                        "isEnabled": {
+                                          "type": "boolean"
+                                        },
+                                        "sortOrder": {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            ]
                           },
                           "media": {
                             "anyOf": [
@@ -65312,8 +65744,62 @@
                             "type": "boolean"
                           },
                           "payload": {
-                            "type": "object",
-                            "additionalProperties": {}
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "messages"
+                                ],
+                                "properties": {
+                                  "messages": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "type": "object",
+                                      "required": [
+                                        "id",
+                                        "text",
+                                        "isEnabled",
+                                        "sortOrder"
+                                      ],
+                                      "properties": {
+                                        "id": {
+                                          "minLength": 1,
+                                          "maxLength": 120,
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "maxLength": 80,
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "minLength": 1,
+                                          "maxLength": 240,
+                                          "type": "string"
+                                        },
+                                        "href": {
+                                          "maxLength": 2048,
+                                          "type": "string"
+                                        },
+                                        "isEnabled": {
+                                          "type": "boolean"
+                                        },
+                                        "sortOrder": {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            ]
                           },
                           "media": {
                             "anyOf": [
@@ -65799,8 +66285,62 @@
                             "type": "boolean"
                           },
                           "payload": {
-                            "type": "object",
-                            "additionalProperties": {}
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "messages"
+                                ],
+                                "properties": {
+                                  "messages": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "type": "object",
+                                      "required": [
+                                        "id",
+                                        "text",
+                                        "isEnabled",
+                                        "sortOrder"
+                                      ],
+                                      "properties": {
+                                        "id": {
+                                          "minLength": 1,
+                                          "maxLength": 120,
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "maxLength": 80,
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "minLength": 1,
+                                          "maxLength": 240,
+                                          "type": "string"
+                                        },
+                                        "href": {
+                                          "maxLength": 2048,
+                                          "type": "string"
+                                        },
+                                        "isEnabled": {
+                                          "type": "boolean"
+                                        },
+                                        "sortOrder": {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            ]
                           },
                           "media": {
                             "anyOf": [
@@ -66224,8 +66764,62 @@
                             "type": "boolean"
                           },
                           "payload": {
-                            "type": "object",
-                            "additionalProperties": {}
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "type": "object",
+                                "required": [
+                                  "messages"
+                                ],
+                                "properties": {
+                                  "messages": {
+                                    "maxItems": 20,
+                                    "type": "array",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "type": "object",
+                                      "required": [
+                                        "id",
+                                        "text",
+                                        "isEnabled",
+                                        "sortOrder"
+                                      ],
+                                      "properties": {
+                                        "id": {
+                                          "minLength": 1,
+                                          "maxLength": 120,
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "maxLength": 80,
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "minLength": 1,
+                                          "maxLength": 240,
+                                          "type": "string"
+                                        },
+                                        "href": {
+                                          "maxLength": 2048,
+                                          "type": "string"
+                                        },
+                                        "isEnabled": {
+                                          "type": "boolean"
+                                        },
+                                        "sortOrder": {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {}
+                              }
+                            ]
                           },
                           "media": {
                             "anyOf": [

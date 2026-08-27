@@ -6,7 +6,10 @@ import {
   type AdminGuardDependencies,
   type AdminPrincipal,
 } from "../auth/admin-guard.js";
-import { type HomeContentRepository } from "../content/home-content-repository.js";
+import {
+  normalizeHomeDraftInput,
+  type HomeContentRepository,
+} from "../content/home-content-repository.js";
 import { ProblemDetailSchema } from "../http/problem.js";
 
 const HomeSectionKeySchema = Type.Union([
@@ -14,6 +17,23 @@ const HomeSectionKeySchema = Type.Union([
   Type.Literal("promo_banner"),
   Type.Literal("shop_the_look"),
 ]);
+const HomePromoBannerMessageSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1, maxLength: 120 }),
+    label: Type.Optional(Type.String({ maxLength: 80 })),
+    text: Type.String({ minLength: 1, maxLength: 240 }),
+    href: Type.Optional(Type.String({ maxLength: 2048 })),
+    isEnabled: Type.Boolean(),
+    sortOrder: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+);
+const HomePromoBannerPayloadSchema = Type.Object(
+  {
+    messages: Type.Array(HomePromoBannerMessageSchema, { maxItems: 20 }),
+  },
+  { additionalProperties: false },
+);
 const HomeHotspotInputSchema = Type.Object(
   {
     productId: Type.String({ minLength: 1, maxLength: 160 }),
@@ -31,7 +51,12 @@ const HomeSectionInputSchema = Type.Object(
     sectionKey: HomeSectionKeySchema,
     sortOrder: Type.Integer({ minimum: 0 }),
     isEnabled: Type.Optional(Type.Boolean()),
-    payload: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    payload: Type.Optional(
+      Type.Union([
+        HomePromoBannerPayloadSchema,
+        Type.Record(Type.String(), Type.Unknown()),
+      ]),
+    ),
     mediaAssetId: Type.Optional(
       Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
     ),
@@ -86,7 +111,10 @@ const HomeSectionSchema = Type.Object(
     sectionKey: HomeSectionKeySchema,
     sortOrder: Type.Integer({ minimum: 0 }),
     isEnabled: Type.Boolean(),
-    payload: Type.Record(Type.String(), Type.Unknown()),
+    payload: Type.Union([
+      HomePromoBannerPayloadSchema,
+      Type.Record(Type.String(), Type.Unknown()),
+    ]),
     media: Type.Union([HomeMediaSchema, Type.Null()]),
     mobileMedia: Type.Union([HomeMediaSchema, Type.Null()]),
     hotspots: Type.Array(HomeHotspotSchema),
@@ -215,7 +243,7 @@ export function registerAdminHomeContentRoutes(
     async (request, reply) => {
       const actor = principal(request);
       const item = await dependencies.homeContentRepository.updateDraft(
-        request.body,
+        normalizeHomeDraftInput(request.body),
         actor.userId,
       );
       await audit(
