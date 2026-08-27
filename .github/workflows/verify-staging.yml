@@ -33,7 +33,7 @@ jobs:
         env:
           SMOKE_BASE_URL: https://api-preview.hbs-home.com
           EXPECTED_GIT_SHA: ${{ github.event.workflow_run.head_sha }}
-          EXPECTED_CONTRACT_VERSION: 1.5.0
+          EXPECTED_CONTRACT_VERSION: 1.6.0
         run: |
           for attempt in {1..40}; do
             if bun run smoke; then
