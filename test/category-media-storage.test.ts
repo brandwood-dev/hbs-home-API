@@ -83,4 +83,22 @@ describe("Category media conversion", () => {
     expect(capturedHeaders.get("apikey")).toBe("sb_secret_test");
     expect(capturedHeaders.get("authorization")).toBeNull();
   });
+
+  it("rejects a publishable key before attempting a Storage write", async () => {
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      "sb_publishable_test",
+    );
+
+    await expect(
+      storage.upload({
+        bytes: Buffer.from("not-an-image"),
+        contentType: "image/png",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MEDIA_STORAGE_MISCONFIGURED",
+    });
+  });
 });

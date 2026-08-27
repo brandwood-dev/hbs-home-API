@@ -37,6 +37,15 @@ function failUpload(detail: string): never {
   });
 }
 
+function failStorageConfiguration(detail: string): never {
+  throw new AppError({
+    statusCode: 503,
+    code: "MEDIA_STORAGE_MISCONFIGURED",
+    title: "Media storage misconfigured",
+    detail,
+  });
+}
+
 function failInvalidImage(detail: string): never {
   throw new AppError({
     statusCode: 400,
@@ -111,6 +120,15 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
     bytes: Buffer;
     contentType: CategoryImageInputMime;
   }): Promise<CategoryImageUpload> {
+    // Publishable keys are intentionally read-only for this server-side
+    // pipeline. Failing early gives operators an actionable error instead of
+    // the opaque HTTP 400 returned by Storage when RLS rejects an insert.
+    if (this.secretKey.startsWith("sb_publishable_")) {
+      failStorageConfiguration(
+        "SUPABASE_STORAGE_SECRET_KEY must be a Supabase secret key (sb_secret_…), not a publishable key.",
+      );
+    }
+
     const converted = await convertCategoryImage(input.bytes);
     const storagePath = `catalog/categories/uploads/${randomUUID()}.webp`;
     const objectPath = encodeStoragePath(`${this.bucket}/${storagePath}`);
@@ -134,7 +152,20 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
       failUpload("The category image could not be stored.");
     }
 
-    if (!response.ok) failUpload("The category image could not be stored.");
+    if (!response.ok) {
+      let responseBody = "";
+      try {
+        responseBody = (await response.clone().text()).slice(0, 300);
+      } catch {
+        // The status code is still useful when Storage returns a body that
+        // cannot be decoded.
+      }
+      console.warn("Supabase Storage rejected category image upload", {
+        status: response.status,
+        body: responseBody,
+      });
+      failUpload("The category image could not be stored.");
+    }
 
     const publicUrl = `${this.storageUrl}/object/public/${objectPath}`;
 

@@ -102,7 +102,10 @@ supports the `hero`, `promo_banner` and `shop_the_look` sections. Admin reads re
 draft updates require `content.write` with an `aal2` MFA session; publication and archiving require
 `content.publish` with `aal2`. Shop the Look hotspots store product references and percentage
 coordinates (0–100), while public responses remove internal revision, section, media and hotspot IDs.
-The public endpoint uses the same 60-second shared cache and 5-minute stale-while-revalidate window.
+The `promo_banner` section accepts up to 20 ordered messages, each with optional label/link and its own
+active state. The legacy one-message payload remains readable and is normalized server-side. The
+public endpoint returns only the published snapshot and uses the same 60-second shared cache and
+5-minute stale-while-revalidate window.
 
 ## Phase 1 foundation
 
