@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import { AppError } from "../http/problem.js";
 import type { Environment } from "../config/environment.js";
 
@@ -23,6 +22,10 @@ export interface CategoryMediaStorage {
     bytes: Buffer;
     contentType: CategoryImageInputMime;
   }): Promise<CategoryImageUpload>;
+}
+
+function encodeStoragePath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function failUpload(detail: string): never {
@@ -91,17 +94,18 @@ export async function convertCategoryImage(bytes: Buffer): Promise<{
 }
 
 export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
-  private readonly client: ReturnType<typeof createClient>;
+  private readonly storageUrl: string;
 
   constructor(
     private readonly bucket: string,
     supabaseUrl: string,
     secretKey: string,
   ) {
-    this.client = createClient(supabaseUrl, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    this.storageUrl = `${supabaseUrl.replace(/\/$/, "")}/storage/v1`;
+    this.secretKey = secretKey;
   }
+
+  private readonly secretKey: string;
 
   async upload(input: {
     bytes: Buffer;
@@ -109,24 +113,34 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
   }): Promise<CategoryImageUpload> {
     const converted = await convertCategoryImage(input.bytes);
     const storagePath = `catalog/categories/uploads/${randomUUID()}.webp`;
-    const { error } = await this.client.storage
-      .from(this.bucket)
-      .upload(storagePath, converted.data, {
-        cacheControl: "31536000",
-        contentType: CATEGORY_IMAGE_OUTPUT_MIME,
-        upsert: false,
-      });
-    if (error) failUpload("The category image could not be stored.");
+    const objectPath = encodeStoragePath(`${this.bucket}/${storagePath}`);
 
-    const { data } = this.client.storage
-      .from(this.bucket)
-      .getPublicUrl(storagePath);
-    if (!data.publicUrl)
-      failUpload("The category image URL could not be generated.");
+    // Supabase's new `sb_secret_…` keys are API keys, not JWTs. They must be
+    // sent in `apikey` only; sending them as `Authorization: Bearer …` makes
+    // Storage reject an otherwise valid upload with HTTP 400 (Invalid JWT).
+    let response: Response;
+    try {
+      response = await fetch(`${this.storageUrl}/object/${objectPath}`, {
+        method: "POST",
+        headers: {
+          apikey: this.secretKey,
+          "cache-control": "max-age=31536000",
+          "content-type": CATEGORY_IMAGE_OUTPUT_MIME,
+          "x-upsert": "false",
+        },
+        body: converted.data,
+      });
+    } catch {
+      failUpload("The category image could not be stored.");
+    }
+
+    if (!response.ok) failUpload("The category image could not be stored.");
+
+    const publicUrl = `${this.storageUrl}/object/public/${objectPath}`;
 
     return {
       storagePath,
-      publicUrl: data.publicUrl,
+      publicUrl,
       mimeType: CATEGORY_IMAGE_OUTPUT_MIME,
       width: converted.width,
       height: converted.height,
