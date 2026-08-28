@@ -121,6 +121,24 @@ export interface HomeSectionInput {
   hotspots?: readonly HomeHotspotInput[];
 }
 
+function sectionInputFromRecord(section: HomeSection): HomeSectionInput {
+  return {
+    sectionKey: section.sectionKey,
+    sortOrder: section.sortOrder,
+    isEnabled: section.isEnabled,
+    payload: section.payload,
+    mediaAssetId: section.media?.id ?? null,
+    mobileMediaAssetId: section.mobileMedia?.id ?? null,
+    hotspots: section.hotspots.map((hotspot) => ({
+      productId: hotspot.productId,
+      xPercent: hotspot.xPercent,
+      yPercent: hotspot.yPercent,
+      label: hotspot.label,
+      sortOrder: hotspot.sortOrder,
+    })),
+  };
+}
+
 export interface HomeDraftInput {
   sections: readonly HomeSectionInput[];
   expectedVersion?: number;
@@ -537,12 +555,25 @@ function revisionRecord(
 
 export interface HomeContentRepository {
   getAdminHome(): Promise<AdminHomeContent>;
+  getAdminHomeSection(sectionKey: HomeSectionKey): Promise<AdminHomeContent>;
   updateDraft(
     input: HomeDraftInput,
     actorUserId: string,
   ): Promise<AdminHomeRevision>;
+  updateDraftSection(
+    input: HomeSectionInput & { expectedVersion?: number },
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   publishDraft(actorUserId: string): Promise<AdminHomeRevision>;
+  publishDraftSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   archivePublished(actorUserId: string): Promise<AdminHomeRevision>;
+  archivePublishedSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   getPublishedHome(): Promise<PublicHomeContent | null>;
 }
 
@@ -728,17 +759,37 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
     };
   }
 
+  async getAdminHomeSection(
+    sectionKey: HomeSectionKey,
+  ): Promise<AdminHomeContent> {
+    const content = await this.getAdminHome();
+    const narrow = (revision: AdminHomeRevision | null) =>
+      revision
+        ? {
+            ...revision,
+            sections: revision.sections.filter(
+              (section) => section.sectionKey === sectionKey,
+            ),
+          }
+        : null;
+    return {
+      draft: narrow(content.draft),
+      published: narrow(content.published),
+    };
+  }
+
   private async cloneRevision(
     executor: DbExecutor,
     source: RevisionRow,
     status: "draft" | "published",
     actorUserId: string,
+    version = source.version,
   ): Promise<RevisionRow> {
     const revision = await executor
       .insertInto("content.home_revisions")
       .values({
         status,
-        version: source.version,
+        version,
         published_at: status === "published" ? new Date() : null,
         created_by: actorUserId,
         updated_by: actorUserId,
@@ -808,6 +859,53 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
     return revision;
   }
 
+  private async replaceRevisionSection(
+    executor: DbExecutor,
+    revisionId: string,
+    input: HomeSectionInput,
+  ): Promise<void> {
+    const existing = await executor
+      .selectFrom("content.home_sections")
+      .select(["id"])
+      .where("revision_id", "=", revisionId)
+      .where("section_key", "=", input.sectionKey)
+      .executeTakeFirst();
+    if (existing) {
+      await executor
+        .deleteFrom("content.home_sections")
+        .where("id", "=", existing.id)
+        .execute();
+    }
+    const row = await executor
+      .insertInto("content.home_sections")
+      .values({
+        revision_id: revisionId,
+        section_key: input.sectionKey,
+        sort_order: input.sortOrder,
+        is_enabled: input.isEnabled ?? true,
+        payload: input.payload ?? {},
+        media_asset_id: input.mediaAssetId ?? null,
+        mobile_media_asset_id: input.mobileMediaAssetId ?? null,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    if (input.hotspots && input.hotspots.length > 0) {
+      await executor
+        .insertInto("content.home_shop_the_look_hotspots")
+        .values(
+          input.hotspots.map((hotspot) => ({
+            section_id: row.id,
+            product_id: hotspot.productId,
+            x_percent: hotspot.xPercent,
+            y_percent: hotspot.yPercent,
+            label: hotspot.label ?? null,
+            sort_order: hotspot.sortOrder,
+          })),
+        )
+        .execute();
+    }
+  }
+
   private async ensureDraft(
     executor: DbExecutor,
     actorUserId: string,
@@ -836,6 +934,71 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       })
       .returningAll()
       .executeTakeFirstOrThrow();
+  }
+
+  async updateDraftSection(
+    input: HomeSectionInput & { expectedVersion?: number },
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    const { expectedVersion, ...rawSection } = input;
+    const section = validateSections([rawSection])[0];
+    if (!section) {
+      fail(
+        400,
+        "HOME_SECTION_INVALID",
+        "Invalid home section",
+        "A section is required.",
+      );
+    }
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const current = await this.ensureDraft(trx, actorUserId);
+        if (
+          expectedVersion !== undefined &&
+          expectedVersion !== current.version
+        ) {
+          fail(
+            409,
+            "HOME_VERSION_CONFLICT",
+            "Home content conflict",
+            "The homepage draft changed since it was loaded. Reload before saving.",
+          );
+        }
+        await this.assertMedia(trx, [section], false);
+        await this.assertProducts(trx, [section], false);
+        const row = await trx
+          .updateTable("content.home_revisions")
+          .set({
+            version: current.version + 1,
+            updated_by: actorUserId,
+          })
+          .where("id", "=", current.id)
+          .where("version", "=", current.version)
+          .returningAll()
+          .executeTakeFirst();
+        if (!row) {
+          fail(
+            409,
+            "HOME_VERSION_CONFLICT",
+            "Home content conflict",
+            "The homepage draft changed since it was loaded. Reload before saving.",
+          );
+        }
+        await this.replaceRevisionSection(trx, current.id, section);
+        const records = await this.hydrateRevisions(trx, [row], false);
+        return records[0] ?? revisionRecord(row, []);
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        fail(
+          409,
+          "HOME_SECTION_CONFLICT",
+          "Home content conflict",
+          "A section or hotspot order is duplicated.",
+        );
+      }
+      throw error;
+    }
   }
 
   private async assertMedia(
@@ -1024,21 +1187,7 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         await this.hydrateRevisions(trx, [draft], false)
       )[0];
       const sections = draftRevision?.sections ?? [];
-      const inputs: HomeSectionInput[] = sections.map((section) => ({
-        sectionKey: section.sectionKey,
-        sortOrder: section.sortOrder,
-        isEnabled: section.isEnabled,
-        payload: section.payload,
-        mediaAssetId: section.media?.id ?? null,
-        mobileMediaAssetId: section.mobileMedia?.id ?? null,
-        hotspots: section.hotspots.map((hotspot) => ({
-          productId: hotspot.productId,
-          xPercent: hotspot.xPercent,
-          yPercent: hotspot.yPercent,
-          label: hotspot.label,
-          sortOrder: hotspot.sortOrder,
-        })),
-      }));
+      const inputs: HomeSectionInput[] = sections.map(sectionInputFromRecord);
       await this.assertMedia(trx, inputs, true);
       await this.assertProducts(trx, inputs, true);
       await trx
@@ -1056,6 +1205,87 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         "published",
         actorUserId,
       );
+      return revisionRecord(
+        published,
+        (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
+          [],
+      );
+    });
+  }
+
+  async publishDraftSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    return this.database.transaction().execute(async (trx) => {
+      const draftRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "draft")
+        .executeTakeFirst();
+      if (!draftRow) {
+        fail(
+          404,
+          "HOME_DRAFT_NOT_FOUND",
+          "Home draft not found",
+          "Create and save a homepage section draft before publishing.",
+        );
+      }
+      const draftRevision = (
+        await this.hydrateRevisions(trx, [draftRow], false)
+      )[0];
+      const draftSection = draftRevision?.sections.find(
+        (section) => section.sectionKey === sectionKey,
+      );
+      if (!draftSection) {
+        fail(
+          404,
+          "HOME_SECTION_NOT_FOUND",
+          "Home section not found",
+          `The ${sectionKey} section is not configured in the draft.`,
+        );
+      }
+      const sectionInput = sectionInputFromRecord(draftSection);
+      await this.assertMedia(trx, [sectionInput], true);
+      await this.assertProducts(trx, [sectionInput], true);
+
+      const publishedRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "published")
+        .executeTakeFirst();
+      if (!publishedRow) {
+        const published = await this.cloneRevision(
+          trx,
+          draftRow,
+          "published",
+          actorUserId,
+          draftRow.version,
+        );
+        return revisionRecord(
+          published,
+          (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
+            [],
+        );
+      }
+
+      await trx
+        .updateTable("content.home_revisions")
+        .set({
+          status: "archived",
+          published_at: null,
+          updated_by: actorUserId,
+        })
+        .where("id", "=", publishedRow.id)
+        .execute();
+      const published = await this.cloneRevision(
+        trx,
+        publishedRow,
+        "published",
+        actorUserId,
+        publishedRow.version + 1,
+      );
+      await this.replaceRevisionSection(trx, published.id, sectionInput);
       return revisionRecord(
         published,
         (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
@@ -1084,6 +1314,66 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       (await this.hydrateRevisions(this.database, [row], false))[0]?.sections ??
         [],
     );
+  }
+
+  async archivePublishedSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    return this.database.transaction().execute(async (trx) => {
+      const publishedRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "published")
+        .executeTakeFirst();
+      if (!publishedRow) {
+        fail(
+          404,
+          "HOME_PUBLISHED_NOT_FOUND",
+          "Published home not found",
+          "There is no published homepage configuration to archive.",
+        );
+      }
+      const publishedRevision = (
+        await this.hydrateRevisions(trx, [publishedRow], false)
+      )[0];
+      const currentSection = publishedRevision?.sections.find(
+        (section) => section.sectionKey === sectionKey,
+      );
+      if (!currentSection) {
+        fail(
+          404,
+          "HOME_SECTION_NOT_FOUND",
+          "Home section not found",
+          `The ${sectionKey} section is not published.`,
+        );
+      }
+      await trx
+        .updateTable("content.home_revisions")
+        .set({
+          status: "archived",
+          published_at: null,
+          updated_by: actorUserId,
+        })
+        .where("id", "=", publishedRow.id)
+        .execute();
+      const archived = await this.cloneRevision(
+        trx,
+        publishedRow,
+        "published",
+        actorUserId,
+        publishedRow.version + 1,
+      );
+      await this.replaceRevisionSection(trx, archived.id, {
+        ...sectionInputFromRecord(currentSection),
+        isEnabled: false,
+      });
+      return revisionRecord(
+        archived,
+        (await this.hydrateRevisions(trx, [archived], false))[0]?.sections ??
+          [],
+      );
+    });
   }
 
   async getPublishedHome(): Promise<PublicHomeContent | null> {

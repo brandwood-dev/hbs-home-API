@@ -49,6 +49,8 @@ import type {
   AdminHomeRevision,
   HomeContentRepository,
   HomeDraftInput,
+  HomeSectionInput,
+  HomeSectionKey,
   PublicHomeContent,
 } from "../../src/content/home-content-repository.js";
 
@@ -445,6 +447,22 @@ export class FakeHomeContentRepository implements HomeContentRepository {
     return Promise.resolve({ draft: this.draft, published: this.published });
   }
 
+  getAdminHomeSection(sectionKey: HomeSectionKey): Promise<AdminHomeContent> {
+    const narrow = (revision: AdminHomeRevision | null) =>
+      revision
+        ? {
+            ...revision,
+            sections: revision.sections.filter(
+              (section) => section.sectionKey === sectionKey,
+            ),
+          }
+        : null;
+    return Promise.resolve({
+      draft: narrow(this.draft),
+      published: narrow(this.published),
+    });
+  }
+
   updateDraft(input: HomeDraftInput): Promise<AdminHomeRevision> {
     const now = new Date(0).toISOString();
     const currentVersion = this.draft?.version ?? this.published?.version ?? 0;
@@ -455,13 +473,13 @@ export class FakeHomeContentRepository implements HomeContentRepository {
       return Promise.reject(new Error("HOME_VERSION_CONFLICT"));
     }
     this.draft = {
-      id: this.draft?.id ?? "home-draft-test-1",
+      id: this.draft?.id ?? "00000000-0000-4000-8000-000000000001",
       status: "draft",
       version: currentVersion + 1,
       publishedAt: null,
       updatedAt: now,
       sections: input.sections.map((section, index) => ({
-        id: `home-section-test-${String(index + 1)}`,
+        id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
         sectionKey: section.sectionKey,
         sortOrder: section.sortOrder,
         isEnabled: section.isEnabled ?? true,
@@ -469,7 +487,7 @@ export class FakeHomeContentRepository implements HomeContentRepository {
         media: null,
         mobileMedia: null,
         hotspots: (section.hotspots ?? []).map((hotspot, hotspotIndex) => ({
-          id: `home-hotspot-test-${String(hotspotIndex + 1)}`,
+          id: `10000000-0000-4000-8000-${String(hotspotIndex + 1).padStart(12, "0")}`,
           productId: hotspot.productId,
           xPercent: hotspot.xPercent,
           yPercent: hotspot.yPercent,
@@ -482,13 +500,72 @@ export class FakeHomeContentRepository implements HomeContentRepository {
     return Promise.resolve(this.draft);
   }
 
+  updateDraftSection(
+    input: HomeSectionInput & { expectedVersion?: number },
+  ): Promise<AdminHomeRevision> {
+    const currentSections =
+      this.draft?.sections ?? this.published?.sections ?? [];
+    const sections = [
+      ...currentSections.filter(
+        (section) => section.sectionKey !== input.sectionKey,
+      ),
+      input,
+    ];
+    return this.updateDraft({
+      sections: sections.map((section) => {
+        if ("id" in section) {
+          return {
+            sectionKey: section.sectionKey,
+            sortOrder: section.sortOrder,
+            isEnabled: section.isEnabled,
+            payload: section.payload,
+            hotspots: section.hotspots.map((hotspot) => ({
+              productId: hotspot.productId,
+              xPercent: hotspot.xPercent,
+              yPercent: hotspot.yPercent,
+              label: hotspot.label,
+              sortOrder: hotspot.sortOrder,
+            })),
+          } satisfies HomeSectionInput;
+        }
+        return section;
+      }),
+      ...(input.expectedVersion === undefined
+        ? {}
+        : { expectedVersion: input.expectedVersion }),
+    });
+  }
+
   publishDraft(): Promise<AdminHomeRevision> {
     if (!this.draft) return Promise.reject(new Error("HOME_DRAFT_NOT_FOUND"));
     this.published = {
       ...this.draft,
-      id: "home-published-test-1",
+      id: "00000000-0000-4000-8000-000000000002",
       status: "published",
       publishedAt: new Date(0).toISOString(),
+    };
+    return Promise.resolve(this.published);
+  }
+
+  publishDraftSection(sectionKey: HomeSectionKey): Promise<AdminHomeRevision> {
+    if (!this.draft) return Promise.reject(new Error("HOME_DRAFT_NOT_FOUND"));
+    const draftSection = this.draft.sections.find(
+      (section) => section.sectionKey === sectionKey,
+    );
+    if (!draftSection)
+      return Promise.reject(new Error("HOME_SECTION_NOT_FOUND"));
+    const sections = this.published
+      ? this.published.sections.map((section) =>
+          section.sectionKey === sectionKey ? draftSection : section,
+        )
+      : this.draft.sections;
+    this.published = {
+      ...(this.published ?? this.draft),
+      id: "00000000-0000-4000-8000-000000000002",
+      status: "published",
+      version: (this.published?.version ?? this.draft.version) + 1,
+      publishedAt: new Date(0).toISOString(),
+      sections,
     };
     return Promise.resolve(this.published);
   }
@@ -501,6 +578,24 @@ export class FakeHomeContentRepository implements HomeContentRepository {
       ...this.published,
       status: "archived",
       publishedAt: null,
+    };
+    return Promise.resolve(this.published);
+  }
+
+  archivePublishedSection(
+    sectionKey: HomeSectionKey,
+  ): Promise<AdminHomeRevision> {
+    if (!this.published) {
+      return Promise.reject(new Error("HOME_PUBLISHED_NOT_FOUND"));
+    }
+    this.published = {
+      ...this.published,
+      version: this.published.version + 1,
+      sections: this.published.sections.map((section) =>
+        section.sectionKey === sectionKey
+          ? { ...section, isEnabled: false }
+          : section,
+      ),
     };
     return Promise.resolve(this.published);
   }
