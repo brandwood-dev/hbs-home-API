@@ -181,6 +181,11 @@ const ProductSchema = Type.Object(
     archivedAt: NullableString,
     version: Type.Integer(),
     isDemo: Type.Boolean(),
+    isNew: Type.Optional(Type.Boolean()),
+    isBestSeller: Type.Optional(Type.Boolean()),
+    isFeatured: Type.Optional(Type.Boolean()),
+    isOnSale: Type.Optional(Type.Boolean()),
+    payload: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     attributes: Type.Record(Type.String(), Type.Unknown()),
     media: Type.Array(ProductMediaSchema),
     variants: Type.Array(VariantSchema),
@@ -296,6 +301,7 @@ const ProductBody = Type.Object(
     name: Type.String({ minLength: 2, maxLength: 240 }),
     reference: Type.String({ minLength: 2, maxLength: 120 }),
     categoryId: Type.String({ minLength: 1, maxLength: 160 }),
+    category: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
     material: Type.String({ minLength: 1, maxLength: 120 }),
     sellingMode: Type.String({ minLength: 1, maxLength: 80 }),
     shortDescription: Type.Optional(NullableString),
@@ -306,6 +312,7 @@ const ProductBody = Type.Object(
     isNew: Type.Optional(Type.Boolean()),
     isBestSeller: Type.Optional(Type.Boolean()),
     isFeatured: Type.Optional(Type.Boolean()),
+    isOnSale: Type.Optional(Type.Boolean()),
     isThermal: Type.Optional(Type.Boolean()),
     recommendationScore: Type.Optional(Type.Number()),
     attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
@@ -324,7 +331,9 @@ const ProductPatchBody = Type.Partial(
 );
 const VariantBody = Type.Object(
   {
-    sku: Type.String({ pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$" }),
+    sku: Type.Optional(
+      Type.String({ pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$" }),
+    ),
     title: Type.Optional(NullableString),
     priceAmountMinor: Type.Integer({ minimum: 0 }),
     compareAtPriceAmountMinor: Type.Optional(
