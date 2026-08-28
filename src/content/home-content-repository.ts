@@ -890,7 +890,11 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         .filter((row) =>
           requirePublished
             ? row.status === "active" && row.is_published
-            : row.status !== "archived",
+            : // A private draft may temporarily keep a link to an archived
+              // product while an administrator edits another homepage section.
+              // Publication still enforces the stricter active + published
+              // invariant above, so an archived link can never leak publicly.
+              true,
         )
         .map((row) => row.id),
     );
@@ -899,7 +903,7 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         400,
         "HOME_PRODUCT_INVALID",
         "Invalid Shop the Look product",
-        "Every linked product must exist and be active; publication also requires a published product.",
+        "Every linked product must exist; publication also requires an active, published product.",
       );
     }
   }
