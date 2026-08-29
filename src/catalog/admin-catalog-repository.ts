@@ -1389,10 +1389,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         patch.compareAtPriceAmountMinor === undefined
           ? current.compare_at_price_amount_minor
           : patch.compareAtPriceAmountMinor;
-      const nextOptions =
-        patch.options === undefined ? asObject(current.options) : patch.options;
-      const nextPayload =
-        patch.payload === undefined ? asObject(current.payload) : patch.payload;
+      const nextOptions = patch.options ?? asObject(current.options);
+      const nextPayload = patch.payload ?? asObject(current.payload);
       const ruleViolation = validateVariantBusinessRules(
         product.category,
         product.material,
