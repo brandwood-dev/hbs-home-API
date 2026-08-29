@@ -1091,6 +1091,25 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           .where("id", "=", id)
           .executeTakeFirst();
       }
+      const payloadAttributes = asObject(productWithSaleFlag.attributes);
+      const taxonomyChanged =
+        patch.categoryId !== undefined ||
+        patch.material !== undefined ||
+        (patch.payload !== undefined &&
+          ("accessory_type" in patch.payload ||
+            "accessoryType" in patch.payload ||
+            "attributes" in patch.payload ||
+            "accessory_type" in payloadAttributes ||
+            "accessoryType" in payloadAttributes));
+      if (current.is_published && taxonomyChanged) {
+        await this.assertProductVariantsBusinessRules(
+          trx,
+          id,
+          rootCategorySlug,
+          patch.material ?? current.material,
+          productWithSaleFlag,
+        );
+      }
       if (patch.attributes !== undefined || patch.categoryId !== undefined) {
         const attributes =
           patch.attributes ?? (await this.productAttributes(trx, id));
@@ -1103,7 +1122,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       }
       await this.refreshProductPayload(id, trx);
-      return this.productRecord(trx, result);
+      return this.getProductFromExecutor(trx, id);
     });
   }
 
@@ -1329,7 +1348,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     const taken = new Set(existing.map((row) => row.sku.toUpperCase()));
     for (let index = 1; ; index += 1) {
       const candidate = `${prefix}-${String(index).padStart(2, "0")}`;
-      if (!taken.has(candidate)) return candidate;
+      if (!taken.has(candidate.toUpperCase())) return candidate;
     }
   }
 
@@ -1370,16 +1389,15 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         patch.compareAtPriceAmountMinor === undefined
           ? current.compare_at_price_amount_minor
           : patch.compareAtPriceAmountMinor;
+      const nextOptions =
+        patch.options === undefined ? asObject(current.options) : patch.options;
+      const nextPayload =
+        patch.payload === undefined ? asObject(current.payload) : patch.payload;
       const ruleViolation = validateVariantBusinessRules(
         product.category,
         product.material,
         product.product,
-        {
-          ...asObject(current.options),
-          ...asObject(current.payload),
-          ...asObject(patch.options),
-          ...asObject(patch.payload),
-        },
+        { ...asObject(nextOptions), ...asObject(nextPayload) },
       );
       if (ruleViolation)
         fail(
@@ -1467,6 +1485,36 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         "The requested product does not exist.",
       );
     return row;
+  }
+
+  private async assertProductVariantsBusinessRules(
+    executor: DbExecutor,
+    productId: string,
+    category: unknown,
+    material: unknown,
+    productPayload: unknown,
+  ): Promise<void> {
+    const variants = await executor
+      .selectFrom("catalog.product_variants")
+      .selectAll()
+      .where("product_id", "=", productId)
+      .where("status", "!=", "archived")
+      .execute();
+    for (const variant of variants) {
+      const ruleViolation = validateVariantBusinessRules(
+        category,
+        material,
+        productPayload,
+        { ...asObject(variant.options), ...asObject(variant.payload) },
+      );
+      if (ruleViolation)
+        fail(
+          422,
+          ruleViolation.code,
+          ruleViolation.title,
+          ruleViolation.detail,
+        );
+    }
   }
 
   private async replaceProductMedia(
