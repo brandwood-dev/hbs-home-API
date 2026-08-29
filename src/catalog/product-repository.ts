@@ -193,6 +193,7 @@ export interface Product {
   isNew: boolean;
   isBestSeller: boolean;
   isFeatured: boolean;
+  isOnSale?: boolean;
   createdAt: string;
   recommendationScore: number;
   isDemo: boolean;
@@ -542,6 +543,7 @@ function parseProduct(row: CatalogProductRow): Product | null {
     isNew: parseBoolean(payload.isNew, row.is_new),
     isBestSeller: parseBoolean(payload.isBestSeller, row.is_best_seller),
     isFeatured: parseBoolean(payload.isFeatured, row.is_featured),
+    isOnSale: parseBoolean(payload.isOnSale, false),
     createdAt:
       row.created_at instanceof Date
         ? row.created_at.toISOString()
@@ -738,6 +740,7 @@ function productMatches(product: Product, params: ProductListParams): boolean {
   if (params.onlyBestSellers && !product.isBestSeller) return false;
   if (
     params.onlyDiscounted &&
+    !product.isOnSale &&
     !product.variants.some((variant) => variantDiscount(variant) > 0)
   )
     return false;
