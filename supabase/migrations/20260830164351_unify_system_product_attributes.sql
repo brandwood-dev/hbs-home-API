@@ -236,7 +236,13 @@ set name = excluded.name,
 
 -- Mark the definitions as system-owned without changing their existing ids.
 update catalog.attributes as attribute
-set is_system = true,
+set name = definition.name,
+    value_type = definition.value_type,
+    is_filterable = definition.is_filterable,
+    is_required = definition.is_required,
+    is_variant_axis = definition.is_variant_axis,
+    sort_order = definition.sort_order,
+    is_system = true,
     status = 'active',
     updated_at = now()
 from hbs_system_attribute_definitions as definition
@@ -296,6 +302,21 @@ on conflict (attribute_id, value) do update
 set label = excluded.label,
     sort_order = excluded.sort_order,
     is_active = true;
+
+-- Keep the legacy product material column and the normalized attribute registry
+-- in sync before material becomes a required system attribute at publication.
+insert into catalog.product_attributes (product_id, attribute_id, value)
+select product_row.id,
+       material_attribute.id,
+       to_jsonb(product_row.material)
+from catalog.products as product_row
+join catalog.attributes as material_attribute
+  on material_attribute.key = 'material'
+ and material_attribute.is_system
+where nullif(btrim(product_row.material), '') is not null
+on conflict (product_id, attribute_id) do update
+set value = excluded.value,
+    updated_at = now();
 
 insert into catalog.category_attributes (category_id, attribute_id, is_required, sort_order)
 select

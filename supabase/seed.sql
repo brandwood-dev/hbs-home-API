@@ -246,6 +246,24 @@ values
 on conflict (product_id, category_id) do update
 set is_primary = excluded.is_primary;
 
+-- Keep the legacy material column represented in the normalized attribute
+-- registry so seeded products can be published with the required system field.
+insert into catalog.product_attributes (product_id, attribute_id, value)
+select product_row.id,
+       attribute.id,
+       to_jsonb(product_row.material)
+from catalog.products as product_row
+join catalog.attributes as attribute
+  on attribute.key = 'material'
+ and attribute.is_system
+where product_row.id in (
+  '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000002'
+)
+on conflict (product_id, attribute_id) do update
+set value = excluded.value,
+    updated_at = now();
+
 insert into catalog.product_variants (
   id,
   product_id,
