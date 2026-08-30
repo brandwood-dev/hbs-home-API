@@ -11,6 +11,26 @@ set slug = excluded.slug,
     status = excluded.status,
     updated_at = now();
 
+-- The migration runs before this seed file, so wire the seeded root categories
+-- to the canonical system attributes explicitly for local/CI resets.
+insert into catalog.category_attributes (category_id, attribute_id, is_required, sort_order)
+select category.id,
+       attribute.id,
+       attribute.key in ('material'),
+       attribute.sort_order
+from catalog.categories as category
+join catalog.attributes as attribute on attribute.is_system
+where (
+  category.slug = 'rideaux'
+  and attribute.key in ('material', 'opacity', 'rooms', 'large_width', 'care', 'installation')
+) or (
+  category.slug = 'coussins'
+  and attribute.key in ('shape', 'material', 'removable_cover', 'machine_washable', 'filling', 'closure', 'rooms')
+)
+on conflict (category_id, attribute_id) do update
+set is_required = excluded.is_required,
+    sort_order = excluded.sort_order;
+
 insert into catalog.products (
   id,
   slug,

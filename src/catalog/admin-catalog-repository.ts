@@ -679,6 +679,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
 
   async createAttribute(input: AttributeInput): Promise<AdminAttribute> {
     return this.database.transaction().execute(async (trx) => {
+      if (input.isSystem === true)
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          "System attributes are provisioned by the catalogue and cannot be created manually.",
+        );
       const duplicate = await trx
         .selectFrom("catalog.attributes")
         .select("id")
@@ -730,6 +737,22 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           "Attribute not found",
           "The requested attribute does not exist.",
         );
+      if (
+        (current.is_system &&
+          ((patch.key !== undefined && patch.key !== current.key) ||
+            (patch.valueType !== undefined &&
+              patch.valueType !== current.value_type) ||
+            patch.isSystem === false)) ||
+        (!current.is_system && patch.isSystem === true)
+      )
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          current.is_system
+            ? "The key and type of a system attribute cannot be changed."
+            : "A regular attribute cannot be promoted to a system attribute.",
+        );
       if (patch.key && patch.key !== current.key) {
         const duplicate = await trx
           .selectFrom("catalog.attributes")
@@ -754,13 +777,6 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
               .where("attribute_id", "=", id)
               .execute()
           : [];
-      if (current.is_system && patch.isSystem === false)
-        fail(
-          422,
-          "ATTRIBUTE_SYSTEM_IMMUTABLE",
-          "System attribute",
-          "A system attribute cannot be converted into a regular attribute.",
-        );
       if (patch.status === "archived" && current.status !== "archived") {
         if (current.is_system)
           fail(
