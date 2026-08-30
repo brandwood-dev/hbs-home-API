@@ -18,6 +18,176 @@ type AttributeValueType =
 type JsonAttributeValue =
   Record<string, unknown> | readonly unknown[] | string | number | boolean;
 
+/**
+ * Canonical system attributes provisioned for each catalogue family.  The
+ * public slugs are kept here (rather than in the UI) so categories created
+ * after the migration receive the same bindings as the seeded categories.
+ */
+const SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY: Readonly<
+  Record<string, readonly string[]>
+> = {
+  rideaux: [
+    "material",
+    "opacity",
+    "rooms",
+    "large_width",
+    "care",
+    "installation",
+  ],
+  voilages: [
+    "material",
+    "opacity",
+    "rooms",
+    "large_width",
+    "care",
+    "installation",
+  ],
+  stores: [
+    "material",
+    "opacity",
+    "rooms",
+    "care",
+    "installation",
+    "blind_type",
+    "mechanism",
+  ],
+  coussins: [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "filling",
+    "closure",
+  ],
+  "galettes-de-chaise": [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "fastening",
+    "thickness_cm",
+  ],
+  galettes_de_chaise: [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "fastening",
+    "thickness_cm",
+  ],
+  accessoires: [
+    "material",
+    "installation",
+    "accessory_type",
+    "compatibilities",
+    "finish",
+    "min_length_cm",
+    "max_length_cm",
+    "diameter_mm",
+  ],
+  mobilier: [
+    "rooms",
+    "furniture_type",
+    "removable_cover",
+    "upholstery",
+    "frame_material",
+    "leg_material",
+    "features",
+    "seat_comfort",
+    "number_of_seats",
+    "assembly_level",
+    "assembly_time",
+    "shipping_profile",
+    "free_shipping_eligible",
+    "width_cm",
+    "depth_cm",
+    "height_cm",
+    "seat_width_cm",
+    "seat_depth_cm",
+    "seat_height_cm",
+    "back_height_cm",
+    "armrest_height_cm",
+    "weight_kg",
+    "max_load_kg",
+    "storage_volume_l",
+    "package_count",
+  ],
+  mobilier_interieur: [
+    "rooms",
+    "furniture_type",
+    "removable_cover",
+    "upholstery",
+    "frame_material",
+    "leg_material",
+    "features",
+    "seat_comfort",
+    "number_of_seats",
+    "assembly_level",
+    "assembly_time",
+    "shipping_profile",
+    "free_shipping_eligible",
+    "width_cm",
+    "depth_cm",
+    "height_cm",
+    "seat_width_cm",
+    "seat_depth_cm",
+    "seat_height_cm",
+    "back_height_cm",
+    "armrest_height_cm",
+    "weight_kg",
+    "max_load_kg",
+    "storage_volume_l",
+    "package_count",
+  ],
+  plantes: [
+    "rooms",
+    "care",
+    "shipping_profile",
+    "plant_nature",
+    "plant_type",
+    "plant_size",
+    "common_name",
+    "botanical_name",
+    "plant_family",
+    "origin",
+    "light_need",
+    "watering",
+    "pet_safe",
+    "toxicity_note",
+    "flowering",
+    "trailing",
+    "pot_included",
+    "indoor_use",
+    "preservation",
+    "fragile",
+  ],
+  plantes_decoration: [
+    "rooms",
+    "care",
+    "shipping_profile",
+    "plant_nature",
+    "plant_type",
+    "plant_size",
+    "common_name",
+    "botanical_name",
+    "plant_family",
+    "origin",
+    "light_need",
+    "watering",
+    "pet_safe",
+    "toxicity_note",
+    "flowering",
+    "trailing",
+    "pot_included",
+    "indoor_use",
+    "preservation",
+    "fragile",
+  ],
+};
+
 export interface AdminCategory {
   id: string;
   slug: string;
@@ -484,6 +654,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+      const rootSlug = await this.rootCategorySlug(trx, row);
+      await this.bindSystemAttributesForCategory(trx, row.id, rootSlug);
       return categoryRecord(row);
     });
   }
@@ -679,6 +851,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
 
   async createAttribute(input: AttributeInput): Promise<AdminAttribute> {
     return this.database.transaction().execute(async (trx) => {
+      if (input.isSystem === true)
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          "System attributes are provisioned by the catalogue and cannot be created manually.",
+        );
       const duplicate = await trx
         .selectFrom("catalog.attributes")
         .select("id")
@@ -730,6 +909,22 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           "Attribute not found",
           "The requested attribute does not exist.",
         );
+      if (
+        (current.is_system &&
+          ((patch.key !== undefined && patch.key !== current.key) ||
+            (patch.valueType !== undefined &&
+              patch.valueType !== current.value_type) ||
+            patch.isSystem === false)) ||
+        (!current.is_system && patch.isSystem === true)
+      )
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          current.is_system
+            ? "The key and type of a system attribute cannot be changed."
+            : "A regular attribute cannot be promoted to a system attribute.",
+        );
       if (patch.key && patch.key !== current.key) {
         const duplicate = await trx
           .selectFrom("catalog.attributes")
@@ -754,13 +949,6 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
               .where("attribute_id", "=", id)
               .execute()
           : [];
-      if (current.is_system && patch.isSystem === false)
-        fail(
-          422,
-          "ATTRIBUTE_SYSTEM_IMMUTABLE",
-          "System attribute",
-          "A system attribute cannot be converted into a regular attribute.",
-        );
       if (patch.status === "archived" && current.status !== "archived") {
         if (current.is_system)
           fail(
@@ -960,6 +1148,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         category.id,
         input.attributes ?? {},
         false,
+        input.material,
       );
       await this.refreshProductPayload(row.id, trx);
       return this.productRecord(trx, row);
@@ -1110,7 +1299,11 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           productWithSaleFlag,
         );
       }
-      if (patch.attributes !== undefined || patch.categoryId !== undefined) {
+      if (
+        patch.attributes !== undefined ||
+        patch.categoryId !== undefined ||
+        patch.material !== undefined
+      ) {
         const attributes =
           patch.attributes ?? (await this.productAttributes(trx, id));
         await this.replaceProductAttributes(
@@ -1119,6 +1312,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           categoryId,
           attributes,
           false,
+          patch.material ?? current.material,
         );
       }
       await this.refreshProductPayload(id, trx);
@@ -1171,6 +1365,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         current.category_id,
         attributes,
         true,
+        current.material,
       );
       if (
         current.name.trim().length < 2 ||
@@ -1565,12 +1760,32 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     categoryId: string | null,
     attributes: Record<string, unknown>,
     requireRequired: boolean,
+    legacyMaterial?: string | null,
   ): Promise<void> {
+    const materialBinding = categoryId
+      ? await executor
+          .selectFrom("catalog.category_attributes as categoryAttribute")
+          .innerJoin(
+            "catalog.attributes as attribute",
+            "attribute.id",
+            "categoryAttribute.attribute_id",
+          )
+          .select("attribute.id")
+          .where("categoryAttribute.category_id", "=", categoryId)
+          .where("attribute.key", "=", "material")
+          .where("attribute.is_system", "=", true)
+          .where("attribute.status", "!=", "archived")
+          .executeTakeFirst()
+      : undefined;
+    const effectiveAttributes =
+      materialBinding && legacyMaterial?.trim()
+        ? { ...attributes, material: legacyMaterial.trim() }
+        : attributes;
     const { values: normalized, definitions } =
       await this.normalizeProductAttributes(
         executor,
         categoryId,
-        attributes,
+        effectiveAttributes,
         requireRequired,
       );
     await executor
@@ -1864,6 +2079,40 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         "An archived category cannot receive new catalogue products.",
       );
     return row;
+  }
+
+  private async bindSystemAttributesForCategory(
+    executor: DbExecutor,
+    categoryId: string,
+    rootSlug: string,
+  ): Promise<void> {
+    const keys = SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY[rootSlug];
+    if (!keys || keys.length === 0) return;
+    const attributes = await executor
+      .selectFrom("catalog.attributes")
+      .select(["id", "is_required", "sort_order"])
+      .where("key", "in", keys)
+      .where("is_system", "=", true)
+      .where("status", "!=", "archived")
+      .execute();
+    if (attributes.length === 0) return;
+    await executor
+      .insertInto("catalog.category_attributes")
+      .values(
+        attributes.map((attribute) => ({
+          category_id: categoryId,
+          attribute_id: attribute.id,
+          is_required: attribute.is_required,
+          sort_order: attribute.sort_order,
+        })),
+      )
+      .onConflict((oc) =>
+        oc.columns(["category_id", "attribute_id"]).doUpdateSet((eb) => ({
+          is_required: eb.ref("excluded.is_required"),
+          sort_order: eb.ref("excluded.sort_order"),
+        })),
+      )
+      .execute();
   }
 
   private async rootCategorySlug(
