@@ -509,6 +509,15 @@ function numberValue(value: unknown, fallback: number): number {
   return fallback;
 }
 
+/**
+ * PostgreSQL BIGINT columns are returned as strings by the default `pg`
+ * parser. Product versions participate in arithmetic and strict comparisons,
+ * so normalize them before incrementing or checking optimistic locks.
+ */
+function productVersion(value: unknown): number {
+  return numberValue(value, 1);
+}
+
 function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -1158,6 +1167,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async updateProduct(id: string, patch: ProductPatch): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const categoryId = patch.categoryId ?? current.category_id;
       const category = categoryId
         ? await this.assertCategory(trx, categoryId)
@@ -1221,7 +1231,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         ...(patch.recommendationScore === undefined
           ? {}
           : { recommendation_score: patch.recommendationScore }),
-        version: current.version + 1,
+        version: currentVersion + 1,
       };
       let updateQuery = trx
         .updateTable("catalog.products")
@@ -1323,6 +1333,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async publishProduct(id: string): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const category = await trx
         .selectFrom("catalog.product_categories")
         .innerJoin(
@@ -1420,7 +1431,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           is_published: true,
           published_at: new Date(),
           archived_at: null,
-          version: current.version + 1,
+          version: currentVersion + 1,
         })
         .where("id", "=", id)
         .returningAll()
@@ -1433,13 +1444,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async archiveProduct(id: string): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const row = await trx
         .updateTable("catalog.products")
         .set({
           status: "archived",
           is_published: false,
           archived_at: new Date(),
-          version: current.version + 1,
+          version: currentVersion + 1,
         })
         .where("id", "=", id)
         .returningAll()
@@ -1584,7 +1596,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       if (
         patch.expectedVersion !== undefined &&
-        product.version !== patch.expectedVersion
+        productVersion(product.version) !== patch.expectedVersion
       )
         fail(
           409,
@@ -2008,7 +2020,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       isPublished: row.is_published,
       publishedAt: iso(row.published_at),
       archivedAt: iso(row.archived_at),
-      version: row.version,
+      version: productVersion(row.version),
       isDemo: row.is_demo,
       isNew: row.is_new,
       isBestSeller: row.is_best_seller,
