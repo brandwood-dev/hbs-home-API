@@ -115,6 +115,27 @@ describe("Admin catalogue API", () => {
     expect(response.json()).toEqual({ items: [] });
   });
 
+  it("disables caching for an Admin product read", async () => {
+    authorize("aal1", ["products.read"]);
+    await catalogRepository.createProduct({
+      slug: "rideau-test",
+      name: "Rideau test",
+      reference: "RID-TEST-001",
+      categoryId: "cat-test-1",
+      material: "lin",
+      sellingMode: "ready_made",
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/products/product-test-1",
+      headers: { authorization: "Bearer valid-token" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+  });
+
   it("uploads a category image through the Admin media pipeline", async () => {
     authorize("aal2", ["categories.write"]);
     const response = await app.inject({

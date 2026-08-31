@@ -933,8 +933,14 @@ export function registerAdminCatalogRoutes(
         },
       },
     },
-    async (request) =>
-      dependencies.adminCatalogRepository.getProduct(request.params.id),
+    async (request, reply) =>
+      reply
+        .header("cache-control", "no-store")
+        .send(
+          await dependencies.adminCatalogRepository.getProduct(
+            request.params.id,
+          ),
+        ),
   );
   app.patch<{ Params: Static<typeof IdParams>; Body: ProductPatchBodyType }>(
     "/api/v1/admin/products/:id",
