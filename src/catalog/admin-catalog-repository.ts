@@ -1367,23 +1367,38 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         true,
         current.material,
       );
-      if (
-        current.name.trim().length < 2 ||
-        current.reference.trim().length < 2 ||
-        category?.status !== "active" ||
-        variants.length === 0 ||
-        variants.some(
-          (variant) =>
-            variant.sku.trim().length < 2 ||
-            variant.price_amount_minor < 0 ||
-            !isPublicVariant(variant),
-        )
-      ) {
+      const publicationIssues: string[] = [];
+      if (current.name.trim().length < 2)
+        publicationIssues.push("Le nom du produit est manquant.");
+      if (current.reference.trim().length < 2)
+        publicationIssues.push("La référence du produit est manquante.");
+      if (category?.status !== "active")
+        publicationIssues.push(
+          "La catégorie principale est absente ou inactive.",
+        );
+      if (variants.length === 0) {
+        publicationIssues.push("Au moins une variante active est requise.");
+      } else {
+        variants.forEach((variant, index) => {
+          const variantIssues: string[] = [];
+          if (variant.sku.trim().length < 2)
+            variantIssues.push("le SKU est manquant");
+          if (variant.price_amount_minor < 0)
+            variantIssues.push("le prix est invalide");
+          variantIssues.push(...publicVariantIssues(variant));
+          if (variantIssues.length > 0) {
+            publicationIssues.push(
+              `Variante ${String(index + 1)} : ${variantIssues.join(" ; ")}.`,
+            );
+          }
+        });
+      }
+      if (publicationIssues.length > 0) {
         fail(
           422,
           "PRODUCT_NOT_READY",
           "Product is not ready",
-          "A product needs a category and at least one valid variant before publication.",
+          `Impossible de publier le produit : ${publicationIssues.join(" ")}`,
         );
       }
       await trx
@@ -2445,7 +2460,7 @@ function mediaRecord(
   };
 }
 
-function isPublicVariant(row: VariantRow): boolean {
+function publicVariantIssues(row: VariantRow): string[] {
   const value = { ...asObject(row.payload), ...asObject(row.options) };
   const colorId = value.colorId ?? value.color_id;
   const width = value.widthCm ?? value.width;
@@ -2459,12 +2474,15 @@ function isPublicVariant(row: VariantRow): boolean {
           : Number.NaN;
     return Number.isFinite(numeric) && numeric > 0;
   };
-  return (
-    typeof colorId === "string" &&
-    colorId.trim().length > 0 &&
-    positiveDimension(width) &&
-    positiveDimension(height)
-  );
+  const issues: string[] = [];
+  if (typeof colorId !== "string" || colorId.trim().length === 0) {
+    issues.push("une couleur doit être sélectionnée");
+  }
+  if (!positiveDimension(width))
+    issues.push("la largeur doit être supérieure à 0 cm");
+  if (!positiveDimension(height))
+    issues.push("la hauteur doit être supérieure à 0 cm");
+  return issues;
 }
 
 function categoryRecord(row: CategoryRow): AdminCategory {
