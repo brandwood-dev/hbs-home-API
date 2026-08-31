@@ -518,6 +518,31 @@ function productVersion(value: unknown): number {
   return numberValue(value, 1);
 }
 
+/**
+ * SKU identity is deliberately case-insensitive and whitespace-tolerant.
+ * Keeping this canonical form in the API makes the application rule match the
+ * expression unique index installed by the catalogue migration.
+ */
+export function normalizeVariantSku(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+function isVariantSkuUniqueViolation(error: unknown): boolean {
+  if (!isUniqueViolation(error)) return false;
+  if (typeof error !== "object" || error === null) return false;
+  const constraint = (error as { constraint?: unknown }).constraint;
+  return constraint === "catalog_product_variants_sku_unique";
+}
+
 function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -1470,82 +1495,89 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     productId: string,
     input: VariantInput,
   ): Promise<{ product: AdminProduct; variantId: string }> {
-    return this.database.transaction().execute(async (trx) => {
-      const product = await this.productRow(trx, productId);
-      const requestedSku = input.sku?.trim();
-      const sku =
-        requestedSku && requestedSku.length > 0
-          ? requestedSku
-          : await this.generateVariantSku(
-              trx,
-              product.reference,
-              productId,
-              input,
-            );
-      await this.assertVariantSku(trx, sku, null);
-      const ruleViolation = validateVariantBusinessRules(
-        product.category,
-        product.material,
-        product.product,
-        { ...asObject(input.options), ...asObject(input.payload) },
-      );
-      if (ruleViolation)
-        fail(
-          422,
-          ruleViolation.code,
-          ruleViolation.title,
-          ruleViolation.detail,
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const product = await this.productRow(trx, productId);
+        const requestedSku = input.sku ? normalizeVariantSku(input.sku) : "";
+        const sku =
+          requestedSku.length > 0
+            ? requestedSku
+            : await this.generateVariantSku(trx, product.reference, input);
+        await this.assertVariantSku(trx, sku, null);
+        const ruleViolation = validateVariantBusinessRules(
+          product.category,
+          product.material,
+          product.product,
+          { ...asObject(input.options), ...asObject(input.payload) },
         );
-      if (
-        input.compareAtPriceAmountMinor !== undefined &&
-        input.compareAtPriceAmountMinor !== null &&
-        input.compareAtPriceAmountMinor < input.priceAmountMinor
-      )
+        if (ruleViolation)
+          fail(
+            422,
+            ruleViolation.code,
+            ruleViolation.title,
+            ruleViolation.detail,
+          );
+        if (
+          input.compareAtPriceAmountMinor !== undefined &&
+          input.compareAtPriceAmountMinor !== null &&
+          input.compareAtPriceAmountMinor < input.priceAmountMinor
+        )
+          fail(
+            422,
+            "VARIANT_PRICE_INVALID",
+            "Invalid variant price",
+            "The comparison price cannot be lower than the selling price.",
+          );
+        if (input.isDefault)
+          await trx
+            .updateTable("catalog.product_variants")
+            .set({ is_default: false })
+            .where("product_id", "=", productId)
+            .execute();
+        const variant = await trx
+          .insertInto("catalog.product_variants")
+          .values({
+            id: randomUUID(),
+            product_id: productId,
+            sku,
+            title: input.title ?? null,
+            price_amount_minor: input.priceAmountMinor,
+            compare_at_price_amount_minor:
+              input.compareAtPriceAmountMinor ?? null,
+            currency: "TND",
+            status: input.status ?? "draft",
+            options: input.options ?? {},
+            payload: input.payload ?? {},
+            is_default: input.isDefault ?? false,
+            sort_order: input.sortOrder ?? 0,
+          })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        await this.bumpProduct(trx, productId);
+        await this.refreshProductPayload(productId, trx);
+        return {
+          product: await this.getProductFromExecutor(trx, productId),
+          variantId: variant.id,
+        };
+      });
+    } catch (error) {
+      // The preflight lookup closes the normal path; this catch maps the
+      // remaining race where another transaction claims the SKU first.
+      if (isVariantSkuUniqueViolation(error))
         fail(
-          422,
-          "VARIANT_PRICE_INVALID",
-          "Invalid variant price",
-          "The comparison price cannot be lower than the selling price.",
+          409,
+          "VARIANT_SKU_CONFLICT",
+          "Variant conflict",
+          "A variant with this SKU already exists. Choose another SKU.",
         );
-      if (input.isDefault)
-        await trx
-          .updateTable("catalog.product_variants")
-          .set({ is_default: false })
-          .where("product_id", "=", productId)
-          .execute();
-      const variant = await trx
-        .insertInto("catalog.product_variants")
-        .values({
-          id: randomUUID(),
-          product_id: productId,
-          sku,
-          title: input.title ?? null,
-          price_amount_minor: input.priceAmountMinor,
-          compare_at_price_amount_minor:
-            input.compareAtPriceAmountMinor ?? null,
-          currency: "TND",
-          status: input.status ?? "draft",
-          options: input.options ?? {},
-          payload: input.payload ?? {},
-          is_default: input.isDefault ?? false,
-          sort_order: input.sortOrder ?? 0,
-        })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      await this.bumpProduct(trx, productId);
-      await this.refreshProductPayload(productId, trx);
-      return {
-        product: await this.getProductFromExecutor(trx, productId),
-        variantId: variant.id,
-      };
-    });
+      throw error;
+    }
   }
 
   /** Génère un SKU lisible et unique lorsque l'interface ne fournit aucun SKU. */
   private async generateVariantSku(
     executor: DbExecutor,
     reference: string,
-    productId: string,
     input: VariantInput,
   ): Promise<string> {
     const options = asObject(input.options);
@@ -1562,15 +1594,17 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .replace(/^-|-$/g, "") || "HBS-PRODUIT";
     const suffix = [color, dimensions].filter(Boolean).join("-") || "VAR";
     const prefix = `${base}-${suffix}`.slice(0, 112);
+    // SKU uniqueness is global, not scoped to a product.  Check every row so
+    // an automatically generated value cannot collide with another product
+    // (or with an archived variant retained for order history).
     const existing = await executor
       .selectFrom("catalog.product_variants")
       .select("sku")
-      .where("product_id", "=", productId)
       .execute();
-    const taken = new Set(existing.map((row) => row.sku.toUpperCase()));
+    const taken = new Set(existing.map((row) => normalizeVariantSku(row.sku)));
     for (let index = 1; ; index += 1) {
       const candidate = `${prefix}-${String(index).padStart(2, "0")}`;
-      if (!taken.has(candidate.toUpperCase())) return candidate;
+      if (!taken.has(normalizeVariantSku(candidate))) return candidate;
     }
   }
 
@@ -1579,91 +1613,107 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     variantId: string,
     patch: VariantPatch,
   ): Promise<AdminProduct> {
-    return this.database.transaction().execute(async (trx) => {
-      const product = await this.productRow(trx, productId);
-      const current = await trx
-        .selectFrom("catalog.product_variants")
-        .selectAll()
-        .where("id", "=", variantId)
-        .where("product_id", "=", productId)
-        .executeTakeFirst();
-      if (!current)
-        fail(
-          404,
-          "VARIANT_NOT_FOUND",
-          "Variant not found",
-          "The requested variant does not exist.",
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const product = await this.productRow(trx, productId);
+        const current = await trx
+          .selectFrom("catalog.product_variants")
+          .selectAll()
+          .where("id", "=", variantId)
+          .where("product_id", "=", productId)
+          .executeTakeFirst();
+        if (!current)
+          fail(
+            404,
+            "VARIANT_NOT_FOUND",
+            "Variant not found",
+            "The requested variant does not exist.",
+          );
+        if (
+          patch.expectedVersion !== undefined &&
+          productVersion(product.version) !== patch.expectedVersion
+        )
+          fail(
+            409,
+            "PRODUCT_VERSION_CONFLICT",
+            "Product changed",
+            "Reload the product before saving this variant.",
+          );
+        const normalizedSku =
+          patch.sku === undefined ? undefined : normalizeVariantSku(patch.sku);
+        if (
+          normalizedSku !== undefined &&
+          normalizedSku !== normalizeVariantSku(current.sku)
+        )
+          await this.assertVariantSku(trx, normalizedSku, variantId);
+        const price = patch.priceAmountMinor ?? current.price_amount_minor;
+        const compare =
+          patch.compareAtPriceAmountMinor === undefined
+            ? current.compare_at_price_amount_minor
+            : patch.compareAtPriceAmountMinor;
+        const nextOptions = patch.options ?? asObject(current.options);
+        const nextPayload = patch.payload ?? asObject(current.payload);
+        const ruleViolation = validateVariantBusinessRules(
+          product.category,
+          product.material,
+          product.product,
+          { ...asObject(nextOptions), ...asObject(nextPayload) },
         );
-      if (
-        patch.expectedVersion !== undefined &&
-        productVersion(product.version) !== patch.expectedVersion
-      )
-        fail(
-          409,
-          "PRODUCT_VERSION_CONFLICT",
-          "Product changed",
-          "Reload the product before saving this variant.",
-        );
-      if (patch.sku && patch.sku !== current.sku)
-        await this.assertVariantSku(trx, patch.sku, variantId);
-      const price = patch.priceAmountMinor ?? current.price_amount_minor;
-      const compare =
-        patch.compareAtPriceAmountMinor === undefined
-          ? current.compare_at_price_amount_minor
-          : patch.compareAtPriceAmountMinor;
-      const nextOptions = patch.options ?? asObject(current.options);
-      const nextPayload = patch.payload ?? asObject(current.payload);
-      const ruleViolation = validateVariantBusinessRules(
-        product.category,
-        product.material,
-        product.product,
-        { ...asObject(nextOptions), ...asObject(nextPayload) },
-      );
-      if (ruleViolation)
-        fail(
-          422,
-          ruleViolation.code,
-          ruleViolation.title,
-          ruleViolation.detail,
-        );
-      if (compare !== null && compare < price)
-        fail(
-          422,
-          "VARIANT_PRICE_INVALID",
-          "Invalid variant price",
-          "The comparison price cannot be lower than the selling price.",
-        );
-      if (patch.isDefault)
+        if (ruleViolation)
+          fail(
+            422,
+            ruleViolation.code,
+            ruleViolation.title,
+            ruleViolation.detail,
+          );
+        if (compare !== null && compare < price)
+          fail(
+            422,
+            "VARIANT_PRICE_INVALID",
+            "Invalid variant price",
+            "The comparison price cannot be lower than the selling price.",
+          );
+        if (patch.isDefault)
+          await trx
+            .updateTable("catalog.product_variants")
+            .set({ is_default: false })
+            .where("product_id", "=", productId)
+            .where("id", "!=", variantId)
+            .execute();
         await trx
           .updateTable("catalog.product_variants")
-          .set({ is_default: false })
+          .set({
+            ...(normalizedSku === undefined ? {} : { sku: normalizedSku }),
+            ...(patch.title === undefined ? {} : { title: patch.title }),
+            price_amount_minor: price,
+            compare_at_price_amount_minor: compare,
+            ...(patch.status === undefined ? {} : { status: patch.status }),
+            ...(patch.options === undefined ? {} : { options: patch.options }),
+            ...(patch.payload === undefined ? {} : { payload: patch.payload }),
+            ...(patch.isDefault === undefined
+              ? {}
+              : { is_default: patch.isDefault }),
+            ...(patch.sortOrder === undefined
+              ? {}
+              : { sort_order: patch.sortOrder }),
+          })
+          .where("id", "=", variantId)
           .where("product_id", "=", productId)
-          .where("id", "!=", variantId)
-          .execute();
-      await trx
-        .updateTable("catalog.product_variants")
-        .set({
-          ...(patch.sku === undefined ? {} : { sku: patch.sku }),
-          ...(patch.title === undefined ? {} : { title: patch.title }),
-          price_amount_minor: price,
-          compare_at_price_amount_minor: compare,
-          ...(patch.status === undefined ? {} : { status: patch.status }),
-          ...(patch.options === undefined ? {} : { options: patch.options }),
-          ...(patch.payload === undefined ? {} : { payload: patch.payload }),
-          ...(patch.isDefault === undefined
-            ? {}
-            : { is_default: patch.isDefault }),
-          ...(patch.sortOrder === undefined
-            ? {}
-            : { sort_order: patch.sortOrder }),
-        })
-        .where("id", "=", variantId)
-        .where("product_id", "=", productId)
-        .executeTakeFirstOrThrow();
-      await this.bumpProduct(trx, productId);
-      await this.refreshProductPayload(productId, trx);
-      return this.getProductFromExecutor(trx, productId);
-    });
+          .executeTakeFirstOrThrow();
+        await this.bumpProduct(trx, productId);
+        await this.refreshProductPayload(productId, trx);
+        return this.getProductFromExecutor(trx, productId);
+      });
+    } catch (error) {
+      if (isVariantSkuUniqueViolation(error))
+        fail(
+          409,
+          "VARIANT_SKU_CONFLICT",
+          "Variant conflict",
+          `Le SKU « ${normalizeVariantSku(patch.sku ?? "") || "demandé"} » est déjà utilisé. Choisissez un autre SKU.`,
+        );
+      throw error;
+    }
   }
 
   async archiveVariant(
@@ -2315,18 +2365,37 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     sku: string,
     id: string | null,
   ): Promise<void> {
+    const canonicalSku = normalizeVariantSku(sku);
     let query = executor
-      .selectFrom("catalog.product_variants")
-      .select("id")
-      .where("sku", "=", sku);
-    if (id) query = query.where("id", "!=", id);
-    if (await query.executeTakeFirst())
+      .selectFrom("catalog.product_variants as variant")
+      .leftJoin(
+        "catalog.products as product",
+        "product.id",
+        "variant.product_id",
+      )
+      .select([
+        "variant.id as variantId",
+        "variant.sku as existingSku",
+        "variant.status as status",
+        "product.reference as productReference",
+        "product.name as productName",
+      ])
+      .where(sql<boolean>`upper(btrim(variant.sku)) = ${canonicalSku}`);
+    if (id) query = query.where("variant.id", "!=", id);
+    const existing = await query.executeTakeFirst();
+    if (existing) {
+      const productLabel = existing.productReference
+        ? ` du produit « ${existing.productReference} »`
+        : "";
+      const archivedLabel =
+        existing.status === "archived" ? " (variante archivée)" : "";
       fail(
         409,
         "VARIANT_SKU_CONFLICT",
         "Variant conflict",
-        "A variant with this SKU already exists.",
+        `Le SKU « ${canonicalSku} » est déjà utilisé${productLabel}${archivedLabel}. Choisissez un autre SKU.`,
       );
+    }
   }
 
   private async bumpProduct(
