@@ -726,6 +726,7 @@
           "imageUrl",
           "seoTitle",
           "seoDescription",
+          "latestProduct",
           "attributes",
           "children"
         ],
@@ -783,6 +784,44 @@
             "anyOf": [
               {
                 "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latestProduct": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "slug",
+                  "name",
+                  "imageUrl",
+                  "imageAlt",
+                  "createdAt"
+                ],
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "imageUrl": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "imageAlt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                }
               },
               {
                 "type": "null"
@@ -13998,6 +14037,7 @@
                       "imageUrl",
                       "seoTitle",
                       "seoDescription",
+                      "latestProduct",
                       "attributes",
                       "children"
                     ],
@@ -14055,6 +14095,44 @@
                         "anyOf": [
                           {
                             "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "latestProduct": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "slug",
+                              "name",
+                              "imageUrl",
+                              "imageAlt",
+                              "createdAt"
+                            ],
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "imageUrl": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "imageAlt": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              }
+                            }
                           },
                           {
                             "type": "null"
@@ -14191,6 +14269,7 @@
                     "imageUrl",
                     "seoTitle",
                     "seoDescription",
+                    "latestProduct",
                     "attributes",
                     "children"
                   ],
@@ -14248,6 +14327,44 @@
                       "anyOf": [
                         {
                           "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latestProduct": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "slug",
+                            "name",
+                            "imageUrl",
+                            "imageAlt",
+                            "createdAt"
+                          ],
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "imageUrl": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "imageAlt": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            }
+                          }
                         },
                         {
                           "type": "null"
