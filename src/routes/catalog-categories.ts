@@ -19,6 +19,19 @@ const PublicCategorySchema = Type.Recursive(
         imageUrl: Type.Union([Type.String(), Type.Null()]),
         seoTitle: Type.Union([Type.String(), Type.Null()]),
         seoDescription: Type.Union([Type.String(), Type.Null()]),
+        latestProduct: Type.Union([
+          Type.Object(
+            {
+              slug: Type.String(),
+              name: Type.String(),
+              imageUrl: Type.String({ minLength: 1 }),
+              imageAlt: Type.String({ minLength: 1 }),
+              createdAt: Type.String({ format: "date-time" }),
+            },
+            { additionalProperties: false },
+          ),
+          Type.Null(),
+        ]),
         attributes: Type.Array(
           Type.Object(
             {

@@ -21,6 +21,15 @@ export interface PublicCategoryAttribute {
   options: readonly PublicCategoryAttributeOption[];
 }
 
+/** Lightweight product preview used by the desktop mega-menu. */
+export interface PublicCategoryLatestProduct {
+  slug: string;
+  name: string;
+  imageUrl: string;
+  imageAlt: string;
+  createdAt: string;
+}
+
 export interface PublicCategory {
   slug: string;
   name: string;
@@ -31,6 +40,7 @@ export interface PublicCategory {
   seoTitle: string | null;
   seoDescription: string | null;
   attributes: readonly PublicCategoryAttribute[];
+  latestProduct: PublicCategoryLatestProduct | null;
   children: readonly PublicCategory[];
 }
 
@@ -54,6 +64,73 @@ function pathFor(
     current = current.parent_id ? byId.get(current.parent_id) : undefined;
   }
   return `/${segments.join("/")}`;
+}
+
+interface LatestProductRow {
+  categoryId: string;
+  slug: string;
+  name: string;
+  imageAlt: string | null;
+  payload: Record<string, unknown>;
+  createdAt: Date | string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
+function isoDate(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? new Date(0).toISOString()
+    : date.toISOString();
+}
+
+function latestProductPreview(
+  row: LatestProductRow,
+): PublicCategoryLatestProduct | null {
+  const payload = asRecord(row.payload);
+  const images = Array.isArray(payload.images)
+    ? payload.images.map(asRecord)
+    : [];
+  const image =
+    images.find(
+      (candidate) =>
+        asNonEmptyString(candidate.type) === "front" &&
+        asNonEmptyString(candidate.url),
+    ) ?? images.find((candidate) => asNonEmptyString(candidate.url));
+  const imageUrl = asNonEmptyString(image?.url);
+
+  // Legacy products may only carry media on their default variant.
+  const variants = Array.isArray(payload.variants)
+    ? payload.variants.map(asRecord)
+    : [];
+  const fallbackVariant = variants.find((variant) =>
+    asNonEmptyString(variant.imageUrl ?? variant.image_url),
+  );
+  const resolvedImageUrl =
+    imageUrl ??
+    asNonEmptyString(fallbackVariant?.imageUrl ?? fallbackVariant?.image_url);
+  if (!resolvedImageUrl) return null;
+
+  return {
+    slug: row.slug,
+    name: row.name,
+    imageUrl: resolvedImageUrl,
+    imageAlt:
+      asNonEmptyString(image?.alt) ??
+      asNonEmptyString(row.imageAlt) ??
+      `Produit ${row.name}`,
+    createdAt: isoDate(row.createdAt),
+  };
 }
 
 export class PostgresPublicCategoryRepository implements PublicCategoryRepository {
@@ -94,6 +171,40 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
     );
 
     const categoryIds = rows.map((row) => row.id);
+    // Fetch the newest published product with usable media for every
+    // category in one query. The frontend can then build its two menu cards
+    // without issuing one request per sub-category.
+    const latestProductRows = await this.database
+      .selectFrom("catalog.product_categories as productCategory")
+      .innerJoin(
+        "catalog.products as product",
+        "product.id",
+        "productCategory.product_id",
+      )
+      .select([
+        "productCategory.category_id as categoryId",
+        "product.slug as slug",
+        "product.name as name",
+        "product.image_alt as imageAlt",
+        "product.product as payload",
+        "product.created_at as createdAt",
+      ])
+      .where("productCategory.category_id", "in", categoryIds)
+      .where("product.status", "=", "active")
+      .where("product.is_published", "=", true)
+      .orderBy("product.created_at", "desc")
+      .orderBy("product.id", "desc")
+      .execute();
+    const latestProductByCategory = new Map<
+      string,
+      PublicCategoryLatestProduct
+    >();
+    for (const row of latestProductRows as LatestProductRow[]) {
+      if (latestProductByCategory.has(row.categoryId)) continue;
+      const preview = latestProductPreview(row);
+      if (preview) latestProductByCategory.set(row.categoryId, preview);
+    }
+
     const attributeRows = await this.database
       .selectFrom("catalog.category_attributes as categoryAttribute")
       .innerJoin(
@@ -189,6 +300,7 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
         seoTitle: row.seo_title,
         seoDescription: row.seo_description,
         attributes: attributesByCategory.get(row.id) ?? [],
+        latestProduct: latestProductByCategory.get(row.id) ?? null,
         children: [],
       });
     }
