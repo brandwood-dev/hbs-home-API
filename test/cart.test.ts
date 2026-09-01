@@ -147,6 +147,35 @@ describe("Guest cart API", () => {
 });
 
 describe("Cart line media", () => {
+  it("uses the media explicitly associated with the selected variant", () => {
+    const product = {
+      imageAlt: "Rideau HBS HOME",
+      images: [
+        {
+          id: "product-front",
+          url: "https://cdn.example.test/product-front.jpg",
+          alt: "Vue générale du rideau",
+          type: "front",
+        },
+        {
+          id: "variant-blue",
+          url: "https://cdn.example.test/variant-blue.jpg",
+          alt: "Rideau bleu",
+          type: "front",
+        },
+      ],
+    } as unknown as Product;
+    const variant = {
+      imageIds: ["variant-blue"],
+      imageUrl: "/catalog/rideau.jpg",
+    } as unknown as Product["variants"][number];
+
+    expect(resolveLineImage(product, variant)).toEqual({
+      url: "https://cdn.example.test/variant-blue.jpg",
+      alt: "Rideau bleu",
+    });
+  });
+
   it("falls back to the product front image when the variant has no media ids", () => {
     const product = {
       imageAlt: "Rideau en lin naturel HBS HOME",

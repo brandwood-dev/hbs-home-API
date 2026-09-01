@@ -10,6 +10,7 @@ import {
   PostgresProductRepository,
   type Product,
 } from "../catalog/product-repository.js";
+import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { AppError } from "../http/problem.js";
 
 const MAX_CART_LINE_QUANTITY = 99;
@@ -681,15 +682,7 @@ export class PostgresCartRepository implements CartRepository {
     else if (quantity !== row.quantity) status = "quantity_adjusted";
     else if (priceChanged) status = "price_changed";
     else if (available.availability === "low_stock") status = "low_stock";
-    const selectedOptions = [
-      variant.curtainHeader
-        ? { label: "Tête", value: variant.curtainHeader }
-        : null,
-      variant.lining ? { label: "Doublure", value: variant.lining } : null,
-      variant.sizeLabel ? { label: "Taille", value: variant.sizeLabel } : null,
-    ].filter(
-      (option): option is { label: string; value: string } => option !== null,
-    );
+    const selectedOptions = getVariantDisplayOptions(product, variant);
     const shippingProfile =
       typeof product.details.shippingProfile === "string"
         ? product.details.shippingProfile
