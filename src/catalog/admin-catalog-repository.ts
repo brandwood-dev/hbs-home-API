@@ -1795,6 +1795,29 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     fallbackAlt: string,
   ): Promise<void> {
     const rows = mediaInputs(productId, payload, status, fallbackAlt);
+    const variantIds = [
+      ...new Set(
+        rows
+          .map((row) => row.variant_id)
+          .filter((variantId): variantId is string => variantId !== null),
+      ),
+    ];
+    if (variantIds.length > 0) {
+      const matchingVariants = await executor
+        .selectFrom("catalog.product_variants")
+        .select("id")
+        .where("product_id", "=", productId)
+        .where("id", "in", variantIds)
+        .execute();
+      if (matchingVariants.length !== variantIds.length) {
+        fail(
+          422,
+          "PRODUCT_MEDIA_VARIANT_MISMATCH",
+          "Invalid variant media association",
+          "Each media variant association must reference a variant of the same product.",
+        );
+      }
+    }
     await executor
       .deleteFrom("catalog.product_media")
       .where("product_id", "=", productId)

@@ -14,6 +14,7 @@ import {
   type Product,
   type ProductVariant,
 } from "../catalog/product-repository.js";
+import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { resolveLineImage } from "../cart/cart-repository.js";
 import { reserveWithinTransaction } from "../inventory/reservation-repository.js";
 
@@ -361,26 +362,15 @@ function shippingProfile(product: Product): string | undefined {
   return stringValue(value);
 }
 
-function variantOptions(
-  variant: ProductVariant,
-): readonly { label: string; value: string }[] {
-  return [
-    variant.curtainHeader
-      ? { label: "Tête", value: variant.curtainHeader }
-      : null,
-    variant.lining ? { label: "Doublure", value: variant.lining } : null,
-    variant.sizeLabel ? { label: "Taille", value: variant.sizeLabel } : null,
-  ].filter(
-    (value): value is { label: string; value: string } => value !== null,
-  );
-}
-
 function snapshot(
   product: Product,
   variant: ProductVariant,
   quantity: number,
 ): OrderItemSnapshot {
   const image = resolveLineImage(product, variant);
+  const color = product.colors.find(
+    (candidate) => candidate.id === variant.colorId,
+  );
   const lineTotalMinor = variant.price.amountMinor * quantity;
   const profile = shippingProfile(product);
   return {
@@ -393,6 +383,7 @@ function snapshot(
     imageUrl: image.url,
     imageAlt: image.alt,
     category: product.category,
+    ...(color?.name ? { colorLabel: color.name } : {}),
     ...(variant.widthCm ? { widthCm: variant.widthCm } : {}),
     ...(variant.heightCm ? { heightCm: variant.heightCm } : {}),
     ...(variant.curtainHeader
@@ -400,7 +391,7 @@ function snapshot(
       : {}),
     ...(variant.eyeletColor ? { eyeletColorLabel: variant.eyeletColor } : {}),
     ...(variant.lining ? { liningLabel: variant.lining } : {}),
-    selectedOptions: variantOptions(variant),
+    selectedOptions: getVariantDisplayOptions(product, variant),
     sellingUnitLabel: product.sellingMode,
     ...(profile ? { shippingProfile: profile } : {}),
     quantity,
