@@ -1017,20 +1017,38 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       .select(["id", "status"])
       .where("id", "in", mediaIds)
       .execute();
-    const allowed = new Set(
-      rows
-        .filter((row) =>
-          requireActive ? row.status === "active" : row.status !== "archived",
-        )
-        .map((row) => row.id),
+    const requestedIds = new Set(mediaIds);
+    const archivedIds = new Set(
+      rows.filter((row) => row.status === "archived").map((row) => row.id),
     );
-    if (allowed.size !== new Set(mediaIds).size) {
+    const missingIds = [...requestedIds].filter(
+      (id) => !rows.some((row) => row.id === id),
+    );
+    if (archivedIds.size > 0 || missingIds.length > 0) {
       fail(
         400,
         "HOME_MEDIA_INVALID",
         "Invalid home media",
         "Every linked home image must exist and not be archived.",
       );
+    }
+
+    // A freshly uploaded editorial asset starts as a draft so it can be
+    // reviewed in the media library. Publishing a homepage snapshot is the
+    // explicit approval step for any draft asset linked by that snapshot.
+    // Promote those dependencies inside the same transaction so a failed
+    // publication cannot leave a partially activated media asset behind.
+    if (requireActive) {
+      const draftIds = rows
+        .filter((row) => row.status === "draft")
+        .map((row) => row.id);
+      if (draftIds.length > 0) {
+        await executor
+          .updateTable("content.media_assets")
+          .set({ status: "active" })
+          .where("id", "in", draftIds)
+          .execute();
+      }
     }
   }
 
