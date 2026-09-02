@@ -2,7 +2,7 @@
 -- Keep the destructive privilege scoped by an RLS policy: only rows already
 -- archived by the API can be physically deleted.
 drop policy if exists content_articles_api_all on content.articles;
-create policy content_articles_api_select on content.articles
+create policy content_articles_api_all on content.articles
   for select to hbs_api using (true);
 create policy content_articles_api_insert on content.articles
   for insert to hbs_api with check (true);
