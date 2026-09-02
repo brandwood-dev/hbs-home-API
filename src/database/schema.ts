@@ -63,6 +63,15 @@ export interface AuditEventTable {
   metadata: Record<string, unknown>;
 }
 
+/** Singleton payload for the editable Admin settings surface. */
+export interface AdminSettingsTable {
+  id: 1;
+  payload: Record<string, unknown>;
+  version: Generated<number>;
+  updated_by: string | null;
+  updated_at: Generated<Date>;
+}
+
 export interface CatalogProductTable {
   id: string;
   slug: string;
@@ -600,6 +609,7 @@ export interface DatabaseSchema {
   "iam.role_permissions": RolePermissionTable;
   "iam.admin_user_roles": AdminUserRoleTable;
   "audit.events": AuditEventTable;
+  "iam.admin_settings": AdminSettingsTable;
   "catalog.categories": CatalogCategoryTable;
   "catalog.attributes": CatalogAttributeTable;
   "catalog.attribute_options": CatalogAttributeOptionTable;

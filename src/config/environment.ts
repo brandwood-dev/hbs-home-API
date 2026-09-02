@@ -35,6 +35,8 @@ const EnvironmentSchema = Type.Object(
     }),
     supabaseUrl: Type.String({ minLength: 1 }),
     supabaseJwtAudience: Type.String({ minLength: 1, maxLength: 128 }),
+    /** Server-only Supabase Auth Admin key; never expose to the browser. */
+    supabaseSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageBucket: Type.String({ minLength: 1, maxLength: 80 }),
     releaseVersion: Type.String({ minLength: 1 }),
@@ -159,6 +161,9 @@ export function loadEnvironment(
     ),
     supabaseUrl: source.SUPABASE_URL ?? "http://127.0.0.1:54321",
     supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    ...(source.SUPABASE_SECRET_KEY?.trim()
+      ? { supabaseSecretKey: source.SUPABASE_SECRET_KEY.trim() }
+      : {}),
     ...(source.SUPABASE_STORAGE_SECRET_KEY?.trim()
       ? { supabaseStorageSecretKey: source.SUPABASE_STORAGE_SECRET_KEY.trim() }
       : {}),

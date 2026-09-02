@@ -30,6 +30,14 @@ import {
   type AdminAccessRepository,
 } from "./identity/admin-access.js";
 import {
+  PostgresAdminManagementRepository,
+  type AdminManagementRepository,
+} from "./identity/admin-management-repository.js";
+import {
+  PostgresAdminSettingsRepository,
+  type AdminSettingsRepository,
+} from "./settings/admin-settings-repository.js";
+import {
   PostgresAdminCatalogRepository,
   type AdminCatalogRepository,
 } from "./catalog/admin-catalog-repository.js";
@@ -68,6 +76,7 @@ import {
   type HomeContentRepository,
 } from "./content/home-content-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerAdminManagementRoutes } from "./routes/admin-management.js";
 import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
@@ -102,6 +111,8 @@ export interface BuildAppOptions {
   database?: DatabaseConnection;
   jwtVerifier?: JwtVerifier;
   adminAccessRepository?: AdminAccessRepository;
+  adminManagementRepository?: AdminManagementRepository;
+  adminSettingsRepository?: AdminSettingsRepository;
   auditRepository?: AuditRepository;
   adminCatalogRepository?: AdminCatalogRepository;
   adminPromotionRepository?: AdminPromotionRepository;
@@ -134,6 +145,16 @@ export async function buildApp(
     new PostgresAdminAccessRepository(database.client);
   const auditRepository =
     options.auditRepository ?? new PostgresAuditRepository(database.client);
+  const adminManagementRepository =
+    options.adminManagementRepository ??
+    new PostgresAdminManagementRepository(
+      database.client,
+      environment.supabaseUrl,
+      environment.supabaseSecretKey,
+    );
+  const adminSettingsRepository =
+    options.adminSettingsRepository ??
+    new PostgresAdminSettingsRepository(database.client);
   const jwtVerifier =
     options.jwtVerifier ?? new SupabaseJwtVerifier(environment);
   const adminCatalogRepository =
@@ -239,6 +260,13 @@ export async function buildApp(
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
+  });
+  registerAdminManagementRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminManagementRepository,
+    adminSettingsRepository,
   });
   registerAdminDashboardRoutes(app, {
     jwtVerifier,

@@ -27,6 +27,7 @@ La configuration non sensible de staging est décrite dans `render.yaml`. Render
 
 - `DATABASE_URL` : connexion PostgreSQL Supabase du login restreint `hbs_api` ;
 - `SUPABASE_URL` : URL publique du projet staging ;
+- `SUPABASE_SECRET_KEY` : clé secrète serveur pour les invitations Admin (jamais exposée au navigateur) ;
 - `SUPABASE_STORAGE_SECRET_KEY` : clé secrète Supabase serveur (jamais la publishable key), utilisée
   uniquement par l'API pour écrire dans Storage ;
 - `SUPABASE_STORAGE_BUCKET` : `catalog-media`.
