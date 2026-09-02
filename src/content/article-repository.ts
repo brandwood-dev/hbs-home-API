@@ -880,7 +880,19 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
           "Archive required",
           "Only archived articles can be permanently deleted.",
         );
-      await trx.deleteFrom("content.articles").where("id", "=", id).execute();
+      const deleted = await trx
+        .deleteFrom("content.articles")
+        .where("id", "=", id)
+        .where("status", "=", "archived")
+        .returning("id")
+        .executeTakeFirst();
+      if (!deleted)
+        fail(
+          409,
+          "ARTICLE_CHANGED",
+          "Article changed",
+          "The article changed before it could be deleted. Reload and try again.",
+        );
     });
   }
 
