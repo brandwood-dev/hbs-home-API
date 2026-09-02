@@ -615,6 +615,11 @@ export class PostgresOrderRepository implements OrderRepository {
         "A current cart is required to create an order.",
       );
     const cartToken = input.cartToken;
+    const shippingSettings = this.settingsRepository
+      ? shippingSettingsFromPayload(
+          (await this.settingsRepository.get()).payload,
+        )
+      : DEFAULT_STORE_SHIPPING_SETTINGS;
 
     return this.database.transaction().execute(async (trx) => {
       await sql`select pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`.execute(
@@ -813,11 +818,6 @@ export class PostgresOrderRepository implements OrderRepository {
             "The promotion usage limit was reached.",
           );
       }
-      const shippingSettings = this.settingsRepository
-        ? shippingSettingsFromPayload(
-            (await this.settingsRepository.get()).payload,
-          )
-        : DEFAULT_STORE_SHIPPING_SETTINGS;
       const orderTotals = totals(
         snapshots,
         input.deliveryMethod,
