@@ -91,21 +91,33 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
   ) {}
 
   async listUsers(options: AdminUserListOptions): Promise<AdminUserListResult> {
-    let query = this.database.selectFrom("iam.admin_profiles").selectAll();
-    if (options.status) query = query.where("status", "=", options.status);
+    let countQuery = this.database
+      .selectFrom("iam.admin_profiles")
+      .select(({ fn }) => fn.countAll<number>().as("count"));
+    let profilesQuery = this.database
+      .selectFrom("iam.admin_profiles")
+      .selectAll();
+    if (options.status) {
+      countQuery = countQuery.where("status", "=", options.status);
+      profilesQuery = profilesQuery.where("status", "=", options.status);
+    }
     if (options.query?.trim()) {
       const needle = `%${options.query.trim().replace(/[\\%_]/g, "\\$&")}%`;
-      query = query.where((eb) =>
+      countQuery = countQuery.where((eb) =>
+        eb.or([
+          eb("email", "ilike", needle),
+          eb("display_name", "ilike", needle),
+        ]),
+      );
+      profilesQuery = profilesQuery.where((eb) =>
         eb.or([
           eb("email", "ilike", needle),
           eb("display_name", "ilike", needle),
         ]),
       );
     }
-    const totalRow = await query
-      .select(({ fn }) => fn.countAll<number>().as("count"))
-      .executeTakeFirstOrThrow();
-    const profiles = await query
+    const totalRow = await countQuery.executeTakeFirstOrThrow();
+    const profiles = await profilesQuery
       .orderBy("created_at", "desc")
       .limit(options.limit)
       .offset(options.offset)
@@ -251,19 +263,44 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
         .where("auth_user_id", "=", userId)
         .where("role_key", "=", roleKey)
         .where("revoked_at", "is", null)
+        .where((eb) =>
+          eb.or([
+            eb("expires_at", "is", null),
+            eb("expires_at", ">", new Date()),
+          ]),
+        )
         .executeTakeFirst();
-      if (!existing)
-        await trx
-          .insertInto("iam.admin_user_roles")
-          .values({
-            auth_user_id: userId,
-            role_key: roleKey,
-            granted_by: grantedBy,
-            expires_at: null,
-            revoked_at: null,
-            revoked_by: null,
-          })
-          .executeTakeFirstOrThrow();
+      if (!existing) {
+        const expired = await trx
+          .selectFrom("iam.admin_user_roles")
+          .select("id")
+          .where("auth_user_id", "=", userId)
+          .where("role_key", "=", roleKey)
+          .where("revoked_at", "is", null)
+          .where("expires_at", "is not", null)
+          .where("expires_at", "<=", new Date())
+          .orderBy("expires_at", "desc")
+          .executeTakeFirst();
+        if (expired) {
+          await trx
+            .updateTable("iam.admin_user_roles")
+            .set({ expires_at: null, granted_by: grantedBy })
+            .where("id", "=", expired.id)
+            .executeTakeFirstOrThrow();
+        } else {
+          await trx
+            .insertInto("iam.admin_user_roles")
+            .values({
+              auth_user_id: userId,
+              role_key: roleKey,
+              granted_by: grantedBy,
+              expires_at: null,
+              revoked_at: null,
+              revoked_by: null,
+            })
+            .executeTakeFirstOrThrow();
+        }
+      }
       return this.user(trx, userId);
     });
   }
@@ -277,14 +314,20 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
       const target = await this.user(trx, userId);
       if (roleKey === "super_admin" && target.roles.includes("super_admin")) {
         const count = await trx
-          .selectFrom("iam.admin_user_roles")
+          .selectFrom("iam.admin_user_roles as userRole")
+          .innerJoin(
+            "iam.admin_profiles as profile",
+            "profile.auth_user_id",
+            "userRole.auth_user_id",
+          )
           .select(({ fn }) => fn.countAll<number>().as("count"))
-          .where("role_key", "=", "super_admin")
-          .where("revoked_at", "is", null)
+          .where("userRole.role_key", "=", "super_admin")
+          .where("userRole.revoked_at", "is", null)
+          .where("profile.status", "=", "active")
           .where((eb) =>
             eb.or([
-              eb("expires_at", "is", null),
-              eb("expires_at", ">", new Date()),
+              eb("userRole.expires_at", "is", null),
+              eb("userRole.expires_at", ">", new Date()),
             ]),
           )
           .executeTakeFirstOrThrow();

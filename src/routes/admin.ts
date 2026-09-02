@@ -1,6 +1,9 @@
 import { Type, type Static } from "@sinclair/typebox";
 import type { FastifyInstance } from "fastify";
-import type { AuditRepository } from "../audit/audit-repository.js";
+import type {
+  AuditListFilters,
+  AuditRepository,
+} from "../audit/audit-repository.js";
 import {
   createAdminGuard,
   type AdminGuardDependencies,
@@ -164,40 +167,22 @@ export function registerAdminRoutes(
         },
       },
     },
-    async (request) => ({
-      items: (
-        await dependencies.auditRepository.listRecent(
-          request.query.limit ?? 100,
-        )
-      )
-        .filter(
-          (event) =>
-            !request.query.actorUserId ||
-            event.actorUserId === request.query.actorUserId,
-        )
-        .filter(
-          (event) =>
-            !request.query.action || event.action === request.query.action,
-        )
-        .filter(
-          (event) =>
-            !request.query.resourceType ||
-            event.resourceType === request.query.resourceType,
-        )
-        .filter(
-          (event) =>
-            !request.query.outcome || event.outcome === request.query.outcome,
-        )
-        .filter(
-          (event) =>
-            !request.query.dateFrom ||
-            event.occurredAt >= request.query.dateFrom,
-        )
-        .filter(
-          (event) =>
-            !request.query.dateTo || event.occurredAt <= request.query.dateTo,
-        )
-        .slice(0, request.query.limit ?? 50),
-    }),
+    async (request) => {
+      const filters: AuditListFilters = {};
+      if (request.query.actorUserId)
+        filters.actorUserId = request.query.actorUserId;
+      if (request.query.action) filters.action = request.query.action;
+      if (request.query.resourceType)
+        filters.resourceType = request.query.resourceType;
+      if (request.query.outcome) filters.outcome = request.query.outcome;
+      if (request.query.dateFrom) filters.dateFrom = request.query.dateFrom;
+      if (request.query.dateTo) filters.dateTo = request.query.dateTo;
+      return {
+        items: await dependencies.auditRepository.listRecent(
+          request.query.limit ?? 50,
+          filters,
+        ),
+      };
+    },
   );
 }
