@@ -97,6 +97,7 @@ describe("OpenAPI contract", () => {
       "/api/v1/admin/settings",
       "/api/v1/admin/users",
       "/api/v1/admin/users/invite",
+      "/api/v1/admin/users/{id}",
       "/api/v1/admin/users/{id}/roles",
       "/api/v1/admin/users/{id}/roles/{roleKey}",
       "/api/v1/admin/users/{id}/status",
@@ -247,6 +248,7 @@ describe("OpenAPI contract", () => {
         "updateAdminUserStatus",
         "assignAdminRole",
         "revokeAdminRole",
+        "removeAdminUser",
       ].sort(),
     );
     expect(new Set(operationIds).size).toBe(operationIds.length);
