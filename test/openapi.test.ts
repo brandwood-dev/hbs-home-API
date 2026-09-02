@@ -143,6 +143,7 @@ describe("OpenAPI contract", () => {
       "adminCreateProduct",
       "adminCreatePromotion",
       "adminCreateVariant",
+      "adminDeleteArticle",
       "adminDuplicateArticle",
       "adminExpireInventoryReservations",
       "adminGetArticle",
