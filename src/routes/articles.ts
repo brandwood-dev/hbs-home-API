@@ -639,4 +639,43 @@ export function registerArticleRoutes(
       return reply.code(201).send(item);
     },
   );
+
+  app.delete<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/content/articles/:id",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.write"],
+      }),
+      schema: {
+        operationId: "adminDeleteArticle",
+        summary: "Permanently delete an archived article",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        response: {
+          204: Type.Null(),
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      await dependencies.articleRepository.delete(
+        request.params.id,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.article_deleted",
+        request.params.id,
+      );
+      return reply.code(204).send();
+    },
+  );
 }

@@ -103,6 +103,9 @@ const articleRepository: ArticleRepository = {
   archive() {
     return Promise.reject(new Error("not used"));
   },
+  delete() {
+    return Promise.reject(new Error("not used"));
+  },
   duplicate() {
     return Promise.reject(new Error("not used"));
   },
@@ -180,5 +183,11 @@ describe("dynamic inspiration articles", () => {
       url: "/api/v1/admin/content/articles",
     });
     expect(response.statusCode).toBe(401);
+
+    const deletion = await app.inject({
+      method: "DELETE",
+      url: "/api/v1/admin/content/articles/1205aaa4-509d-41fa-ad0b-a4a961077b0a",
+    });
+    expect(deletion.statusCode).toBe(401);
   });
 });

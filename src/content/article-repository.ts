@@ -125,6 +125,7 @@ export interface AdminArticleRepository {
   ): Promise<AdminArticle>;
   publish(id: string, actorUserId: string): Promise<AdminArticle>;
   archive(id: string, actorUserId: string): Promise<AdminArticle>;
+  delete(id: string, actorUserId: string): Promise<void>;
   duplicate(id: string, actorUserId: string): Promise<AdminArticle>;
   listCategories(activeOnly?: boolean): Promise<readonly ArticleCategory[]>;
 }
@@ -856,6 +857,43 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
         "The requested article does not exist.",
       );
     return adminRecord(requireBundle(await this.bundle(this.database, id)));
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.database.transaction().execute(async (trx) => {
+      const article = await trx
+        .selectFrom("content.articles")
+        .select(["id", "status"])
+        .where("id", "=", id)
+        .executeTakeFirst();
+      if (!article)
+        fail(
+          404,
+          "ARTICLE_NOT_FOUND",
+          "Article not found",
+          "The requested article does not exist.",
+        );
+      if (article.status !== "archived")
+        fail(
+          409,
+          "ARTICLE_ARCHIVE_REQUIRED",
+          "Archive required",
+          "Only archived articles can be permanently deleted.",
+        );
+      const deleted = await trx
+        .deleteFrom("content.articles")
+        .where("id", "=", id)
+        .where("status", "=", "archived")
+        .returning("id")
+        .executeTakeFirst();
+      if (!deleted)
+        fail(
+          409,
+          "ARTICLE_CHANGED",
+          "Article changed",
+          "The article changed before it could be deleted. Reload and try again.",
+        );
+    });
   }
 
   async duplicate(id: string, actorUserId: string): Promise<AdminArticle> {
