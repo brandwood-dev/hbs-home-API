@@ -275,6 +275,182 @@
           }
         }
       },
+      "PublicStoreSettings": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "store",
+          "shipping",
+          "contact",
+          "social",
+          "seo",
+          "features"
+        ],
+        "properties": {
+          "store": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "name",
+              "currency",
+              "language",
+              "timezone",
+              "address"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              }
+            }
+          },
+          "shipping": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "standardFeeMinor",
+              "freeShippingThresholdMinor",
+              "estimatedDeliveryLabel",
+              "storePickupEnabled",
+              "pickupAddress"
+            ],
+            "properties": {
+              "standardFeeMinor": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "freeShippingThresholdMinor": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "estimatedDeliveryLabel": {
+                "type": "string"
+              },
+              "storePickupEnabled": {
+                "type": "boolean"
+              },
+              "pickupAddress": {
+                "type": "string"
+              }
+            }
+          },
+          "contact": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "phone",
+              "email",
+              "whatsapp",
+              "openingHours"
+            ],
+            "properties": {
+              "phone": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "whatsapp": {
+                "type": "string"
+              },
+              "openingHours": {
+                "type": "string"
+              }
+            }
+          },
+          "social": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "facebook",
+              "instagram",
+              "tiktok"
+            ],
+            "properties": {
+              "facebook": {
+                "type": "string"
+              },
+              "instagram": {
+                "type": "string"
+              },
+              "tiktok": {
+                "type": "string"
+              }
+            }
+          },
+          "seo": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "defaultTitle",
+              "defaultDescription",
+              "ogImageUrl"
+            ],
+            "properties": {
+              "defaultTitle": {
+                "type": "string"
+              },
+              "defaultDescription": {
+                "type": "string"
+              },
+              "ogImageUrl": {
+                "type": "string"
+              }
+            }
+          },
+          "features": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "checkout",
+              "favorites",
+              "reviews",
+              "customMade",
+              "professionals",
+              "orderTracking",
+              "customerAccounts",
+              "onlinePayment"
+            ],
+            "properties": {
+              "checkout": {
+                "type": "boolean"
+              },
+              "favorites": {
+                "type": "boolean"
+              },
+              "reviews": {
+                "type": "boolean"
+              },
+              "customMade": {
+                "type": "boolean"
+              },
+              "professionals": {
+                "type": "boolean"
+              },
+              "orderTracking": {
+                "type": "boolean"
+              },
+              "customerAccounts": {
+                "type": "boolean"
+              },
+              "onlinePayment": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
       "Product": {
         "additionalProperties": false,
         "type": "object",
@@ -10894,6 +11070,200 @@
                           ]
                         }
                       ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/store/settings": {
+      "get": {
+        "operationId": "getStoreSettings",
+        "summary": "Return the public store settings",
+        "tags": [
+          "store-settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "store",
+                    "shipping",
+                    "contact",
+                    "social",
+                    "seo",
+                    "features"
+                  ],
+                  "properties": {
+                    "store": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "currency",
+                        "language",
+                        "timezone",
+                        "address"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "shipping": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "standardFeeMinor",
+                        "freeShippingThresholdMinor",
+                        "estimatedDeliveryLabel",
+                        "storePickupEnabled",
+                        "pickupAddress"
+                      ],
+                      "properties": {
+                        "standardFeeMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "freeShippingThresholdMinor": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "estimatedDeliveryLabel": {
+                          "type": "string"
+                        },
+                        "storePickupEnabled": {
+                          "type": "boolean"
+                        },
+                        "pickupAddress": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "contact": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "phone",
+                        "email",
+                        "whatsapp",
+                        "openingHours"
+                      ],
+                      "properties": {
+                        "phone": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "whatsapp": {
+                          "type": "string"
+                        },
+                        "openingHours": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "social": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "facebook",
+                        "instagram",
+                        "tiktok"
+                      ],
+                      "properties": {
+                        "facebook": {
+                          "type": "string"
+                        },
+                        "instagram": {
+                          "type": "string"
+                        },
+                        "tiktok": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "seo": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "defaultTitle",
+                        "defaultDescription",
+                        "ogImageUrl"
+                      ],
+                      "properties": {
+                        "defaultTitle": {
+                          "type": "string"
+                        },
+                        "defaultDescription": {
+                          "type": "string"
+                        },
+                        "ogImageUrl": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "features": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "checkout",
+                        "favorites",
+                        "reviews",
+                        "customMade",
+                        "professionals",
+                        "orderTracking",
+                        "customerAccounts",
+                        "onlinePayment"
+                      ],
+                      "properties": {
+                        "checkout": {
+                          "type": "boolean"
+                        },
+                        "favorites": {
+                          "type": "boolean"
+                        },
+                        "reviews": {
+                          "type": "boolean"
+                        },
+                        "customMade": {
+                          "type": "boolean"
+                        },
+                        "professionals": {
+                          "type": "boolean"
+                        },
+                        "orderTracking": {
+                          "type": "boolean"
+                        },
+                        "customerAccounts": {
+                          "type": "boolean"
+                        },
+                        "onlinePayment": {
+                          "type": "boolean"
+                        }
+                      }
                     }
                   }
                 }

@@ -4,6 +4,43 @@ import { AppError } from "../http/problem.js";
 
 export type AdminSettingsPayload = Record<string, unknown>;
 
+export interface StoreShippingSettings {
+  standardFeeMinor: number;
+  freeShippingThresholdMinor: number;
+  estimatedDeliveryLabel: string;
+  storePickupEnabled: boolean;
+  pickupAddress: string;
+}
+
+export interface PublicStoreSettings {
+  store: {
+    name: string;
+    currency: string;
+    language: string;
+    timezone: string;
+    address: string;
+  };
+  shipping: StoreShippingSettings;
+  contact: {
+    phone: string;
+    email: string;
+    whatsapp: string;
+    openingHours: string;
+  };
+  social: { facebook: string; instagram: string; tiktok: string };
+  seo: { defaultTitle: string; defaultDescription: string; ogImageUrl: string };
+  features: {
+    checkout: boolean;
+    favorites: boolean;
+    reviews: boolean;
+    customMade: boolean;
+    professionals: boolean;
+    orderTracking: boolean;
+    customerAccounts: boolean;
+    onlinePayment: boolean;
+  };
+}
+
 export interface AdminSettingsRecord {
   payload: AdminSettingsPayload;
   version: number;
@@ -29,6 +66,14 @@ interface AdminSettingsDefaults {
   features: Record<string, unknown>;
 }
 
+export const DEFAULT_STORE_SHIPPING_SETTINGS: StoreShippingSettings = {
+  standardFeeMinor: 7000,
+  freeShippingThresholdMinor: 20000,
+  estimatedDeliveryLabel: "Livraison sous 24 à 48 heures",
+  storePickupEnabled: false,
+  pickupAddress: "",
+};
+
 const EMPTY_SETTINGS: AdminSettingsDefaults = {
   store: {
     name: "HBS HOME",
@@ -37,13 +82,7 @@ const EMPTY_SETTINGS: AdminSettingsDefaults = {
     timezone: "Africa/Tunis",
     address: "",
   },
-  shipping: {
-    standardFeeMinor: 7000,
-    freeShippingThresholdMinor: 20000,
-    estimatedDeliveryLabel: "Livraison sous 24 à 48 heures",
-    storePickupEnabled: false,
-    pickupAddress: "",
-  },
+  shipping: { ...DEFAULT_STORE_SHIPPING_SETTINGS },
   contact: { phone: "", email: "", whatsapp: "", openingHours: "" },
   social: { facebook: "", instagram: "", tiktok: "" },
   seo: { defaultTitle: "HBS HOME", defaultDescription: "", ogImageUrl: "" },
@@ -58,6 +97,101 @@ const EMPTY_SETTINGS: AdminSettingsDefaults = {
     onlinePayment: false,
   },
 };
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringValue(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : fallback;
+}
+
+function booleanValue(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+export function shippingSettingsFromPayload(
+  payload: AdminSettingsPayload | undefined,
+): StoreShippingSettings {
+  const shipping = recordValue(payload?.shipping);
+  return {
+    standardFeeMinor: nonNegativeInteger(
+      shipping.standardFeeMinor,
+      DEFAULT_STORE_SHIPPING_SETTINGS.standardFeeMinor,
+    ),
+    freeShippingThresholdMinor: nonNegativeInteger(
+      shipping.freeShippingThresholdMinor,
+      DEFAULT_STORE_SHIPPING_SETTINGS.freeShippingThresholdMinor,
+    ),
+    estimatedDeliveryLabel: stringValue(
+      shipping.estimatedDeliveryLabel,
+      DEFAULT_STORE_SHIPPING_SETTINGS.estimatedDeliveryLabel,
+    ),
+    storePickupEnabled: booleanValue(
+      shipping.storePickupEnabled,
+      DEFAULT_STORE_SHIPPING_SETTINGS.storePickupEnabled,
+    ),
+    pickupAddress: stringValue(
+      shipping.pickupAddress,
+      DEFAULT_STORE_SHIPPING_SETTINGS.pickupAddress,
+    ),
+  };
+}
+
+export function publicStoreSettingsFromPayload(
+  payload: AdminSettingsPayload | undefined,
+): PublicStoreSettings {
+  const value = withDefaultSettings(payload ?? {});
+  const store = recordValue(value.store);
+  const contact = recordValue(value.contact);
+  const social = recordValue(value.social);
+  const seo = recordValue(value.seo);
+  const features = recordValue(value.features);
+  return {
+    store: {
+      name: stringValue(store.name, "HBS HOME"),
+      currency: stringValue(store.currency, "TND"),
+      language: stringValue(store.language, "fr"),
+      timezone: stringValue(store.timezone, "Africa/Tunis"),
+      address: stringValue(store.address, ""),
+    },
+    shipping: shippingSettingsFromPayload(value),
+    contact: {
+      phone: stringValue(contact.phone, ""),
+      email: stringValue(contact.email, ""),
+      whatsapp: stringValue(contact.whatsapp, ""),
+      openingHours: stringValue(contact.openingHours, ""),
+    },
+    social: {
+      facebook: stringValue(social.facebook, ""),
+      instagram: stringValue(social.instagram, ""),
+      tiktok: stringValue(social.tiktok, ""),
+    },
+    seo: {
+      defaultTitle: stringValue(seo.defaultTitle, "HBS HOME"),
+      defaultDescription: stringValue(seo.defaultDescription, ""),
+      ogImageUrl: stringValue(seo.ogImageUrl, ""),
+    },
+    features: {
+      checkout: booleanValue(features.checkout, true),
+      favorites: booleanValue(features.favorites, true),
+      reviews: booleanValue(features.reviews, false),
+      customMade: booleanValue(features.customMade, true),
+      professionals: booleanValue(features.professionals, false),
+      orderTracking: booleanValue(features.orderTracking, true),
+      customerAccounts: booleanValue(features.customerAccounts, false),
+      onlinePayment: booleanValue(features.onlinePayment, false),
+    },
+  };
+}
 
 function withDefaultSettings(
   payload: AdminSettingsPayload,

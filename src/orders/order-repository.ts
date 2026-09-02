@@ -17,9 +17,13 @@ import {
 import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { resolveLineImage } from "../cart/cart-repository.js";
 import { reserveWithinTransaction } from "../inventory/reservation-repository.js";
+import {
+  DEFAULT_STORE_SHIPPING_SETTINGS,
+  shippingSettingsFromPayload,
+  type AdminSettingsRepository,
+  type StoreShippingSettings,
+} from "../settings/admin-settings-repository.js";
 
-const STANDARD_SHIPPING_FEE_MINOR = 7_000;
-const FREE_SHIPPING_THRESHOLD_MINOR = 200_000;
 const ORDER_RESERVATION_TTL_MS = 30 * 60 * 1_000;
 
 type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
@@ -427,6 +431,7 @@ function totals(
   items: readonly OrderItemSnapshot[],
   deliveryMethod: OrderDeliveryMethod,
   discountMinor: number,
+  shippingSettings: StoreShippingSettings = DEFAULT_STORE_SHIPPING_SETTINGS,
 ): OrderTotals {
   const subtotalMinor = items.reduce(
     (sum, item) => sum + item.lineTotalMinor,
@@ -446,9 +451,9 @@ function totals(
     deliveryMethod === "store_pickup" ||
     quoteRequired ||
     discountedSubtotal === 0 ||
-    discountedSubtotal >= FREE_SHIPPING_THRESHOLD_MINOR
+    discountedSubtotal >= shippingSettings.freeShippingThresholdMinor
       ? 0
-      : STANDARD_SHIPPING_FEE_MINOR;
+      : shippingSettings.standardFeeMinor;
   return {
     subtotalMinor,
     discountMinor: appliedDiscountMinor,
@@ -559,7 +564,10 @@ function mapOrder(
 }
 
 export class PostgresOrderRepository implements OrderRepository {
-  constructor(private readonly database: Kysely<DatabaseSchema>) {}
+  constructor(
+    private readonly database: Kysely<DatabaseSchema>,
+    private readonly settingsRepository?: AdminSettingsRepository,
+  ) {}
 
   async create(input: CreateOrderInput): Promise<PublicOrder> {
     const idempotencyKey = requiredText(
@@ -805,10 +813,16 @@ export class PostgresOrderRepository implements OrderRepository {
             "The promotion usage limit was reached.",
           );
       }
+      const shippingSettings = this.settingsRepository
+        ? shippingSettingsFromPayload(
+            (await this.settingsRepository.get()).payload,
+          )
+        : DEFAULT_STORE_SHIPPING_SETTINGS;
       const orderTotals = totals(
         snapshots,
         input.deliveryMethod,
         discountMinor,
+        shippingSettings,
       );
 
       const phone = customer.phone;
