@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely, type Transaction } from "kysely";
 import { createClient } from "@supabase/supabase-js";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
@@ -215,6 +215,14 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     );
   }
 
+  private async lockSuperAdminMembership(
+    trx: Transaction<DatabaseSchema>,
+  ): Promise<void> {
+    await sql`select pg_advisory_xact_lock(
+      hashtextextended('iam.admin_super_admin_membership', 0)
+    )`.execute(trx);
+  }
+
   async updateStatus(
     id: string,
     status: AdminStatus,
@@ -316,6 +324,7 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     revokedBy: string,
   ): Promise<AdminManagedUser> {
     return this.database.transaction().execute(async (trx) => {
+      await this.lockSuperAdminMembership(trx);
       const target = await this.user(trx, userId);
       if (roleKey === "super_admin" && target.roles.includes("super_admin")) {
         const count = await trx
@@ -360,6 +369,7 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     revokedBy: string,
   ): Promise<AdminManagedUser> {
     return this.database.transaction().execute(async (trx) => {
+      await this.lockSuperAdminMembership(trx);
       const target = await this.user(trx, userId);
       if (target.status === "active" && target.roles.includes("super_admin")) {
         const count = await trx
