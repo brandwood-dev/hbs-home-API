@@ -51,7 +51,21 @@ const AuditEventSchema = Type.Object(
 );
 
 const AuditListQuerySchema = Type.Object(
-  { limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })) },
+  {
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    actorUserId: Type.Optional(Type.String({ format: "uuid" })),
+    action: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
+    resourceType: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
+    outcome: Type.Optional(
+      Type.Union([
+        Type.Literal("success"),
+        Type.Literal("denied"),
+        Type.Literal("failure"),
+      ]),
+    ),
+    dateFrom: Type.Optional(Type.String({ format: "date-time" })),
+    dateTo: Type.Optional(Type.String({ format: "date-time" })),
+  },
   { additionalProperties: false },
 );
 type AuditListQuery = Static<typeof AuditListQuerySchema>;
@@ -151,9 +165,39 @@ export function registerAdminRoutes(
       },
     },
     async (request) => ({
-      items: await dependencies.auditRepository.listRecent(
-        request.query.limit ?? 50,
-      ),
+      items: (
+        await dependencies.auditRepository.listRecent(
+          request.query.limit ?? 100,
+        )
+      )
+        .filter(
+          (event) =>
+            !request.query.actorUserId ||
+            event.actorUserId === request.query.actorUserId,
+        )
+        .filter(
+          (event) =>
+            !request.query.action || event.action === request.query.action,
+        )
+        .filter(
+          (event) =>
+            !request.query.resourceType ||
+            event.resourceType === request.query.resourceType,
+        )
+        .filter(
+          (event) =>
+            !request.query.outcome || event.outcome === request.query.outcome,
+        )
+        .filter(
+          (event) =>
+            !request.query.dateFrom ||
+            event.occurredAt >= request.query.dateFrom,
+        )
+        .filter(
+          (event) =>
+            !request.query.dateTo || event.occurredAt <= request.query.dateTo,
+        )
+        .slice(0, request.query.limit ?? 50),
     }),
   );
 }
