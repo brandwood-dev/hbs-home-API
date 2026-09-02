@@ -8,6 +8,7 @@ import {
   FakeDatabaseConnection,
   FakeJwtVerifier,
 } from "./support/fakes.js";
+import type { AdminSettingsRepository } from "../src/settings/admin-settings-repository.js";
 
 const environment = loadEnvironment({
   NODE_ENV: "test",
@@ -24,6 +25,24 @@ const environment = loadEnvironment({
 
 describe("HBS HOME API foundation", () => {
   let app: FastifyInstance;
+  const adminSettingsRepository: AdminSettingsRepository = {
+    get: () =>
+      Promise.resolve({
+        payload: {
+          shipping: {
+            standardFeeMinor: 8000,
+            freeShippingThresholdMinor: 20000,
+            estimatedDeliveryLabel: "Livraison sous 24 à 48 heures",
+            storePickupEnabled: false,
+            pickupAddress: "",
+          },
+        },
+        version: 4,
+        updatedAt: new Date(0).toISOString(),
+        updatedBy: null,
+      }),
+    update: () => Promise.reject(new Error("not used in this test")),
+  };
 
   beforeEach(async () => {
     app = await buildApp({
@@ -33,6 +52,7 @@ describe("HBS HOME API foundation", () => {
       jwtVerifier: new FakeJwtVerifier(),
       adminAccessRepository: new FakeAdminAccessRepository(),
       auditRepository: new FakeAuditRepository(),
+      adminSettingsRepository,
     });
   });
 
@@ -110,6 +130,22 @@ describe("HBS HOME API foundation", () => {
     });
   });
 
+  it("serves the current public shipping settings without authentication", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/store/settings",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.json()).toMatchObject({
+      shipping: {
+        standardFeeMinor: 8000,
+        freeShippingThresholdMinor: 20000,
+      },
+    });
+  });
+
   it("returns RFC 9457-style problem details for unknown routes", async () => {
     const response = await app.inject({ method: "GET", url: "/missing" });
     expect(response.statusCode).toBe(404);
@@ -145,6 +181,7 @@ describe("HBS HOME API foundation", () => {
       jwtVerifier: new FakeJwtVerifier(),
       adminAccessRepository: new FakeAdminAccessRepository(),
       auditRepository: new FakeAuditRepository(),
+      adminSettingsRepository,
     });
 
     const response = await app.inject({ method: "GET", url: "/health/ready" });

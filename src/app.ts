@@ -95,6 +95,7 @@ import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCatalogCategoryRoutes } from "./routes/catalog-categories.js";
 import { registerSystemRoutes } from "./routes/system.js";
+import { registerStoreSettingsRoutes } from "./routes/store-settings.js";
 import {
   CATEGORY_IMAGE_MAX_BYTES,
   createCategoryMediaStorage,
@@ -170,12 +171,14 @@ export async function buildApp(
     options.reservationRepository ??
     new PostgresReservationRepository(database.client);
   const cartRepository =
-    options.cartRepository ?? new PostgresCartRepository(database.client);
+    options.cartRepository ??
+    new PostgresCartRepository(database.client, adminSettingsRepository);
   const favoritesRepository =
     options.favoritesRepository ??
     new PostgresFavoritesRepository(database.client);
   const orderRepository =
-    options.orderRepository ?? new PostgresOrderRepository(database.client);
+    options.orderRepository ??
+    new PostgresOrderRepository(database.client, adminSettingsRepository);
   const adminOrderRepository =
     options.adminOrderRepository ??
     new PostgresAdminOrderRepository(database.client);
@@ -254,6 +257,7 @@ export async function buildApp(
 
   registerErrorHandling(app);
   registerSystemRoutes(app, environment, database);
+  registerStoreSettingsRoutes(app, { adminSettingsRepository });
   registerCatalogRoutes(app, { database });
   registerCatalogCategoryRoutes(app, { database });
   registerAdminRoutes(app, {
