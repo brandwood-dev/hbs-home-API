@@ -25,9 +25,21 @@ export interface AuditEventRecord extends AuditEventInput {
   metadata: Record<string, unknown>;
 }
 
+export interface AuditListFilters {
+  actorUserId?: string;
+  action?: string;
+  resourceType?: string;
+  outcome?: AuditOutcome;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface AuditRepository {
   append(event: AuditEventInput): Promise<void>;
-  listRecent(limit: number): Promise<readonly AuditEventRecord[]>;
+  listRecent(
+    limit: number,
+    filters?: AuditListFilters,
+  ): Promise<readonly AuditEventRecord[]>;
 }
 
 export class PostgresAuditRepository implements AuditRepository {
@@ -51,10 +63,28 @@ export class PostgresAuditRepository implements AuditRepository {
       .executeTakeFirstOrThrow();
   }
 
-  async listRecent(limit: number): Promise<readonly AuditEventRecord[]> {
-    const rows = await this.database
-      .selectFrom("audit.events")
-      .selectAll()
+  async listRecent(
+    limit: number,
+    filters: AuditListFilters = {},
+  ): Promise<readonly AuditEventRecord[]> {
+    let query = this.database.selectFrom("audit.events").selectAll();
+    if (filters.actorUserId)
+      query = query.where("actor_user_id", "=", filters.actorUserId);
+    if (filters.action) query = query.where("action", "=", filters.action);
+    if (filters.resourceType)
+      query = query.where("resource_type", "=", filters.resourceType);
+    if (filters.outcome) query = query.where("outcome", "=", filters.outcome);
+    if (filters.dateFrom) {
+      const dateFrom = new Date(filters.dateFrom);
+      if (!Number.isNaN(dateFrom.valueOf()))
+        query = query.where("occurred_at", ">=", dateFrom);
+    }
+    if (filters.dateTo) {
+      const dateTo = new Date(filters.dateTo);
+      if (!Number.isNaN(dateTo.valueOf()))
+        query = query.where("occurred_at", "<=", dateTo);
+    }
+    const rows = await query
       .orderBy("occurred_at", "desc")
       .orderBy("id", "desc")
       .limit(limit)

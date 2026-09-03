@@ -14,11 +14,16 @@ import {
   type Product,
   type ProductVariant,
 } from "../catalog/product-repository.js";
+import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { resolveLineImage } from "../cart/cart-repository.js";
 import { reserveWithinTransaction } from "../inventory/reservation-repository.js";
+import {
+  DEFAULT_STORE_SHIPPING_SETTINGS,
+  shippingSettingsFromPayload,
+  type AdminSettingsRepository,
+  type StoreShippingSettings,
+} from "../settings/admin-settings-repository.js";
 
-const STANDARD_SHIPPING_FEE_MINOR = 7_000;
-const FREE_SHIPPING_THRESHOLD_MINOR = 200_000;
 const ORDER_RESERVATION_TTL_MS = 30 * 60 * 1_000;
 
 type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
@@ -361,26 +366,15 @@ function shippingProfile(product: Product): string | undefined {
   return stringValue(value);
 }
 
-function variantOptions(
-  variant: ProductVariant,
-): readonly { label: string; value: string }[] {
-  return [
-    variant.curtainHeader
-      ? { label: "Tête", value: variant.curtainHeader }
-      : null,
-    variant.lining ? { label: "Doublure", value: variant.lining } : null,
-    variant.sizeLabel ? { label: "Taille", value: variant.sizeLabel } : null,
-  ].filter(
-    (value): value is { label: string; value: string } => value !== null,
-  );
-}
-
 function snapshot(
   product: Product,
   variant: ProductVariant,
   quantity: number,
 ): OrderItemSnapshot {
   const image = resolveLineImage(product, variant);
+  const color = product.colors.find(
+    (candidate) => candidate.id === variant.colorId,
+  );
   const lineTotalMinor = variant.price.amountMinor * quantity;
   const profile = shippingProfile(product);
   return {
@@ -393,6 +387,7 @@ function snapshot(
     imageUrl: image.url,
     imageAlt: image.alt,
     category: product.category,
+    ...(color?.name ? { colorLabel: color.name } : {}),
     ...(variant.widthCm ? { widthCm: variant.widthCm } : {}),
     ...(variant.heightCm ? { heightCm: variant.heightCm } : {}),
     ...(variant.curtainHeader
@@ -400,7 +395,7 @@ function snapshot(
       : {}),
     ...(variant.eyeletColor ? { eyeletColorLabel: variant.eyeletColor } : {}),
     ...(variant.lining ? { liningLabel: variant.lining } : {}),
-    selectedOptions: variantOptions(variant),
+    selectedOptions: getVariantDisplayOptions(product, variant),
     sellingUnitLabel: product.sellingMode,
     ...(profile ? { shippingProfile: profile } : {}),
     quantity,
@@ -436,6 +431,7 @@ function totals(
   items: readonly OrderItemSnapshot[],
   deliveryMethod: OrderDeliveryMethod,
   discountMinor: number,
+  shippingSettings: StoreShippingSettings = DEFAULT_STORE_SHIPPING_SETTINGS,
 ): OrderTotals {
   const subtotalMinor = items.reduce(
     (sum, item) => sum + item.lineTotalMinor,
@@ -455,9 +451,9 @@ function totals(
     deliveryMethod === "store_pickup" ||
     quoteRequired ||
     discountedSubtotal === 0 ||
-    discountedSubtotal >= FREE_SHIPPING_THRESHOLD_MINOR
+    discountedSubtotal >= shippingSettings.freeShippingThresholdMinor
       ? 0
-      : STANDARD_SHIPPING_FEE_MINOR;
+      : shippingSettings.standardFeeMinor;
   return {
     subtotalMinor,
     discountMinor: appliedDiscountMinor,
@@ -568,7 +564,10 @@ function mapOrder(
 }
 
 export class PostgresOrderRepository implements OrderRepository {
-  constructor(private readonly database: Kysely<DatabaseSchema>) {}
+  constructor(
+    private readonly database: Kysely<DatabaseSchema>,
+    private readonly settingsRepository?: AdminSettingsRepository,
+  ) {}
 
   async create(input: CreateOrderInput): Promise<PublicOrder> {
     const idempotencyKey = requiredText(
@@ -616,6 +615,11 @@ export class PostgresOrderRepository implements OrderRepository {
         "A current cart is required to create an order.",
       );
     const cartToken = input.cartToken;
+    const shippingSettings = this.settingsRepository
+      ? shippingSettingsFromPayload(
+          (await this.settingsRepository.get()).payload,
+        )
+      : DEFAULT_STORE_SHIPPING_SETTINGS;
 
     return this.database.transaction().execute(async (trx) => {
       await sql`select pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`.execute(
@@ -818,6 +822,7 @@ export class PostgresOrderRepository implements OrderRepository {
         snapshots,
         input.deliveryMethod,
         discountMinor,
+        shippingSettings,
       );
 
       const phone = customer.phone;

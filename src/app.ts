@@ -30,6 +30,14 @@ import {
   type AdminAccessRepository,
 } from "./identity/admin-access.js";
 import {
+  PostgresAdminManagementRepository,
+  type AdminManagementRepository,
+} from "./identity/admin-management-repository.js";
+import {
+  PostgresAdminSettingsRepository,
+  type AdminSettingsRepository,
+} from "./settings/admin-settings-repository.js";
+import {
   PostgresAdminCatalogRepository,
   type AdminCatalogRepository,
 } from "./catalog/admin-catalog-repository.js";
@@ -68,6 +76,7 @@ import {
   type HomeContentRepository,
 } from "./content/home-content-repository.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerAdminManagementRoutes } from "./routes/admin-management.js";
 import { registerAdminDashboardRoutes } from "./routes/admin-dashboard.js";
 import { registerAdminCatalogRoutes } from "./routes/admin-catalog.js";
 import { registerAdminPromotionRoutes } from "./routes/admin-promotions.js";
@@ -86,6 +95,12 @@ import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCatalogCategoryRoutes } from "./routes/catalog-categories.js";
 import { registerSystemRoutes } from "./routes/system.js";
+import { registerStoreSettingsRoutes } from "./routes/store-settings.js";
+import {
+  CATEGORY_IMAGE_MAX_BYTES,
+  createCategoryMediaStorage,
+  type CategoryMediaStorage,
+} from "./media/category-media-storage.js";
 import {
   PostgresAdminArticleRepository,
   type ArticleRepository,
@@ -97,6 +112,8 @@ export interface BuildAppOptions {
   database?: DatabaseConnection;
   jwtVerifier?: JwtVerifier;
   adminAccessRepository?: AdminAccessRepository;
+  adminManagementRepository?: AdminManagementRepository;
+  adminSettingsRepository?: AdminSettingsRepository;
   auditRepository?: AuditRepository;
   adminCatalogRepository?: AdminCatalogRepository;
   adminPromotionRepository?: AdminPromotionRepository;
@@ -110,6 +127,7 @@ export interface BuildAppOptions {
   adminContentRepository?: AdminContentRepository;
   homeContentRepository?: HomeContentRepository;
   articleRepository?: ArticleRepository;
+  categoryMediaStorage?: CategoryMediaStorage | null;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -128,6 +146,16 @@ export async function buildApp(
     new PostgresAdminAccessRepository(database.client);
   const auditRepository =
     options.auditRepository ?? new PostgresAuditRepository(database.client);
+  const adminManagementRepository =
+    options.adminManagementRepository ??
+    new PostgresAdminManagementRepository(
+      database.client,
+      environment.supabaseUrl,
+      environment.supabaseSecretKey,
+    );
+  const adminSettingsRepository =
+    options.adminSettingsRepository ??
+    new PostgresAdminSettingsRepository(database.client);
   const jwtVerifier =
     options.jwtVerifier ?? new SupabaseJwtVerifier(environment);
   const adminCatalogRepository =
@@ -143,12 +171,14 @@ export async function buildApp(
     options.reservationRepository ??
     new PostgresReservationRepository(database.client);
   const cartRepository =
-    options.cartRepository ?? new PostgresCartRepository(database.client);
+    options.cartRepository ??
+    new PostgresCartRepository(database.client, adminSettingsRepository);
   const favoritesRepository =
     options.favoritesRepository ??
     new PostgresFavoritesRepository(database.client);
   const orderRepository =
-    options.orderRepository ?? new PostgresOrderRepository(database.client);
+    options.orderRepository ??
+    new PostgresOrderRepository(database.client, adminSettingsRepository);
   const adminOrderRepository =
     options.adminOrderRepository ??
     new PostgresAdminOrderRepository(database.client);
@@ -164,6 +194,10 @@ export async function buildApp(
   const articleRepository =
     options.articleRepository ??
     new PostgresAdminArticleRepository(database.client);
+  const categoryMediaStorage =
+    options.categoryMediaStorage === undefined
+      ? createCategoryMediaStorage(environment)
+      : options.categoryMediaStorage;
   const app = Fastify({
     logger:
       options.logger ??
@@ -196,7 +230,20 @@ export async function buildApp(
     origin: environment.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "accept",
+      "authorization",
+      "content-type",
+      "x-request-id",
+      "x-image-alt",
+      "x-image-name",
+    ],
   });
+  app.addContentTypeParser(
+    /^image\/.+$/,
+    { parseAs: "buffer", bodyLimit: CATEGORY_IMAGE_MAX_BYTES },
+    (_request, body, done) => done(null, body),
+  );
   await registerOpenApi(app, environment);
 
   app.addHook("onSend", async (request, reply) => {
@@ -210,12 +257,20 @@ export async function buildApp(
 
   registerErrorHandling(app);
   registerSystemRoutes(app, environment, database);
+  registerStoreSettingsRoutes(app, { adminSettingsRepository });
   registerCatalogRoutes(app, { database });
   registerCatalogCategoryRoutes(app, { database });
   registerAdminRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
+  });
+  registerAdminManagementRoutes(app, {
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    adminManagementRepository,
+    adminSettingsRepository,
   });
   registerAdminDashboardRoutes(app, {
     jwtVerifier,
@@ -229,6 +284,8 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     adminCatalogRepository,
+    adminContentRepository,
+    categoryMediaStorage,
   });
   registerAdminPromotionRoutes(app, {
     jwtVerifier,

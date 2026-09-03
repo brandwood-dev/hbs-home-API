@@ -128,6 +128,7 @@ export const ProductSchema = Type.Object(
     isNew: Type.Boolean(),
     isBestSeller: Type.Boolean(),
     isFeatured: Type.Boolean(),
+    isOnSale: Type.Optional(Type.Boolean()),
     createdAt: Type.String(),
     recommendationScore: Type.Number(),
     isDemo: Type.Boolean(),

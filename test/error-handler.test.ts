@@ -37,6 +37,18 @@ describe("standardized API errors", () => {
       throw new Error("database-password-must-never-leak");
     });
 
+    app.post("/api/v1/admin/categories/image", () => {
+      throw Object.assign(new Error("body too large"), {
+        code: "FST_ERR_CTP_BODY_TOO_LARGE",
+      });
+    });
+
+    app.post("/other-upload", () => {
+      throw Object.assign(new Error("body too large"), {
+        code: "FST_ERR_CTP_BODY_TOO_LARGE",
+      });
+    });
+
     await app.ready();
   });
 
@@ -79,6 +91,28 @@ describe("standardized API errors", () => {
       status: 500,
       code: "INTERNAL_SERVER_ERROR",
       detail: "An unexpected error occurred.",
+    });
+  });
+
+  it("uses the media payload code only for category image uploads", async () => {
+    const mediaResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/categories/image",
+    });
+    expect(mediaResponse.statusCode).toBe(413);
+    expect(mediaResponse.json()).toMatchObject({
+      code: "MEDIA_PAYLOAD_TOO_LARGE",
+      detail: "The uploaded image must not exceed 8 MiB.",
+    });
+
+    const otherResponse = await app.inject({
+      method: "POST",
+      url: "/other-upload",
+    });
+    expect(otherResponse.statusCode).toBe(413);
+    expect(otherResponse.json()).toMatchObject({
+      code: "PAYLOAD_TOO_LARGE",
+      detail: "The request payload is too large.",
     });
   });
 });

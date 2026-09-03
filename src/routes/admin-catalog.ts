@@ -15,7 +15,13 @@ import type {
   VariantInput,
   VariantPatch,
 } from "../catalog/admin-catalog-repository.js";
+import type { AdminContentRepository } from "../content/admin-content-repository.js";
 import { ProblemDetailSchema } from "../http/problem.js";
+import {
+  CATEGORY_IMAGE_MAX_BYTES,
+  type CategoryImageInputMime,
+  type CategoryMediaStorage,
+} from "../media/category-media-storage.js";
 
 const IdParams = Type.Object(
   { id: Type.String({ minLength: 1, maxLength: 160 }) },
@@ -61,6 +67,7 @@ const CategorySchema = Type.Object(
     status: Status,
     sortOrder: Type.Integer(),
     imageUrl: CategoryImageUrl,
+    imageMediaAssetId: NullableString,
     seoTitle: CategorySeoTitle,
     seoDescription: CategorySeoDescription,
     showInNavigation: Type.Boolean(),
@@ -174,6 +181,11 @@ const ProductSchema = Type.Object(
     archivedAt: NullableString,
     version: Type.Integer(),
     isDemo: Type.Boolean(),
+    isNew: Type.Optional(Type.Boolean()),
+    isBestSeller: Type.Optional(Type.Boolean()),
+    isFeatured: Type.Optional(Type.Boolean()),
+    isOnSale: Type.Optional(Type.Boolean()),
+    payload: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     attributes: Type.Record(Type.String(), Type.Unknown()),
     media: Type.Array(ProductMediaSchema),
     variants: Type.Array(VariantSchema),
@@ -185,6 +197,17 @@ const ProductSchema = Type.Object(
 const CategoriesResponse = Type.Object(
   { items: Type.Array(CategorySchema) },
   { $id: "AdminCategoriesResponse", additionalProperties: false },
+);
+const CategoryImageUploadSchema = Type.Object(
+  {
+    mediaAssetId: Type.String({ format: "uuid" }),
+    storagePath: Type.String(),
+    publicUrl: Type.String({ format: "uri" }),
+    mimeType: Type.Literal("image/webp"),
+    width: Type.Integer({ minimum: 1 }),
+    height: Type.Integer({ minimum: 1 }),
+  },
+  { $id: "AdminCategoryImageUpload", additionalProperties: false },
 );
 const AttributesResponse = Type.Object(
   { items: Type.Array(AttributeSchema) },
@@ -213,6 +236,9 @@ const CategoryBody = Type.Object(
     status: Type.Optional(Status),
     sortOrder: Type.Optional(Type.Integer({ minimum: 0 })),
     imageUrl: Type.Optional(CategoryImageUrl),
+    imageMediaAssetId: Type.Optional(
+      Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    ),
     seoTitle: Type.Optional(CategorySeoTitle),
     seoDescription: Type.Optional(CategorySeoDescription),
     showInNavigation: Type.Optional(Type.Boolean()),
@@ -220,6 +246,12 @@ const CategoryBody = Type.Object(
   { additionalProperties: false },
 );
 const CategoryPatchBody = Type.Partial(CategoryBody);
+const CategoryReorderBody = Type.Object(
+  {
+    direction: Type.Union([Type.Literal("up"), Type.Literal("down")]),
+  },
+  { additionalProperties: false },
+);
 const AttributeOptionBody = Type.Object(
   {
     value: Type.String({ minLength: 1, maxLength: 160 }),
@@ -269,6 +301,7 @@ const ProductBody = Type.Object(
     name: Type.String({ minLength: 2, maxLength: 240 }),
     reference: Type.String({ minLength: 2, maxLength: 120 }),
     categoryId: Type.String({ minLength: 1, maxLength: 160 }),
+    category: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
     material: Type.String({ minLength: 1, maxLength: 120 }),
     sellingMode: Type.String({ minLength: 1, maxLength: 80 }),
     shortDescription: Type.Optional(NullableString),
@@ -279,6 +312,7 @@ const ProductBody = Type.Object(
     isNew: Type.Optional(Type.Boolean()),
     isBestSeller: Type.Optional(Type.Boolean()),
     isFeatured: Type.Optional(Type.Boolean()),
+    isOnSale: Type.Optional(Type.Boolean()),
     isThermal: Type.Optional(Type.Boolean()),
     recommendationScore: Type.Optional(Type.Number()),
     attributes: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
@@ -297,7 +331,9 @@ const ProductPatchBody = Type.Partial(
 );
 const VariantBody = Type.Object(
   {
-    sku: Type.String({ pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$" }),
+    sku: Type.Optional(
+      Type.String({ pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{1,119}$" }),
+    ),
     title: Type.Optional(NullableString),
     priceAmountMinor: Type.Integer({ minimum: 0 }),
     compareAtPriceAmountMinor: Type.Optional(
@@ -342,6 +378,8 @@ type VariantPatchBodyType = Static<typeof VariantPatchBody>;
 
 export interface AdminCatalogRouteDependencies extends AdminGuardDependencies {
   adminCatalogRepository: AdminCatalogRepository;
+  adminContentRepository: AdminContentRepository;
+  categoryMediaStorage: CategoryMediaStorage | null;
   auditRepository: AuditRepository;
 }
 
@@ -399,6 +437,42 @@ function variantPatch(input: VariantPatchBodyType): VariantPatch {
   return input;
 }
 
+function imageHeader(
+  value: string | string[] | undefined,
+  fallback: string,
+  maxLength: number,
+): string {
+  const encodedCandidate = (Array.isArray(value) ? value[0] : value)?.trim();
+  if (!encodedCandidate) return fallback;
+  let candidate = encodedCandidate;
+  try {
+    candidate = decodeURIComponent(encodedCandidate);
+  } catch {
+    // Keep the raw value when a legacy client sends a literal '%' character.
+  }
+  const normalized = Array.from(candidate)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code > 0x1f && code !== 0x7f;
+    })
+    .join("")
+    .trim();
+  return Array.from(normalized).slice(0, maxLength).join("") || fallback;
+}
+
+function imageContentType(
+  value: string | undefined,
+): CategoryImageInputMime | null {
+  if (
+    value === "image/jpeg" ||
+    value === "image/png" ||
+    value === "image/webp"
+  ) {
+    return value;
+  }
+  return null;
+}
+
 export function registerAdminCatalogRoutes(
   app: FastifyInstance,
   dependencies: AdminCatalogRouteDependencies,
@@ -413,6 +487,7 @@ export function registerAdminCatalogRoutes(
     CategoriesResponse,
     AttributesResponse,
     ProductsResponse,
+    CategoryImageUploadSchema,
   ])
     app.addSchema(schema);
 
@@ -437,6 +512,107 @@ export function registerAdminCatalogRoutes(
     async () => ({
       items: await dependencies.adminCatalogRepository.listCategories(),
     }),
+  );
+
+  app.post<{ Body: Buffer }>(
+    "/api/v1/admin/categories/image",
+    {
+      bodyLimit: CATEGORY_IMAGE_MAX_BYTES,
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["categories.write"],
+      }),
+      schema: {
+        operationId: "adminUploadCategoryImage",
+        tags: ["admin-catalog"],
+        summary: "Upload and convert a category image",
+        description:
+          "Accepts a JPEG, PNG or WebP binary payload. The API converts it to WebP before storing it.",
+        consumes: ["image/jpeg", "image/png", "image/webp"],
+        // `contentEncoding` documents the binary payload while leaving runtime
+        // validation to the content-type parser and image decoder below.
+        body: { contentEncoding: "binary" },
+        security: [{ bearerAuth: [] }],
+        response: {
+          201: CategoryImageUploadSchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          413: ProblemDetailSchema,
+          503: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      if (!dependencies.categoryMediaStorage) {
+        return reply.status(503).send({
+          type: "https://api.hbs-home.com/problems/media-storage-unavailable",
+          title: "Media storage unavailable",
+          status: 503,
+          detail:
+            "Category image uploads are not configured on this environment.",
+          instance: request.url,
+          code: "MEDIA_STORAGE_NOT_CONFIGURED",
+          requestId: request.id,
+        });
+      }
+      const contentType = imageContentType(
+        request.headers["content-type"]?.toString().split(";", 1)[0],
+      );
+      if (!contentType) {
+        return reply.status(400).send({
+          type: "https://api.hbs-home.com/problems/invalid-media",
+          title: "Invalid category image",
+          status: 400,
+          detail: "Use a JPEG, PNG or WebP image.",
+          instance: request.url,
+          code: "MEDIA_TYPE_NOT_ALLOWED",
+          requestId: request.id,
+        });
+      }
+      const upload = await dependencies.categoryMediaStorage.upload({
+        bytes: request.body,
+        contentType,
+      });
+      const name = imageHeader(
+        request.headers["x-image-name"],
+        "category-image",
+        240,
+      );
+      const alt = imageHeader(request.headers["x-image-alt"], name, 240);
+      const asset = await dependencies.adminContentRepository.createMedia(
+        {
+          storagePath: upload.storagePath,
+          publicUrl: upload.publicUrl,
+          name,
+          alt,
+          width: upload.width,
+          height: upload.height,
+          mimeType: upload.mimeType,
+          status: "active",
+          usage: "catalog.category",
+        },
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "catalog.category_image_uploaded",
+        "media",
+        asset.id,
+        { storagePath: upload.storagePath, mimeType: upload.mimeType },
+      );
+      return reply.code(201).send({
+        mediaAssetId: asset.id,
+        storagePath: asset.storagePath,
+        publicUrl: asset.publicUrl,
+        mimeType: asset.mimeType,
+        width: asset.width,
+        height: asset.height,
+      });
+    },
   );
   app.post<{ Body: CategoryBodyType }>(
     "/api/v1/admin/categories",
@@ -514,6 +690,50 @@ export function registerAdminCatalogRoutes(
         "catalog.category_updated",
         "category",
         item.id,
+      );
+      return reply.type("application/json").send(item);
+    },
+  );
+  app.post<{
+    Params: Static<typeof IdParams>;
+    Body: Static<typeof CategoryReorderBody>;
+  }>(
+    "/api/v1/admin/categories/:id/reorder",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["categories.write"],
+      }),
+      schema: {
+        operationId: "adminReorderCategory",
+        tags: ["admin-catalog"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        body: CategoryReorderBody,
+        response: {
+          200: CategorySchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.adminCatalogRepository.reorderCategory(
+        request.params.id,
+        request.body.direction,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "catalog.category_reordered",
+        "category",
+        item.id,
+        { direction: request.body.direction },
       );
       return reply.type("application/json").send(item);
     },
@@ -713,8 +933,14 @@ export function registerAdminCatalogRoutes(
         },
       },
     },
-    async (request) =>
-      dependencies.adminCatalogRepository.getProduct(request.params.id),
+    async (request, reply) =>
+      reply
+        .header("cache-control", "no-store")
+        .send(
+          await dependencies.adminCatalogRepository.getProduct(
+            request.params.id,
+          ),
+        ),
   );
   app.patch<{ Params: Static<typeof IdParams>; Body: ProductPatchBodyType }>(
     "/api/v1/admin/products/:id",

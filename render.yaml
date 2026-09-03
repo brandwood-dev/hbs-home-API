@@ -32,6 +32,12 @@ services:
         value: 5
       - key: SUPABASE_URL
         sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: catalog-media
       - key: SUPABASE_JWT_AUDIENCE
         value: authenticated
       - key: RELEASE_VERSION

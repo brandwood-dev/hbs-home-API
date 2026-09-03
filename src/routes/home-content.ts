@@ -29,6 +29,23 @@ const HomeHotspotSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+const HomePromoBannerMessageSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1, maxLength: 120 }),
+    label: Type.Optional(Type.String({ maxLength: 80 })),
+    text: Type.String({ minLength: 1, maxLength: 240 }),
+    href: Type.Optional(Type.String({ maxLength: 2048 })),
+    isEnabled: Type.Boolean(),
+    sortOrder: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+);
+const HomePromoBannerPayloadSchema = Type.Object(
+  {
+    messages: Type.Array(HomePromoBannerMessageSchema, { maxItems: 20 }),
+  },
+  { additionalProperties: false },
+);
 const HomeSectionSchema = Type.Object(
   {
     sectionKey: Type.Union([
@@ -38,7 +55,10 @@ const HomeSectionSchema = Type.Object(
     ]),
     sortOrder: Type.Integer({ minimum: 0 }),
     isEnabled: Type.Boolean(),
-    payload: Type.Record(Type.String(), Type.Unknown()),
+    payload: Type.Union([
+      HomePromoBannerPayloadSchema,
+      Type.Record(Type.String(), Type.Unknown()),
+    ]),
     media: Type.Union([HomeMediaSchema, Type.Null()]),
     mobileMedia: Type.Union([HomeMediaSchema, Type.Null()]),
     hotspots: Type.Array(HomeHotspotSchema),

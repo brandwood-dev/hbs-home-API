@@ -129,6 +129,152 @@ describe("Admin homepage content API", () => {
     expect(invalid.statusCode).toBe(400);
   });
 
+  it("updates and reads one homepage section without requiring the other sections", async () => {
+    authorize("aal2", ["content.write", "content.read"]);
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home/promo_banner",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sectionKey: "promo_banner",
+        sortOrder: 1,
+        payload: {
+          messages: [
+            {
+              id: "promo-test",
+              text: "Livraison offerte",
+              isEnabled: true,
+              sortOrder: 0,
+            },
+          ],
+        },
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toMatchObject({ status: "draft", version: 1 });
+
+    const section = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/content/home/promo_banner",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(section.statusCode).toBe(200);
+    expect(section.json()).toMatchObject({
+      draft: { sections: [{ sectionKey: "promo_banner" }] },
+    });
+    expect(auditRepository.events.at(-1)?.action).toBe(
+      "content.home_section_updated",
+    );
+  });
+
+  it("publishes and archives one homepage section independently", async () => {
+    authorize("aal2", ["content.write", "content.publish"]);
+    await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home/promo_banner",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sectionKey: "promo_banner",
+        sortOrder: 1,
+        payload: {
+          messages: [
+            {
+              id: "promo-independent",
+              text: "Publication ciblée",
+              isEnabled: true,
+              sortOrder: 0,
+            },
+          ],
+        },
+      },
+    });
+
+    const published = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/content/home/promo_banner/publish",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {},
+    });
+    expect(published.statusCode).toBe(200);
+    expect(published.json()).toMatchObject({
+      status: "published",
+      sections: [{ sectionKey: "promo_banner" }],
+    });
+    expect(auditRepository.events.at(-1)?.action).toBe(
+      "content.home_section_published",
+    );
+
+    const archived = await app.inject({
+      method: "POST",
+      url: "/api/v1/admin/content/home/promo_banner/archive",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {},
+    });
+    expect(archived.statusCode).toBe(200);
+    expect(auditRepository.events.at(-1)?.action).toBe(
+      "content.home_section_archived",
+    );
+  });
+
+  it("normalizes a legacy promo payload and validates multi-message rows", async () => {
+    authorize("aal2", ["content.write"]);
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sections: [
+          {
+            sectionKey: "promo_banner",
+            sortOrder: 0,
+            payload: {
+              label: "Info",
+              text: "Livraison offerte",
+              href: "/promotions",
+            },
+          },
+        ],
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+    const savedBody = saved.json<{
+      sections: { payload: Record<string, unknown> }[];
+    }>();
+    expect(savedBody.sections[0]?.payload).toEqual({
+      messages: [
+        {
+          id: "legacy-promo",
+          label: "Info",
+          text: "Livraison offerte",
+          href: "/promotions",
+          isEnabled: true,
+          sortOrder: 0,
+        },
+      ],
+    });
+
+    const unsafe = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/content/home",
+      headers: { authorization: "Bearer valid-token" },
+      payload: {
+        sections: [
+          {
+            sectionKey: "promo_banner",
+            sortOrder: 0,
+            payload: {
+              messages: [
+                { id: "unsafe", text: "Test", href: "javascript:alert(1)" },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    expect(unsafe.statusCode).toBe(400);
+    expect(unsafe.json()).toMatchObject({ code: "HOME_PROMO_INVALID" });
+  });
+
   it("publishes a homepage snapshot and strips internal identifiers publicly", async () => {
     authorize("aal2", ["content.write"]);
     const saved = await app.inject({

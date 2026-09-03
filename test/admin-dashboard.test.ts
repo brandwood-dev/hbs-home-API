@@ -247,5 +247,12 @@ describe("Admin dashboard API", () => {
       headers: { authorization: "Bearer valid-token" },
     });
     expect(tooLarge.statusCode).toBe(400);
+
+    const oneSided = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/dashboard?dateFrom=2020-01-01",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(oneSided.statusCode).toBe(400);
   });
 });

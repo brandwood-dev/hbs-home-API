@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql, type Kysely, type Selectable, type Transaction } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
+import { validateVariantBusinessRules } from "./variant-business-rules.js";
 
 type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
 type CategoryRow = Selectable<DatabaseSchema["catalog.categories"]>;
@@ -17,6 +18,176 @@ type AttributeValueType =
 type JsonAttributeValue =
   Record<string, unknown> | readonly unknown[] | string | number | boolean;
 
+/**
+ * Canonical system attributes provisioned for each catalogue family.  The
+ * public slugs are kept here (rather than in the UI) so categories created
+ * after the migration receive the same bindings as the seeded categories.
+ */
+const SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY: Readonly<
+  Record<string, readonly string[]>
+> = {
+  rideaux: [
+    "material",
+    "opacity",
+    "rooms",
+    "large_width",
+    "care",
+    "installation",
+  ],
+  voilages: [
+    "material",
+    "opacity",
+    "rooms",
+    "large_width",
+    "care",
+    "installation",
+  ],
+  stores: [
+    "material",
+    "opacity",
+    "rooms",
+    "care",
+    "installation",
+    "blind_type",
+    "mechanism",
+  ],
+  coussins: [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "filling",
+    "closure",
+  ],
+  "galettes-de-chaise": [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "fastening",
+    "thickness_cm",
+  ],
+  galettes_de_chaise: [
+    "material",
+    "rooms",
+    "shape",
+    "removable_cover",
+    "machine_washable",
+    "fastening",
+    "thickness_cm",
+  ],
+  accessoires: [
+    "material",
+    "installation",
+    "accessory_type",
+    "compatibilities",
+    "finish",
+    "min_length_cm",
+    "max_length_cm",
+    "diameter_mm",
+  ],
+  mobilier: [
+    "rooms",
+    "furniture_type",
+    "removable_cover",
+    "upholstery",
+    "frame_material",
+    "leg_material",
+    "features",
+    "seat_comfort",
+    "number_of_seats",
+    "assembly_level",
+    "assembly_time",
+    "shipping_profile",
+    "free_shipping_eligible",
+    "width_cm",
+    "depth_cm",
+    "height_cm",
+    "seat_width_cm",
+    "seat_depth_cm",
+    "seat_height_cm",
+    "back_height_cm",
+    "armrest_height_cm",
+    "weight_kg",
+    "max_load_kg",
+    "storage_volume_l",
+    "package_count",
+  ],
+  mobilier_interieur: [
+    "rooms",
+    "furniture_type",
+    "removable_cover",
+    "upholstery",
+    "frame_material",
+    "leg_material",
+    "features",
+    "seat_comfort",
+    "number_of_seats",
+    "assembly_level",
+    "assembly_time",
+    "shipping_profile",
+    "free_shipping_eligible",
+    "width_cm",
+    "depth_cm",
+    "height_cm",
+    "seat_width_cm",
+    "seat_depth_cm",
+    "seat_height_cm",
+    "back_height_cm",
+    "armrest_height_cm",
+    "weight_kg",
+    "max_load_kg",
+    "storage_volume_l",
+    "package_count",
+  ],
+  plantes: [
+    "rooms",
+    "care",
+    "shipping_profile",
+    "plant_nature",
+    "plant_type",
+    "plant_size",
+    "common_name",
+    "botanical_name",
+    "plant_family",
+    "origin",
+    "light_need",
+    "watering",
+    "pet_safe",
+    "toxicity_note",
+    "flowering",
+    "trailing",
+    "pot_included",
+    "indoor_use",
+    "preservation",
+    "fragile",
+  ],
+  plantes_decoration: [
+    "rooms",
+    "care",
+    "shipping_profile",
+    "plant_nature",
+    "plant_type",
+    "plant_size",
+    "common_name",
+    "botanical_name",
+    "plant_family",
+    "origin",
+    "light_need",
+    "watering",
+    "pet_safe",
+    "toxicity_note",
+    "flowering",
+    "trailing",
+    "pot_included",
+    "indoor_use",
+    "preservation",
+    "fragile",
+  ],
+};
+
 export interface AdminCategory {
   id: string;
   slug: string;
@@ -26,6 +197,7 @@ export interface AdminCategory {
   status: CategoryStatus;
   sortOrder: number;
   imageUrl: string | null;
+  imageMediaAssetId: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   showInNavigation: boolean;
@@ -117,6 +289,11 @@ export interface AdminProduct {
   archivedAt: string | null;
   version: number;
   isDemo: boolean;
+  isNew?: boolean;
+  isBestSeller?: boolean;
+  isFeatured?: boolean;
+  isOnSale?: boolean;
+  payload?: Record<string, unknown>;
   /** Valeurs d'attributs normalisées, indexées par clé technique. */
   attributes: Record<string, unknown>;
   media: readonly AdminProductMedia[];
@@ -133,6 +310,7 @@ export interface CategoryInput {
   status?: CategoryStatus;
   sortOrder?: number;
   imageUrl?: string | null;
+  imageMediaAssetId?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   showInNavigation?: boolean;
@@ -146,6 +324,7 @@ export interface CategoryPatch {
   status?: CategoryStatus;
   sortOrder?: number;
   imageUrl?: string | null;
+  imageMediaAssetId?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   showInNavigation?: boolean;
@@ -193,6 +372,8 @@ export interface ProductInput {
   name: string;
   reference: string;
   categoryId: string;
+  /** Famille fonctionnelle attendue par le formulaire Admin. */
+  category?: string;
   material: string;
   sellingMode: string;
   shortDescription?: string | null;
@@ -203,6 +384,7 @@ export interface ProductInput {
   isNew?: boolean;
   isBestSeller?: boolean;
   isFeatured?: boolean;
+  isOnSale?: boolean;
   isThermal?: boolean;
   recommendationScore?: number;
   attributes?: Record<string, unknown>;
@@ -214,6 +396,7 @@ export interface ProductPatch {
   name?: string;
   reference?: string;
   categoryId?: string;
+  category?: string;
   material?: string;
   sellingMode?: string;
   shortDescription?: string | null;
@@ -224,6 +407,7 @@ export interface ProductPatch {
   isNew?: boolean;
   isBestSeller?: boolean;
   isFeatured?: boolean;
+  isOnSale?: boolean;
   isThermal?: boolean;
   recommendationScore?: number;
   attributes?: Record<string, unknown>;
@@ -232,7 +416,7 @@ export interface ProductPatch {
 }
 
 export interface VariantInput {
-  sku: string;
+  sku?: string;
   title?: string | null;
   priceAmountMinor: number;
   compareAtPriceAmountMinor?: number | null;
@@ -260,6 +444,7 @@ export interface AdminCatalogRepository {
   listCategories(): Promise<readonly AdminCategory[]>;
   createCategory(input: CategoryInput): Promise<AdminCategory>;
   updateCategory(id: string, patch: CategoryPatch): Promise<AdminCategory>;
+  reorderCategory(id: string, direction: "up" | "down"): Promise<AdminCategory>;
   listAttributes(): Promise<readonly AdminAttribute[]>;
   createAttribute(input: AttributeInput): Promise<AdminAttribute>;
   updateAttribute(id: string, patch: AttributePatch): Promise<AdminAttribute>;
@@ -322,6 +507,44 @@ function numberValue(value: unknown, fallback: number): number {
     if (Number.isFinite(parsed)) return Math.trunc(parsed);
   }
   return fallback;
+}
+
+/**
+ * PostgreSQL BIGINT columns are returned as strings by the default `pg`
+ * parser. Product versions participate in arithmetic and strict comparisons,
+ * so normalize them before incrementing or checking optimistic locks.
+ */
+function productVersion(value: unknown): number {
+  return numberValue(value, 1);
+}
+
+/**
+ * SKU identity is deliberately case-insensitive and whitespace-tolerant.
+ * Keeping this canonical form in the API makes the application rule match the
+ * expression unique index installed by the catalogue migration.
+ */
+export function normalizeVariantSku(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+function isVariantSkuUniqueViolation(error: unknown): boolean {
+  if (!isUniqueViolation(error)) return false;
+  if (typeof error !== "object" || error === null) return false;
+  const constraint = (error as { constraint?: unknown }).constraint;
+  return constraint === "catalog_product_variants_sku_unique";
+}
+
+function booleanValue(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 const MEDIA_TYPES = new Set<ProductMediaType>([
@@ -419,6 +642,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     const rows = await this.database
       .selectFrom("catalog.categories")
       .selectAll()
+      .where("status", "!=", "archived")
       .orderBy("sort_order")
       .orderBy("name")
       .execute();
@@ -427,7 +651,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
 
   async createCategory(input: CategoryInput): Promise<AdminCategory> {
     return this.database.transaction().execute(async (trx) => {
-      await this.assertCategoryParent(trx, input.parentId ?? null, null);
+      await this.assertCategoryParent(
+        trx,
+        input.parentId ?? null,
+        null,
+        input.status ?? "draft",
+      );
+      await this.assertCategoryMediaAsset(trx, input.imageMediaAssetId ?? null);
       const existing = await trx
         .selectFrom("catalog.categories")
         .select("id")
@@ -451,12 +681,15 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           status: input.status ?? "draft",
           sort_order: input.sortOrder ?? 0,
           image_url: input.imageUrl ?? null,
+          image_media_asset_id: input.imageMediaAssetId ?? null,
           seo_title: input.seoTitle ?? null,
           seo_description: input.seoDescription ?? null,
           show_in_navigation: input.showInNavigation ?? true,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
+      const rootSlug = await this.rootCategorySlug(trx, row);
+      await this.bindSystemAttributesForCategory(trx, row.id, rootSlug);
       return categoryRecord(row);
     });
   }
@@ -480,7 +713,32 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       const parentId =
         patch.parentId === undefined ? current.parent_id : patch.parentId;
-      await this.assertCategoryParent(trx, parentId, id);
+      await this.assertCategoryParent(
+        trx,
+        parentId,
+        id,
+        patch.status ?? current.status,
+      );
+      await this.assertCategoryMediaAsset(
+        trx,
+        patch.imageMediaAssetId === undefined
+          ? current.image_media_asset_id
+          : patch.imageMediaAssetId,
+      );
+      if (parentId && parentId !== current.parent_id) {
+        const child = await trx
+          .selectFrom("catalog.categories")
+          .select("id")
+          .where("parent_id", "=", id)
+          .executeTakeFirst();
+        if (child)
+          fail(
+            422,
+            "CATEGORY_PARENT_INVALID",
+            "Invalid category parent",
+            "A category with children cannot be moved below another category.",
+          );
+      }
       if (patch.status === "archived" && current.status !== "archived")
         await this.assertCategoryArchivable(trx, id);
       if (patch.slug && patch.slug !== current.slug) {
@@ -516,6 +774,9 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           ...(patch.imageUrl === undefined
             ? {}
             : { image_url: patch.imageUrl }),
+          ...(patch.imageMediaAssetId === undefined
+            ? {}
+            : { image_media_asset_id: patch.imageMediaAssetId }),
           ...(patch.seoTitle === undefined
             ? {}
             : { seo_title: patch.seoTitle }),
@@ -533,6 +794,83 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     });
   }
 
+  async reorderCategory(
+    id: string,
+    direction: "up" | "down",
+  ): Promise<AdminCategory> {
+    return this.database.transaction().execute(async (trx) => {
+      const current = await trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirst();
+      if (!current)
+        fail(
+          404,
+          "CATEGORY_NOT_FOUND",
+          "Category not found",
+          "The requested category does not exist.",
+        );
+      if (current.status === "archived")
+        fail(
+          409,
+          "CATEGORY_ARCHIVED",
+          "Category archived",
+          "An archived category cannot be reordered.",
+        );
+
+      // Lock and order only the current sibling set. This prevents a child
+      // from being swapped with a root category and keeps the operation
+      // atomic when two Admin users reorder at the same time.
+      const siblingQuery = trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("status", "!=", "archived");
+      const siblings = current.parent_id
+        ? await siblingQuery
+            .where("parent_id", "=", current.parent_id)
+            .orderBy("sort_order")
+            .orderBy("name")
+            .orderBy("id")
+            .forUpdate()
+            .execute()
+        : await siblingQuery
+            .where("parent_id", "is", null)
+            .orderBy("sort_order")
+            .orderBy("name")
+            .orderBy("id")
+            .forUpdate()
+            .execute();
+
+      const currentIndex = siblings.findIndex((item) => item.id === id);
+      const targetIndex =
+        direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length)
+        return categoryRecord(current);
+
+      const reordered = [...siblings];
+      const [moved] = reordered.splice(currentIndex, 1);
+      if (!moved) return categoryRecord(current);
+      reordered.splice(targetIndex, 0, moved);
+
+      for (const [sortOrder, sibling] of reordered.entries()) {
+        if (sibling.sort_order === sortOrder) continue;
+        await trx
+          .updateTable("catalog.categories")
+          .set({ sort_order: sortOrder })
+          .where("id", "=", sibling.id)
+          .execute();
+      }
+
+      const updated = await trx
+        .selectFrom("catalog.categories")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+      return categoryRecord(updated);
+    });
+  }
+
   async listAttributes(): Promise<readonly AdminAttribute[]> {
     const rows = await this.database
       .selectFrom("catalog.attributes")
@@ -547,6 +885,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
 
   async createAttribute(input: AttributeInput): Promise<AdminAttribute> {
     return this.database.transaction().execute(async (trx) => {
+      if (input.isSystem === true)
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          "System attributes are provisioned by the catalogue and cannot be created manually.",
+        );
       const duplicate = await trx
         .selectFrom("catalog.attributes")
         .select("id")
@@ -598,6 +943,22 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           "Attribute not found",
           "The requested attribute does not exist.",
         );
+      if (
+        (current.is_system &&
+          ((patch.key !== undefined && patch.key !== current.key) ||
+            (patch.valueType !== undefined &&
+              patch.valueType !== current.value_type) ||
+            patch.isSystem === false)) ||
+        (!current.is_system && patch.isSystem === true)
+      )
+        fail(
+          422,
+          "ATTRIBUTE_SYSTEM_IMMUTABLE",
+          "System attribute",
+          current.is_system
+            ? "The key and type of a system attribute cannot be changed."
+            : "A regular attribute cannot be promoted to a system attribute.",
+        );
       if (patch.key && patch.key !== current.key) {
         const duplicate = await trx
           .selectFrom("catalog.attributes")
@@ -622,13 +983,6 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
               .where("attribute_id", "=", id)
               .execute()
           : [];
-      if (current.is_system && patch.isSystem === false)
-        fail(
-          422,
-          "ATTRIBUTE_SYSTEM_IMMUTABLE",
-          "System attribute",
-          "A system attribute cannot be converted into a regular attribute.",
-        );
       if (patch.status === "archived" && current.status !== "archived") {
         if (current.is_system)
           fail(
@@ -732,6 +1086,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     return this.database.transaction().execute(async (trx) => {
       const category = await this.assertCategory(trx, input.categoryId);
       const rootCategorySlug = await this.rootCategorySlug(trx, category);
+      if (input.category && input.category !== rootCategorySlug)
+        fail(
+          422,
+          "CATEGORY_FAMILY_MISMATCH",
+          "Invalid product family",
+          "The catalogue category does not belong to the selected product family.",
+        );
       const duplicate = await trx
         .selectFrom("catalog.products")
         .select("id")
@@ -757,6 +1118,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         shortDescription: input.shortDescription ?? "",
         longDescription: input.longDescription ?? "",
         imageAlt: input.imageAlt ?? "",
+        ...(input.isOnSale === undefined ? {} : { isOnSale: input.isOnSale }),
         variants: Array.isArray(input.payload?.variants)
           ? input.payload.variants
           : [],
@@ -820,6 +1182,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         category.id,
         input.attributes ?? {},
         false,
+        input.material,
       );
       await this.refreshProductPayload(row.id, trx);
       return this.productRecord(trx, row);
@@ -829,6 +1192,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async updateProduct(id: string, patch: ProductPatch): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const categoryId = patch.categoryId ?? current.category_id;
       const category = categoryId
         ? await this.assertCategory(trx, categoryId)
@@ -836,6 +1200,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       const rootCategorySlug = category
         ? await this.rootCategorySlug(trx, category)
         : current.category;
+      if (patch.category && patch.category !== rootCategorySlug)
+        fail(
+          422,
+          "CATEGORY_FAMILY_MISMATCH",
+          "Invalid product family",
+          "The catalogue category does not belong to the selected product family.",
+        );
       if (patch.slug && patch.slug !== current.slug)
         await this.assertProductIdentifier(trx, "slug", patch.slug, id);
       if (patch.reference && patch.reference !== current.reference)
@@ -885,7 +1256,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         ...(patch.recommendationScore === undefined
           ? {}
           : { recommendation_score: patch.recommendationScore }),
-        version: current.version + 1,
+        version: currentVersion + 1,
       };
       let updateQuery = trx
         .updateTable("catalog.products")
@@ -919,21 +1290,55 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         patch.payload === undefined
           ? asObject(current.product)
           : { ...asObject(current.product), ...patch.payload };
+      const productWithSaleFlag =
+        patch.isOnSale === undefined
+          ? nextProduct
+          : { ...nextProduct, isOnSale: patch.isOnSale };
       if (patch.payload !== undefined) {
         await trx
           .updateTable("catalog.products")
-          .set({ product: nextProduct })
+          .set({ product: productWithSaleFlag })
           .where("id", "=", id)
           .executeTakeFirst();
         await this.replaceProductMedia(
           trx,
           id,
-          nextProduct,
+          productWithSaleFlag,
           current.is_published ? "active" : "draft",
           patch.imageAlt ?? current.image_alt ?? "",
         );
       }
-      if (patch.attributes !== undefined || patch.categoryId !== undefined) {
+      if (patch.isOnSale !== undefined && patch.payload === undefined) {
+        await trx
+          .updateTable("catalog.products")
+          .set({ product: productWithSaleFlag })
+          .where("id", "=", id)
+          .executeTakeFirst();
+      }
+      const payloadAttributes = asObject(productWithSaleFlag.attributes);
+      const taxonomyChanged =
+        patch.categoryId !== undefined ||
+        patch.material !== undefined ||
+        (patch.payload !== undefined &&
+          ("accessory_type" in patch.payload ||
+            "accessoryType" in patch.payload ||
+            "attributes" in patch.payload ||
+            "accessory_type" in payloadAttributes ||
+            "accessoryType" in payloadAttributes));
+      if (current.is_published && taxonomyChanged) {
+        await this.assertProductVariantsBusinessRules(
+          trx,
+          id,
+          rootCategorySlug,
+          patch.material ?? current.material,
+          productWithSaleFlag,
+        );
+      }
+      if (
+        patch.attributes !== undefined ||
+        patch.categoryId !== undefined ||
+        patch.material !== undefined
+      ) {
         const attributes =
           patch.attributes ?? (await this.productAttributes(trx, id));
         await this.replaceProductAttributes(
@@ -942,16 +1347,18 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           categoryId,
           attributes,
           false,
+          patch.material ?? current.material,
         );
       }
       await this.refreshProductPayload(id, trx);
-      return this.productRecord(trx, result);
+      return this.getProductFromExecutor(trx, id);
     });
   }
 
   async publishProduct(id: string): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const category = await trx
         .selectFrom("catalog.product_categories")
         .innerJoin(
@@ -972,6 +1379,21 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("product_id", "=", id)
         .where("status", "!=", "archived")
         .execute();
+      for (const variant of variants) {
+        const ruleViolation = validateVariantBusinessRules(
+          current.category,
+          current.material,
+          current.product,
+          { ...asObject(variant.options), ...asObject(variant.payload) },
+        );
+        if (ruleViolation)
+          fail(
+            422,
+            ruleViolation.code,
+            ruleViolation.title,
+            ruleViolation.detail,
+          );
+      }
       const attributes = await this.productAttributes(trx, id);
       await this.replaceProductAttributes(
         trx,
@@ -979,24 +1401,40 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         current.category_id,
         attributes,
         true,
+        current.material,
       );
-      if (
-        current.name.trim().length < 2 ||
-        current.reference.trim().length < 2 ||
-        category?.status !== "active" ||
-        variants.length === 0 ||
-        variants.some(
-          (variant) =>
-            variant.sku.trim().length < 2 ||
-            variant.price_amount_minor < 0 ||
-            !isPublicVariant(variant),
-        )
-      ) {
+      const publicationIssues: string[] = [];
+      if (current.name.trim().length < 2)
+        publicationIssues.push("Le nom du produit est manquant.");
+      if (current.reference.trim().length < 2)
+        publicationIssues.push("La référence du produit est manquante.");
+      if (category?.status !== "active")
+        publicationIssues.push(
+          "La catégorie principale est absente ou inactive.",
+        );
+      if (variants.length === 0) {
+        publicationIssues.push("Au moins une variante active est requise.");
+      } else {
+        variants.forEach((variant, index) => {
+          const variantIssues: string[] = [];
+          if (variant.sku.trim().length < 2)
+            variantIssues.push("le SKU est manquant");
+          if (variant.price_amount_minor < 0)
+            variantIssues.push("le prix est invalide");
+          variantIssues.push(...publicVariantIssues(variant));
+          if (variantIssues.length > 0) {
+            publicationIssues.push(
+              `Variante ${String(index + 1)} : ${variantIssues.join(" ; ")}.`,
+            );
+          }
+        });
+      }
+      if (publicationIssues.length > 0) {
         fail(
           422,
           "PRODUCT_NOT_READY",
           "Product is not ready",
-          "A product needs a category and at least one valid variant before publication.",
+          `Impossible de publier le produit : ${publicationIssues.join(" ")}`,
         );
       }
       await trx
@@ -1018,7 +1456,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           is_published: true,
           published_at: new Date(),
           archived_at: null,
-          version: current.version + 1,
+          version: currentVersion + 1,
         })
         .where("id", "=", id)
         .returningAll()
@@ -1031,13 +1469,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async archiveProduct(id: string): Promise<AdminProduct> {
     return this.database.transaction().execute(async (trx) => {
       const current = await this.productRow(trx, id);
+      const currentVersion = productVersion(current.version);
       const row = await trx
         .updateTable("catalog.products")
         .set({
           status: "archived",
           is_published: false,
           archived_at: new Date(),
-          version: current.version + 1,
+          version: currentVersion + 1,
         })
         .where("id", "=", id)
         .returningAll()
@@ -1056,52 +1495,117 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     productId: string,
     input: VariantInput,
   ): Promise<{ product: AdminProduct; variantId: string }> {
-    return this.database.transaction().execute(async (trx) => {
-      await this.productRow(trx, productId);
-      await this.assertVariantSku(trx, input.sku, null);
-      if (
-        input.compareAtPriceAmountMinor !== undefined &&
-        input.compareAtPriceAmountMinor !== null &&
-        input.compareAtPriceAmountMinor < input.priceAmountMinor
-      )
-        fail(
-          422,
-          "VARIANT_PRICE_INVALID",
-          "Invalid variant price",
-          "The comparison price cannot be lower than the selling price.",
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const product = await this.productRow(trx, productId);
+        const requestedSku = input.sku ? normalizeVariantSku(input.sku) : "";
+        const sku =
+          requestedSku.length > 0
+            ? requestedSku
+            : await this.generateVariantSku(trx, product.reference, input);
+        await this.assertVariantSku(trx, sku, null);
+        const ruleViolation = validateVariantBusinessRules(
+          product.category,
+          product.material,
+          product.product,
+          { ...asObject(input.options), ...asObject(input.payload) },
         );
-      if (input.isDefault)
-        await trx
-          .updateTable("catalog.product_variants")
-          .set({ is_default: false })
-          .where("product_id", "=", productId)
-          .execute();
-      const variant = await trx
-        .insertInto("catalog.product_variants")
-        .values({
-          id: randomUUID(),
-          product_id: productId,
-          sku: input.sku,
-          title: input.title ?? null,
-          price_amount_minor: input.priceAmountMinor,
-          compare_at_price_amount_minor:
-            input.compareAtPriceAmountMinor ?? null,
-          currency: "TND",
-          status: input.status ?? "draft",
-          options: input.options ?? {},
-          payload: input.payload ?? {},
-          is_default: input.isDefault ?? false,
-          sort_order: input.sortOrder ?? 0,
-        })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      await this.bumpProduct(trx, productId);
-      await this.refreshProductPayload(productId, trx);
-      return {
-        product: await this.getProductFromExecutor(trx, productId),
-        variantId: variant.id,
-      };
-    });
+        if (ruleViolation)
+          fail(
+            422,
+            ruleViolation.code,
+            ruleViolation.title,
+            ruleViolation.detail,
+          );
+        if (
+          input.compareAtPriceAmountMinor !== undefined &&
+          input.compareAtPriceAmountMinor !== null &&
+          input.compareAtPriceAmountMinor < input.priceAmountMinor
+        )
+          fail(
+            422,
+            "VARIANT_PRICE_INVALID",
+            "Invalid variant price",
+            "The comparison price cannot be lower than the selling price.",
+          );
+        if (input.isDefault)
+          await trx
+            .updateTable("catalog.product_variants")
+            .set({ is_default: false })
+            .where("product_id", "=", productId)
+            .execute();
+        const variant = await trx
+          .insertInto("catalog.product_variants")
+          .values({
+            id: randomUUID(),
+            product_id: productId,
+            sku,
+            title: input.title ?? null,
+            price_amount_minor: input.priceAmountMinor,
+            compare_at_price_amount_minor:
+              input.compareAtPriceAmountMinor ?? null,
+            currency: "TND",
+            status: input.status ?? "draft",
+            options: input.options ?? {},
+            payload: input.payload ?? {},
+            is_default: input.isDefault ?? false,
+            sort_order: input.sortOrder ?? 0,
+          })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        await this.bumpProduct(trx, productId);
+        await this.refreshProductPayload(productId, trx);
+        return {
+          product: await this.getProductFromExecutor(trx, productId),
+          variantId: variant.id,
+        };
+      });
+    } catch (error) {
+      // The preflight lookup closes the normal path; this catch maps the
+      // remaining race where another transaction claims the SKU first.
+      if (isVariantSkuUniqueViolation(error))
+        fail(
+          409,
+          "VARIANT_SKU_CONFLICT",
+          "Variant conflict",
+          "A variant with this SKU already exists. Choose another SKU.",
+        );
+      throw error;
+    }
+  }
+
+  /** Génère un SKU lisible et unique lorsque l'interface ne fournit aucun SKU. */
+  private async generateVariantSku(
+    executor: DbExecutor,
+    reference: string,
+    input: VariantInput,
+  ): Promise<string> {
+    const options = asObject(input.options);
+    const color = stringValue(options.colorId ?? options.color_id);
+    const dimensions = [options.widthCm, options.heightCm]
+      .map((value) => numberValue(value, 0))
+      .filter((value) => value > 0)
+      .join("X");
+    const base =
+      reference
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "HBS-PRODUIT";
+    const suffix = [color, dimensions].filter(Boolean).join("-") || "VAR";
+    const prefix = `${base}-${suffix}`.slice(0, 112);
+    // SKU uniqueness is global, not scoped to a product.  Check every row so
+    // an automatically generated value cannot collide with another product
+    // (or with an archived variant retained for order history).
+    const existing = await executor
+      .selectFrom("catalog.product_variants")
+      .select("sku")
+      .execute();
+    const taken = new Set(existing.map((row) => normalizeVariantSku(row.sku)));
+    for (let index = 1; ; index += 1) {
+      const candidate = `${prefix}-${String(index).padStart(2, "0")}`;
+      if (!taken.has(normalizeVariantSku(candidate))) return candidate;
+    }
   }
 
   async updateVariant(
@@ -1109,76 +1613,107 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     variantId: string,
     patch: VariantPatch,
   ): Promise<AdminProduct> {
-    return this.database.transaction().execute(async (trx) => {
-      const product = await this.productRow(trx, productId);
-      const current = await trx
-        .selectFrom("catalog.product_variants")
-        .selectAll()
-        .where("id", "=", variantId)
-        .where("product_id", "=", productId)
-        .executeTakeFirst();
-      if (!current)
-        fail(
-          404,
-          "VARIANT_NOT_FOUND",
-          "Variant not found",
-          "The requested variant does not exist.",
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const product = await this.productRow(trx, productId);
+        const current = await trx
+          .selectFrom("catalog.product_variants")
+          .selectAll()
+          .where("id", "=", variantId)
+          .where("product_id", "=", productId)
+          .executeTakeFirst();
+        if (!current)
+          fail(
+            404,
+            "VARIANT_NOT_FOUND",
+            "Variant not found",
+            "The requested variant does not exist.",
+          );
+        if (
+          patch.expectedVersion !== undefined &&
+          productVersion(product.version) !== patch.expectedVersion
+        )
+          fail(
+            409,
+            "PRODUCT_VERSION_CONFLICT",
+            "Product changed",
+            "Reload the product before saving this variant.",
+          );
+        const normalizedSku =
+          patch.sku === undefined ? undefined : normalizeVariantSku(patch.sku);
+        if (
+          normalizedSku !== undefined &&
+          normalizedSku !== normalizeVariantSku(current.sku)
+        )
+          await this.assertVariantSku(trx, normalizedSku, variantId);
+        const price = patch.priceAmountMinor ?? current.price_amount_minor;
+        const compare =
+          patch.compareAtPriceAmountMinor === undefined
+            ? current.compare_at_price_amount_minor
+            : patch.compareAtPriceAmountMinor;
+        const nextOptions = patch.options ?? asObject(current.options);
+        const nextPayload = patch.payload ?? asObject(current.payload);
+        const ruleViolation = validateVariantBusinessRules(
+          product.category,
+          product.material,
+          product.product,
+          { ...asObject(nextOptions), ...asObject(nextPayload) },
         );
-      if (
-        patch.expectedVersion !== undefined &&
-        product.version !== patch.expectedVersion
-      )
-        fail(
-          409,
-          "PRODUCT_VERSION_CONFLICT",
-          "Product changed",
-          "Reload the product before saving this variant.",
-        );
-      if (patch.sku && patch.sku !== current.sku)
-        await this.assertVariantSku(trx, patch.sku, variantId);
-      const price = patch.priceAmountMinor ?? current.price_amount_minor;
-      const compare =
-        patch.compareAtPriceAmountMinor === undefined
-          ? current.compare_at_price_amount_minor
-          : patch.compareAtPriceAmountMinor;
-      if (compare !== null && compare < price)
-        fail(
-          422,
-          "VARIANT_PRICE_INVALID",
-          "Invalid variant price",
-          "The comparison price cannot be lower than the selling price.",
-        );
-      if (patch.isDefault)
+        if (ruleViolation)
+          fail(
+            422,
+            ruleViolation.code,
+            ruleViolation.title,
+            ruleViolation.detail,
+          );
+        if (compare !== null && compare < price)
+          fail(
+            422,
+            "VARIANT_PRICE_INVALID",
+            "Invalid variant price",
+            "The comparison price cannot be lower than the selling price.",
+          );
+        if (patch.isDefault)
+          await trx
+            .updateTable("catalog.product_variants")
+            .set({ is_default: false })
+            .where("product_id", "=", productId)
+            .where("id", "!=", variantId)
+            .execute();
         await trx
           .updateTable("catalog.product_variants")
-          .set({ is_default: false })
+          .set({
+            ...(normalizedSku === undefined ? {} : { sku: normalizedSku }),
+            ...(patch.title === undefined ? {} : { title: patch.title }),
+            price_amount_minor: price,
+            compare_at_price_amount_minor: compare,
+            ...(patch.status === undefined ? {} : { status: patch.status }),
+            ...(patch.options === undefined ? {} : { options: patch.options }),
+            ...(patch.payload === undefined ? {} : { payload: patch.payload }),
+            ...(patch.isDefault === undefined
+              ? {}
+              : { is_default: patch.isDefault }),
+            ...(patch.sortOrder === undefined
+              ? {}
+              : { sort_order: patch.sortOrder }),
+          })
+          .where("id", "=", variantId)
           .where("product_id", "=", productId)
-          .where("id", "!=", variantId)
-          .execute();
-      await trx
-        .updateTable("catalog.product_variants")
-        .set({
-          ...(patch.sku === undefined ? {} : { sku: patch.sku }),
-          ...(patch.title === undefined ? {} : { title: patch.title }),
-          price_amount_minor: price,
-          compare_at_price_amount_minor: compare,
-          ...(patch.status === undefined ? {} : { status: patch.status }),
-          ...(patch.options === undefined ? {} : { options: patch.options }),
-          ...(patch.payload === undefined ? {} : { payload: patch.payload }),
-          ...(patch.isDefault === undefined
-            ? {}
-            : { is_default: patch.isDefault }),
-          ...(patch.sortOrder === undefined
-            ? {}
-            : { sort_order: patch.sortOrder }),
-        })
-        .where("id", "=", variantId)
-        .where("product_id", "=", productId)
-        .executeTakeFirstOrThrow();
-      await this.bumpProduct(trx, productId);
-      await this.refreshProductPayload(productId, trx);
-      return this.getProductFromExecutor(trx, productId);
-    });
+          .executeTakeFirstOrThrow();
+        await this.bumpProduct(trx, productId);
+        await this.refreshProductPayload(productId, trx);
+        return this.getProductFromExecutor(trx, productId);
+      });
+    } catch (error) {
+      if (isVariantSkuUniqueViolation(error))
+        fail(
+          409,
+          "VARIANT_SKU_CONFLICT",
+          "Variant conflict",
+          `Le SKU « ${normalizeVariantSku(patch.sku ?? "") || "demandé"} » est déjà utilisé. Choisissez un autre SKU.`,
+        );
+      throw error;
+    }
   }
 
   async archiveVariant(
@@ -1222,6 +1757,36 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     return row;
   }
 
+  private async assertProductVariantsBusinessRules(
+    executor: DbExecutor,
+    productId: string,
+    category: unknown,
+    material: unknown,
+    productPayload: unknown,
+  ): Promise<void> {
+    const variants = await executor
+      .selectFrom("catalog.product_variants")
+      .selectAll()
+      .where("product_id", "=", productId)
+      .where("status", "!=", "archived")
+      .execute();
+    for (const variant of variants) {
+      const ruleViolation = validateVariantBusinessRules(
+        category,
+        material,
+        productPayload,
+        { ...asObject(variant.options), ...asObject(variant.payload) },
+      );
+      if (ruleViolation)
+        fail(
+          422,
+          ruleViolation.code,
+          ruleViolation.title,
+          ruleViolation.detail,
+        );
+    }
+  }
+
   private async replaceProductMedia(
     executor: DbExecutor,
     productId: string,
@@ -1230,6 +1795,29 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     fallbackAlt: string,
   ): Promise<void> {
     const rows = mediaInputs(productId, payload, status, fallbackAlt);
+    const variantIds = [
+      ...new Set(
+        rows
+          .map((row) => row.variant_id)
+          .filter((variantId): variantId is string => variantId !== null),
+      ),
+    ];
+    if (variantIds.length > 0) {
+      const matchingVariants = await executor
+        .selectFrom("catalog.product_variants")
+        .select("id")
+        .where("product_id", "=", productId)
+        .where("id", "in", variantIds)
+        .execute();
+      if (matchingVariants.length !== variantIds.length) {
+        fail(
+          422,
+          "PRODUCT_MEDIA_VARIANT_MISMATCH",
+          "Invalid variant media association",
+          "Each media variant association must reference a variant of the same product.",
+        );
+      }
+    }
     await executor
       .deleteFrom("catalog.product_media")
       .where("product_id", "=", productId)
@@ -1272,12 +1860,32 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     categoryId: string | null,
     attributes: Record<string, unknown>,
     requireRequired: boolean,
+    legacyMaterial?: string | null,
   ): Promise<void> {
+    const materialBinding = categoryId
+      ? await executor
+          .selectFrom("catalog.category_attributes as categoryAttribute")
+          .innerJoin(
+            "catalog.attributes as attribute",
+            "attribute.id",
+            "categoryAttribute.attribute_id",
+          )
+          .select("attribute.id")
+          .where("categoryAttribute.category_id", "=", categoryId)
+          .where("attribute.key", "=", "material")
+          .where("attribute.is_system", "=", true)
+          .where("attribute.status", "!=", "archived")
+          .executeTakeFirst()
+      : undefined;
+    const effectiveAttributes =
+      materialBinding && legacyMaterial?.trim()
+        ? { ...attributes, material: legacyMaterial.trim() }
+        : attributes;
     const { values: normalized, definitions } =
       await this.normalizeProductAttributes(
         executor,
         categoryId,
-        attributes,
+        effectiveAttributes,
         requireRequired,
       );
     await executor
@@ -1446,6 +2054,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     executor: DbExecutor,
     row: ProductRow,
   ): Promise<AdminProduct> {
+    const productPayload = asObject(row.product);
     const category = row.category_id
       ? await executor
           .selectFrom("catalog.categories")
@@ -1484,8 +2093,13 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       isPublished: row.is_published,
       publishedAt: iso(row.published_at),
       archivedAt: iso(row.archived_at),
-      version: row.version,
+      version: productVersion(row.version),
       isDemo: row.is_demo,
+      isNew: row.is_new,
+      isBestSeller: row.is_best_seller,
+      isFeatured: row.is_featured,
+      isOnSale: booleanValue(productPayload.isOnSale, false),
+      payload: productPayload,
       attributes,
       media: media.map(mediaRecord),
       variants: variants.map(variantRecord),
@@ -1567,6 +2181,40 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     return row;
   }
 
+  private async bindSystemAttributesForCategory(
+    executor: DbExecutor,
+    categoryId: string,
+    rootSlug: string,
+  ): Promise<void> {
+    const keys = SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY[rootSlug];
+    if (!keys || keys.length === 0) return;
+    const attributes = await executor
+      .selectFrom("catalog.attributes")
+      .select(["id", "is_required", "sort_order"])
+      .where("key", "in", keys)
+      .where("is_system", "=", true)
+      .where("status", "!=", "archived")
+      .execute();
+    if (attributes.length === 0) return;
+    await executor
+      .insertInto("catalog.category_attributes")
+      .values(
+        attributes.map((attribute) => ({
+          category_id: categoryId,
+          attribute_id: attribute.id,
+          is_required: attribute.is_required,
+          sort_order: attribute.sort_order,
+        })),
+      )
+      .onConflict((oc) =>
+        oc.columns(["category_id", "attribute_id"]).doUpdateSet((eb) => ({
+          is_required: eb.ref("excluded.is_required"),
+          sort_order: eb.ref("excluded.sort_order"),
+        })),
+      )
+      .execute();
+  }
+
   private async rootCategorySlug(
     executor: DbExecutor,
     category: CategoryRow,
@@ -1591,6 +2239,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     executor: DbExecutor,
     parentId: string | null,
     selfId: string | null,
+    childStatus: CategoryStatus,
   ): Promise<void> {
     if (!parentId) return;
     if (parentId === selfId)
@@ -1612,8 +2261,48 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         );
       visited.add(cursor);
       const parent = await this.assertCategory(executor, cursor);
+      if (parent.status === "archived")
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "An archived category cannot contain a child.",
+        );
+      if (childStatus === "active" && parent.status !== "active")
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "An active category must have an active parent.",
+        );
+      if (parent.parent_id)
+        fail(
+          422,
+          "CATEGORY_PARENT_INVALID",
+          "Invalid category parent",
+          "Category nesting is limited to a root category and one subcategory.",
+        );
       cursor = parent.parent_id;
     }
+  }
+
+  private async assertCategoryMediaAsset(
+    executor: DbExecutor,
+    mediaAssetId: string | null | undefined,
+  ): Promise<void> {
+    if (!mediaAssetId) return;
+    const media = await executor
+      .selectFrom("content.media_assets")
+      .select(["id", "status"])
+      .where("id", "=", mediaAssetId)
+      .executeTakeFirst();
+    if (!media || media.status === "archived")
+      fail(
+        400,
+        "CATEGORY_MEDIA_INVALID",
+        "Invalid category media",
+        "The category image does not exist or is archived.",
+      );
   }
 
   private async assertCategoryArchivable(
@@ -1699,18 +2388,37 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     sku: string,
     id: string | null,
   ): Promise<void> {
+    const canonicalSku = normalizeVariantSku(sku);
     let query = executor
-      .selectFrom("catalog.product_variants")
-      .select("id")
-      .where("sku", "=", sku);
-    if (id) query = query.where("id", "!=", id);
-    if (await query.executeTakeFirst())
+      .selectFrom("catalog.product_variants as variant")
+      .leftJoin(
+        "catalog.products as product",
+        "product.id",
+        "variant.product_id",
+      )
+      .select([
+        "variant.id as variantId",
+        "variant.sku as existingSku",
+        "variant.status as status",
+        "product.reference as productReference",
+        "product.name as productName",
+      ])
+      .where(sql<boolean>`upper(btrim(variant.sku)) = ${canonicalSku}`);
+    if (id) query = query.where("variant.id", "!=", id);
+    const existing = await query.executeTakeFirst();
+    if (existing) {
+      const productLabel = existing.productReference
+        ? ` du produit « ${existing.productReference} »`
+        : "";
+      const archivedLabel =
+        existing.status === "archived" ? " (variante archivée)" : "";
       fail(
         409,
         "VARIANT_SKU_CONFLICT",
         "Variant conflict",
-        "A variant with this SKU already exists.",
+        `Le SKU « ${canonicalSku} » est déjà utilisé${productLabel}${archivedLabel}. Choisissez un autre SKU.`,
       );
+    }
   }
 
   private async bumpProduct(
@@ -1856,7 +2564,7 @@ function mediaRecord(
   };
 }
 
-function isPublicVariant(row: VariantRow): boolean {
+function publicVariantIssues(row: VariantRow): string[] {
   const value = { ...asObject(row.payload), ...asObject(row.options) };
   const colorId = value.colorId ?? value.color_id;
   const width = value.widthCm ?? value.width;
@@ -1870,12 +2578,15 @@ function isPublicVariant(row: VariantRow): boolean {
           : Number.NaN;
     return Number.isFinite(numeric) && numeric > 0;
   };
-  return (
-    typeof colorId === "string" &&
-    colorId.trim().length > 0 &&
-    positiveDimension(width) &&
-    positiveDimension(height)
-  );
+  const issues: string[] = [];
+  if (typeof colorId !== "string" || colorId.trim().length === 0) {
+    issues.push("une couleur doit être sélectionnée");
+  }
+  if (!positiveDimension(width))
+    issues.push("la largeur doit être supérieure à 0 cm");
+  if (!positiveDimension(height))
+    issues.push("la hauteur doit être supérieure à 0 cm");
+  return issues;
 }
 
 function categoryRecord(row: CategoryRow): AdminCategory {
@@ -1888,6 +2599,7 @@ function categoryRecord(row: CategoryRow): AdminCategory {
     status: row.status,
     sortOrder: row.sort_order,
     imageUrl: row.image_url,
+    imageMediaAssetId: row.image_media_asset_id,
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
     showInNavigation: row.show_in_navigation,

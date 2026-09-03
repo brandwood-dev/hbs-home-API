@@ -8,6 +8,24 @@ type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
 export type HomeRevisionStatus = "draft" | "published" | "archived";
 export type HomeSectionKey = "hero" | "promo_banner" | "shop_the_look";
 
+export const HOME_PROMO_BANNER_MAX_MESSAGES = 20;
+const HOME_PROMO_BANNER_MAX_TEXT_LENGTH = 240;
+const HOME_PROMO_BANNER_MAX_LABEL_LENGTH = 80;
+const HOME_PROMO_BANNER_MAX_HREF_LENGTH = 2048;
+
+export interface HomePromoBannerMessage {
+  id: string;
+  label?: string;
+  text: string;
+  href?: string;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+export interface HomePromoBannerPayload {
+  messages: HomePromoBannerMessage[];
+}
+
 export interface HomeMediaReference {
   id: string;
   publicUrl: string;
@@ -103,6 +121,24 @@ export interface HomeSectionInput {
   hotspots?: readonly HomeHotspotInput[];
 }
 
+function sectionInputFromRecord(section: HomeSection): HomeSectionInput {
+  return {
+    sectionKey: section.sectionKey,
+    sortOrder: section.sortOrder,
+    isEnabled: section.isEnabled,
+    payload: section.payload,
+    mediaAssetId: section.media?.id ?? null,
+    mobileMediaAssetId: section.mobileMedia?.id ?? null,
+    hotspots: section.hotspots.map((hotspot) => ({
+      productId: hotspot.productId,
+      xPercent: hotspot.xPercent,
+      yPercent: hotspot.yPercent,
+      label: hotspot.label,
+      sortOrder: hotspot.sortOrder,
+    })),
+  };
+}
+
 export interface HomeDraftInput {
   sections: readonly HomeSectionInput[];
   expectedVersion?: number;
@@ -163,6 +199,220 @@ function sectionKey(value: string): HomeSectionKey {
   return value;
 }
 
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function requiredText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+  messageIndex: number,
+): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `Message ${String(messageIndex + 1)} requires a non-empty ${field}.`,
+    );
+  }
+  const text = value.trim();
+  if (text.length > maxLength) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `${field} must not exceed ${String(maxLength)} characters.`,
+    );
+  }
+  return text;
+}
+
+function optionalText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+  messageIndex: number,
+): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `Message ${String(messageIndex + 1)} has an invalid ${field}.`,
+    );
+  }
+  const text = value.trim();
+  if (!text) return undefined;
+  if (text.length > maxLength) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `${field} must not exceed ${String(maxLength)} characters.`,
+    );
+  }
+  return text;
+}
+
+function safePromoHref(
+  value: unknown,
+  messageIndex: number,
+): string | undefined {
+  const href = optionalText(
+    value,
+    "href",
+    HOME_PROMO_BANNER_MAX_HREF_LENGTH,
+    messageIndex,
+  );
+  if (!href) return undefined;
+  if (href.startsWith("/") && !href.startsWith("//")) return href;
+  try {
+    const parsed = new URL(href);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:")
+      return parsed.toString();
+  } catch {
+    // Fall through to the same validation error below.
+  }
+  fail(
+    400,
+    "HOME_PROMO_INVALID",
+    "Invalid promotional banner",
+    `Message ${String(messageIndex + 1)} has an invalid href. Use a relative path or an HTTP(S) URL.`,
+  );
+}
+
+/**
+ * Convert the legacy { label, text, href } payload and validate the current
+ * multi-message payload before it is persisted or exposed publicly.
+ */
+export function normalizePromoBannerPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const rawMessages = payload.messages;
+  const source =
+    rawMessages === undefined
+      ? payload.text === undefined
+        ? []
+        : [
+            {
+              id: "legacy-promo",
+              label: payload.label,
+              text: payload.text,
+              href: payload.href,
+              isEnabled: true,
+              sortOrder: 0,
+            },
+          ]
+      : rawMessages;
+  if (!Array.isArray(source)) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      "messages must be an array.",
+    );
+  }
+  if (source.length > HOME_PROMO_BANNER_MAX_MESSAGES) {
+    fail(
+      400,
+      "HOME_PROMO_INVALID",
+      "Invalid promotional banner",
+      `A promotional banner cannot contain more than ${String(HOME_PROMO_BANNER_MAX_MESSAGES)} messages.`,
+    );
+  }
+
+  const ids = new Set<string>();
+  const orders = new Set<number>();
+  const messages = source.map((value, index) => {
+    const row = objectRecord(value);
+    if (!row) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        `Message ${String(index + 1)} must be an object.`,
+      );
+    }
+    const id =
+      optionalText(row.id, "id", 120, index) ?? `promo-${String(index + 1)}`;
+    if (ids.has(id)) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        "Message ids must be unique.",
+      );
+    }
+    const rawOrder = row.sortOrder;
+    const sortOrder =
+      rawOrder === undefined
+        ? index
+        : typeof rawOrder === "number" &&
+            Number.isInteger(rawOrder) &&
+            rawOrder >= 0
+          ? rawOrder
+          : (() => {
+              fail(
+                400,
+                "HOME_PROMO_INVALID",
+                "Invalid promotional banner",
+                `Message ${String(index + 1)} has an invalid sortOrder.`,
+              );
+            })();
+    if (orders.has(sortOrder)) {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        "Message sortOrder values must be unique.",
+      );
+    }
+    const enabled = row.isEnabled === undefined ? true : row.isEnabled;
+    if (typeof enabled !== "boolean") {
+      fail(
+        400,
+        "HOME_PROMO_INVALID",
+        "Invalid promotional banner",
+        `Message ${String(index + 1)} has an invalid isEnabled value.`,
+      );
+    }
+    ids.add(id);
+    orders.add(sortOrder);
+    const label = optionalText(
+      row.label,
+      "label",
+      HOME_PROMO_BANNER_MAX_LABEL_LENGTH,
+      index,
+    );
+    const href = safePromoHref(row.href, index);
+    return {
+      id,
+      ...(label ? { label } : {}),
+      text: requiredText(
+        row.text,
+        "text",
+        HOME_PROMO_BANNER_MAX_TEXT_LENGTH,
+        index,
+      ),
+      ...(href ? { href } : {}),
+      isEnabled: enabled,
+      sortOrder,
+    } satisfies HomePromoBannerMessage;
+  });
+  messages.sort((a, b) => a.sortOrder - b.sortOrder);
+  return {
+    messages: messages.map((message, index) => ({
+      ...message,
+      sortOrder: index,
+    })),
+  } satisfies HomePromoBannerPayload;
+}
+
 function validateSections(
   sections: readonly HomeSectionInput[],
 ): HomeSectionInput[] {
@@ -179,7 +429,10 @@ function validateSections(
     sectionKey: sectionKey(section.sectionKey),
     sortOrder: section.sortOrder,
     isEnabled: section.isEnabled ?? true,
-    payload: section.payload ?? {},
+    payload:
+      section.sectionKey === "promo_banner"
+        ? normalizePromoBannerPayload(section.payload ?? {})
+        : (section.payload ?? {}),
     hotspots: section.hotspots ?? [],
   }));
   const keys = new Set<string>();
@@ -263,6 +516,13 @@ function validateSections(
   return normalized;
 }
 
+export function normalizeHomeDraftInput(input: HomeDraftInput): HomeDraftInput {
+  return {
+    ...input,
+    sections: validateSections(input.sections),
+  };
+}
+
 function mediaReference(
   row: {
     id: string | null;
@@ -295,12 +555,25 @@ function revisionRecord(
 
 export interface HomeContentRepository {
   getAdminHome(): Promise<AdminHomeContent>;
+  getAdminHomeSection(sectionKey: HomeSectionKey): Promise<AdminHomeContent>;
   updateDraft(
     input: HomeDraftInput,
     actorUserId: string,
   ): Promise<AdminHomeRevision>;
+  updateDraftSection(
+    input: HomeSectionInput & { expectedVersion?: number },
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   publishDraft(actorUserId: string): Promise<AdminHomeRevision>;
+  publishDraftSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   archivePublished(actorUserId: string): Promise<AdminHomeRevision>;
+  archivePublishedSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision>;
   getPublishedHome(): Promise<PublicHomeContent | null>;
 }
 
@@ -362,7 +635,10 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         sectionKey: sectionKey(row.section_key),
         sortOrder: row.sort_order,
         isEnabled: row.is_enabled,
-        payload: row.payload,
+        payload:
+          row.section_key === "promo_banner"
+            ? normalizePromoBannerPayload(row.payload)
+            : row.payload,
         media: mediaReference(
           {
             id: row.media_id,
@@ -483,17 +759,37 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
     };
   }
 
+  async getAdminHomeSection(
+    sectionKey: HomeSectionKey,
+  ): Promise<AdminHomeContent> {
+    const content = await this.getAdminHome();
+    const narrow = (revision: AdminHomeRevision | null) =>
+      revision
+        ? {
+            ...revision,
+            sections: revision.sections.filter(
+              (section) => section.sectionKey === sectionKey,
+            ),
+          }
+        : null;
+    return {
+      draft: narrow(content.draft),
+      published: narrow(content.published),
+    };
+  }
+
   private async cloneRevision(
     executor: DbExecutor,
     source: RevisionRow,
     status: "draft" | "published",
     actorUserId: string,
+    version = source.version,
   ): Promise<RevisionRow> {
     const revision = await executor
       .insertInto("content.home_revisions")
       .values({
         status,
-        version: source.version,
+        version,
         published_at: status === "published" ? new Date() : null,
         created_by: actorUserId,
         updated_by: actorUserId,
@@ -563,6 +859,53 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
     return revision;
   }
 
+  private async replaceRevisionSection(
+    executor: DbExecutor,
+    revisionId: string,
+    input: HomeSectionInput,
+  ): Promise<void> {
+    const existing = await executor
+      .selectFrom("content.home_sections")
+      .select(["id"])
+      .where("revision_id", "=", revisionId)
+      .where("section_key", "=", input.sectionKey)
+      .executeTakeFirst();
+    if (existing) {
+      await executor
+        .deleteFrom("content.home_sections")
+        .where("id", "=", existing.id)
+        .execute();
+    }
+    const row = await executor
+      .insertInto("content.home_sections")
+      .values({
+        revision_id: revisionId,
+        section_key: input.sectionKey,
+        sort_order: input.sortOrder,
+        is_enabled: input.isEnabled ?? true,
+        payload: input.payload ?? {},
+        media_asset_id: input.mediaAssetId ?? null,
+        mobile_media_asset_id: input.mobileMediaAssetId ?? null,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    if (input.hotspots && input.hotspots.length > 0) {
+      await executor
+        .insertInto("content.home_shop_the_look_hotspots")
+        .values(
+          input.hotspots.map((hotspot) => ({
+            section_id: row.id,
+            product_id: hotspot.productId,
+            x_percent: hotspot.xPercent,
+            y_percent: hotspot.yPercent,
+            label: hotspot.label ?? null,
+            sort_order: hotspot.sortOrder,
+          })),
+        )
+        .execute();
+    }
+  }
+
   private async ensureDraft(
     executor: DbExecutor,
     actorUserId: string,
@@ -593,6 +936,71 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       .executeTakeFirstOrThrow();
   }
 
+  async updateDraftSection(
+    input: HomeSectionInput & { expectedVersion?: number },
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    const { expectedVersion, ...rawSection } = input;
+    const section = validateSections([rawSection])[0];
+    if (!section) {
+      fail(
+        400,
+        "HOME_SECTION_INVALID",
+        "Invalid home section",
+        "A section is required.",
+      );
+    }
+    try {
+      return await this.database.transaction().execute(async (trx) => {
+        const current = await this.ensureDraft(trx, actorUserId);
+        if (
+          expectedVersion !== undefined &&
+          expectedVersion !== current.version
+        ) {
+          fail(
+            409,
+            "HOME_VERSION_CONFLICT",
+            "Home content conflict",
+            "The homepage draft changed since it was loaded. Reload before saving.",
+          );
+        }
+        await this.assertMedia(trx, [section], false);
+        await this.assertProducts(trx, [section], false);
+        const row = await trx
+          .updateTable("content.home_revisions")
+          .set({
+            version: current.version + 1,
+            updated_by: actorUserId,
+          })
+          .where("id", "=", current.id)
+          .where("version", "=", current.version)
+          .returningAll()
+          .executeTakeFirst();
+        if (!row) {
+          fail(
+            409,
+            "HOME_VERSION_CONFLICT",
+            "Home content conflict",
+            "The homepage draft changed since it was loaded. Reload before saving.",
+          );
+        }
+        await this.replaceRevisionSection(trx, current.id, section);
+        const records = await this.hydrateRevisions(trx, [row], false);
+        return records[0] ?? revisionRecord(row, []);
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        fail(
+          409,
+          "HOME_SECTION_CONFLICT",
+          "Home content conflict",
+          "A section or hotspot order is duplicated.",
+        );
+      }
+      throw error;
+    }
+  }
+
   private async assertMedia(
     executor: DbExecutor,
     sections: readonly HomeSectionInput[],
@@ -609,20 +1017,38 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
       .select(["id", "status"])
       .where("id", "in", mediaIds)
       .execute();
-    const allowed = new Set(
-      rows
-        .filter((row) =>
-          requireActive ? row.status === "active" : row.status !== "archived",
-        )
-        .map((row) => row.id),
+    const requestedIds = new Set(mediaIds);
+    const archivedIds = new Set(
+      rows.filter((row) => row.status === "archived").map((row) => row.id),
     );
-    if (allowed.size !== new Set(mediaIds).size) {
+    const missingIds = [...requestedIds].filter(
+      (id) => !rows.some((row) => row.id === id),
+    );
+    if (archivedIds.size > 0 || missingIds.length > 0) {
       fail(
         400,
         "HOME_MEDIA_INVALID",
         "Invalid home media",
         "Every linked home image must exist and not be archived.",
       );
+    }
+
+    // A freshly uploaded editorial asset starts as a draft so it can be
+    // reviewed in the media library. Publishing a homepage snapshot is the
+    // explicit approval step for any draft asset linked by that snapshot.
+    // Promote those dependencies inside the same transaction so a failed
+    // publication cannot leave a partially activated media asset behind.
+    if (requireActive) {
+      const draftIds = rows
+        .filter((row) => row.status === "draft")
+        .map((row) => row.id);
+      if (draftIds.length > 0) {
+        await executor
+          .updateTable("content.media_assets")
+          .set({ status: "active" })
+          .where("id", "in", draftIds)
+          .execute();
+      }
     }
   }
 
@@ -645,7 +1071,11 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         .filter((row) =>
           requirePublished
             ? row.status === "active" && row.is_published
-            : row.status !== "archived",
+            : // A private draft may temporarily keep a link to an archived
+              // product while an administrator edits another homepage section.
+              // Publication still enforces the stricter active + published
+              // invariant above, so an archived link can never leak publicly.
+              true,
         )
         .map((row) => row.id),
     );
@@ -654,7 +1084,7 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         400,
         "HOME_PRODUCT_INVALID",
         "Invalid Shop the Look product",
-        "Every linked product must exist and be active; publication also requires a published product.",
+        "Every linked product must exist; publication also requires an active, published product.",
       );
     }
   }
@@ -775,21 +1205,7 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         await this.hydrateRevisions(trx, [draft], false)
       )[0];
       const sections = draftRevision?.sections ?? [];
-      const inputs: HomeSectionInput[] = sections.map((section) => ({
-        sectionKey: section.sectionKey,
-        sortOrder: section.sortOrder,
-        isEnabled: section.isEnabled,
-        payload: section.payload,
-        mediaAssetId: section.media?.id ?? null,
-        mobileMediaAssetId: section.mobileMedia?.id ?? null,
-        hotspots: section.hotspots.map((hotspot) => ({
-          productId: hotspot.productId,
-          xPercent: hotspot.xPercent,
-          yPercent: hotspot.yPercent,
-          label: hotspot.label,
-          sortOrder: hotspot.sortOrder,
-        })),
-      }));
+      const inputs: HomeSectionInput[] = sections.map(sectionInputFromRecord);
       await this.assertMedia(trx, inputs, true);
       await this.assertProducts(trx, inputs, true);
       await trx
@@ -807,6 +1223,87 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
         "published",
         actorUserId,
       );
+      return revisionRecord(
+        published,
+        (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
+          [],
+      );
+    });
+  }
+
+  async publishDraftSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    return this.database.transaction().execute(async (trx) => {
+      const draftRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "draft")
+        .executeTakeFirst();
+      if (!draftRow) {
+        fail(
+          404,
+          "HOME_DRAFT_NOT_FOUND",
+          "Home draft not found",
+          "Create and save a homepage section draft before publishing.",
+        );
+      }
+      const draftRevision = (
+        await this.hydrateRevisions(trx, [draftRow], false)
+      )[0];
+      const draftSection = draftRevision?.sections.find(
+        (section) => section.sectionKey === sectionKey,
+      );
+      if (!draftSection) {
+        fail(
+          404,
+          "HOME_SECTION_NOT_FOUND",
+          "Home section not found",
+          `The ${sectionKey} section is not configured in the draft.`,
+        );
+      }
+      const sectionInput = sectionInputFromRecord(draftSection);
+      await this.assertMedia(trx, [sectionInput], true);
+      await this.assertProducts(trx, [sectionInput], true);
+
+      const publishedRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "published")
+        .executeTakeFirst();
+      if (!publishedRow) {
+        const published = await this.cloneRevision(
+          trx,
+          draftRow,
+          "published",
+          actorUserId,
+          draftRow.version,
+        );
+        return revisionRecord(
+          published,
+          (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
+            [],
+        );
+      }
+
+      await trx
+        .updateTable("content.home_revisions")
+        .set({
+          status: "archived",
+          published_at: null,
+          updated_by: actorUserId,
+        })
+        .where("id", "=", publishedRow.id)
+        .execute();
+      const published = await this.cloneRevision(
+        trx,
+        publishedRow,
+        "published",
+        actorUserId,
+        publishedRow.version + 1,
+      );
+      await this.replaceRevisionSection(trx, published.id, sectionInput);
       return revisionRecord(
         published,
         (await this.hydrateRevisions(trx, [published], false))[0]?.sections ??
@@ -837,6 +1334,66 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
     );
   }
 
+  async archivePublishedSection(
+    sectionKey: HomeSectionKey,
+    actorUserId: string,
+  ): Promise<AdminHomeRevision> {
+    return this.database.transaction().execute(async (trx) => {
+      const publishedRow = await trx
+        .selectFrom("content.home_revisions")
+        .selectAll()
+        .where("status", "=", "published")
+        .executeTakeFirst();
+      if (!publishedRow) {
+        fail(
+          404,
+          "HOME_PUBLISHED_NOT_FOUND",
+          "Published home not found",
+          "There is no published homepage configuration to archive.",
+        );
+      }
+      const publishedRevision = (
+        await this.hydrateRevisions(trx, [publishedRow], false)
+      )[0];
+      const currentSection = publishedRevision?.sections.find(
+        (section) => section.sectionKey === sectionKey,
+      );
+      if (!currentSection) {
+        fail(
+          404,
+          "HOME_SECTION_NOT_FOUND",
+          "Home section not found",
+          `The ${sectionKey} section is not published.`,
+        );
+      }
+      await trx
+        .updateTable("content.home_revisions")
+        .set({
+          status: "archived",
+          published_at: null,
+          updated_by: actorUserId,
+        })
+        .where("id", "=", publishedRow.id)
+        .execute();
+      const archived = await this.cloneRevision(
+        trx,
+        publishedRow,
+        "published",
+        actorUserId,
+        publishedRow.version + 1,
+      );
+      await this.replaceRevisionSection(trx, archived.id, {
+        ...sectionInputFromRecord(currentSection),
+        isEnabled: false,
+      });
+      return revisionRecord(
+        archived,
+        (await this.hydrateRevisions(trx, [archived], false))[0]?.sections ??
+          [],
+      );
+    });
+  }
+
   async getPublishedHome(): Promise<PublicHomeContent | null> {
     const revisions = await this.revisionRecords(
       this.database,
@@ -854,7 +1411,10 @@ export class PostgresHomeContentRepository implements HomeContentRepository {
           sectionKey: section.sectionKey,
           sortOrder: section.sortOrder,
           isEnabled: section.isEnabled,
-          payload: section.payload,
+          payload:
+            section.sectionKey === "promo_banner"
+              ? normalizePromoBannerPayload(section.payload)
+              : section.payload,
           media: section.media
             ? { publicUrl: section.media.publicUrl, alt: section.media.alt }
             : null,

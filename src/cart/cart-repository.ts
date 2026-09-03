@@ -10,12 +10,16 @@ import {
   PostgresProductRepository,
   type Product,
 } from "../catalog/product-repository.js";
+import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { AppError } from "../http/problem.js";
+import {
+  DEFAULT_STORE_SHIPPING_SETTINGS,
+  shippingSettingsFromPayload,
+  type AdminSettingsRepository,
+} from "../settings/admin-settings-repository.js";
 
 const MAX_CART_LINE_QUANTITY = 99;
 const CART_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
-const STANDARD_SHIPPING_FEE_MINOR = 7_000;
-const FREE_SHIPPING_THRESHOLD_MINOR = 200_000;
 
 export interface CartItemInput {
   productId: string;
@@ -219,7 +223,10 @@ function promotionDiscount(
 export class PostgresCartRepository implements CartRepository {
   private readonly products: PostgresProductRepository;
 
-  constructor(private readonly database: Kysely<DatabaseSchema>) {
+  constructor(
+    private readonly database: Kysely<DatabaseSchema>,
+    private readonly settingsRepository?: AdminSettingsRepository,
+  ) {
     this.products = new PostgresProductRepository(database);
   }
 
@@ -583,13 +590,18 @@ export class PostgresCartRepository implements CartRepository {
         item.shippingProfile === "volumineux" ||
         item.shippingProfile === "hors_norme",
     );
+    const shippingSettings = this.settingsRepository
+      ? shippingSettingsFromPayload(
+          (await this.settingsRepository.get()).payload,
+        )
+      : DEFAULT_STORE_SHIPPING_SETTINGS;
     const shippingMinor = requiresShippingQuote
       ? 0
       : discountedSubtotal <= 0
         ? 0
-        : discountedSubtotal >= FREE_SHIPPING_THRESHOLD_MINOR
+        : discountedSubtotal >= shippingSettings.freeShippingThresholdMinor
           ? 0
-          : STANDARD_SHIPPING_FEE_MINOR;
+          : shippingSettings.standardFeeMinor;
     const totalEstimatedMinor = discountedSubtotal + shippingMinor;
     return {
       cartId: cart.id,
@@ -603,10 +615,10 @@ export class PostgresCartRepository implements CartRepository {
         discountMinor,
         shippingMinor,
         totalEstimatedMinor,
-        freeShippingThresholdMinor: FREE_SHIPPING_THRESHOLD_MINOR,
+        freeShippingThresholdMinor: shippingSettings.freeShippingThresholdMinor,
         amountUntilFreeShippingMinor: Math.max(
           0,
-          FREE_SHIPPING_THRESHOLD_MINOR - discountedSubtotal,
+          shippingSettings.freeShippingThresholdMinor - discountedSubtotal,
         ),
         hasFreeShipping:
           !requiresShippingQuote &&
@@ -681,15 +693,7 @@ export class PostgresCartRepository implements CartRepository {
     else if (quantity !== row.quantity) status = "quantity_adjusted";
     else if (priceChanged) status = "price_changed";
     else if (available.availability === "low_stock") status = "low_stock";
-    const selectedOptions = [
-      variant.curtainHeader
-        ? { label: "Tête", value: variant.curtainHeader }
-        : null,
-      variant.lining ? { label: "Doublure", value: variant.lining } : null,
-      variant.sizeLabel ? { label: "Taille", value: variant.sizeLabel } : null,
-    ].filter(
-      (option): option is { label: string; value: string } => option !== null,
-    );
+    const selectedOptions = getVariantDisplayOptions(product, variant);
     const shippingProfile =
       typeof product.details.shippingProfile === "string"
         ? product.details.shippingProfile

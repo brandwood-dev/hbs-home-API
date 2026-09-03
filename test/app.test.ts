@@ -8,6 +8,7 @@ import {
   FakeDatabaseConnection,
   FakeJwtVerifier,
 } from "./support/fakes.js";
+import type { AdminSettingsRepository } from "../src/settings/admin-settings-repository.js";
 
 const environment = loadEnvironment({
   NODE_ENV: "test",
@@ -24,6 +25,24 @@ const environment = loadEnvironment({
 
 describe("HBS HOME API foundation", () => {
   let app: FastifyInstance;
+  const adminSettingsRepository: AdminSettingsRepository = {
+    get: () =>
+      Promise.resolve({
+        payload: {
+          shipping: {
+            standardFeeMinor: 8000,
+            freeShippingThresholdMinor: 20000,
+            estimatedDeliveryLabel: "Livraison sous 24 à 48 heures",
+            storePickupEnabled: false,
+            pickupAddress: "",
+          },
+        },
+        version: 4,
+        updatedAt: new Date(0).toISOString(),
+        updatedBy: null,
+      }),
+    update: () => Promise.reject(new Error("not used in this test")),
+  };
 
   beforeEach(async () => {
     app = await buildApp({
@@ -33,6 +52,7 @@ describe("HBS HOME API foundation", () => {
       jwtVerifier: new FakeJwtVerifier(),
       adminAccessRepository: new FakeAdminAccessRepository(),
       auditRepository: new FakeAuditRepository(),
+      adminSettingsRepository,
     });
   });
 
@@ -102,11 +122,27 @@ describe("HBS HOME API foundation", () => {
     expect(response.json()).toEqual({
       service: "hbs-home-api",
       apiVersion: "v1",
-      contractVersion: "1.5.0",
+      contractVersion: "1.6.0",
       releaseVersion: "0.2.0-test",
       gitSha: "test-sha",
       builtAt: "2026-08-18T00:00:00.000Z",
       environment: "test",
+    });
+  });
+
+  it("serves the current public shipping settings without authentication", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/store/settings",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.json()).toMatchObject({
+      shipping: {
+        standardFeeMinor: 8000,
+        freeShippingThresholdMinor: 20000,
+      },
     });
   });
 
@@ -131,7 +167,7 @@ describe("HBS HOME API foundation", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       openapi: "3.1.0",
-      info: { title: "HBS HOME API", version: "1.5.0" },
+      info: { title: "HBS HOME API", version: "1.6.0" },
     });
   });
 
@@ -145,6 +181,7 @@ describe("HBS HOME API foundation", () => {
       jwtVerifier: new FakeJwtVerifier(),
       adminAccessRepository: new FakeAdminAccessRepository(),
       auditRepository: new FakeAuditRepository(),
+      adminSettingsRepository,
     });
 
     const response = await app.inject({ method: "GET", url: "/health/ready" });

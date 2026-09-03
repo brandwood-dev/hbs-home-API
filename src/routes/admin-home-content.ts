@@ -6,14 +6,34 @@ import {
   type AdminGuardDependencies,
   type AdminPrincipal,
 } from "../auth/admin-guard.js";
-import { type HomeContentRepository } from "../content/home-content-repository.js";
-import { ProblemDetailSchema } from "../http/problem.js";
+import {
+  normalizeHomeDraftInput,
+  type HomeContentRepository,
+} from "../content/home-content-repository.js";
+import { AppError, ProblemDetailSchema } from "../http/problem.js";
 
 const HomeSectionKeySchema = Type.Union([
   Type.Literal("hero"),
   Type.Literal("promo_banner"),
   Type.Literal("shop_the_look"),
 ]);
+const HomePromoBannerMessageSchema = Type.Object(
+  {
+    id: Type.String({ minLength: 1, maxLength: 120 }),
+    label: Type.Optional(Type.String({ maxLength: 80 })),
+    text: Type.String({ minLength: 1, maxLength: 240 }),
+    href: Type.Optional(Type.String({ maxLength: 2048 })),
+    isEnabled: Type.Boolean(),
+    sortOrder: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+);
+const HomePromoBannerPayloadSchema = Type.Object(
+  {
+    messages: Type.Array(HomePromoBannerMessageSchema, { maxItems: 20 }),
+  },
+  { additionalProperties: false },
+);
 const HomeHotspotInputSchema = Type.Object(
   {
     productId: Type.String({ minLength: 1, maxLength: 160 }),
@@ -31,7 +51,12 @@ const HomeSectionInputSchema = Type.Object(
     sectionKey: HomeSectionKeySchema,
     sortOrder: Type.Integer({ minimum: 0 }),
     isEnabled: Type.Optional(Type.Boolean()),
-    payload: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    payload: Type.Optional(
+      Type.Union([
+        HomePromoBannerPayloadSchema,
+        Type.Record(Type.String(), Type.Unknown()),
+      ]),
+    ),
     mediaAssetId: Type.Optional(
       Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
     ),
@@ -43,6 +68,34 @@ const HomeSectionInputSchema = Type.Object(
     ),
   },
   { additionalProperties: false },
+);
+const HomeSectionParams = Type.Object(
+  { sectionKey: HomeSectionKeySchema },
+  { additionalProperties: false },
+);
+const HomeSectionDraftBody = Type.Object(
+  {
+    sectionKey: HomeSectionKeySchema,
+    sortOrder: Type.Integer({ minimum: 0 }),
+    isEnabled: Type.Optional(Type.Boolean()),
+    payload: Type.Optional(
+      Type.Union([
+        HomePromoBannerPayloadSchema,
+        Type.Record(Type.String(), Type.Unknown()),
+      ]),
+    ),
+    mediaAssetId: Type.Optional(
+      Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    ),
+    mobileMediaAssetId: Type.Optional(
+      Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    ),
+    hotspots: Type.Optional(
+      Type.Array(HomeHotspotInputSchema, { maxItems: 20 }),
+    ),
+    expectedVersion: Type.Optional(Type.Integer({ minimum: 1 })),
+  },
+  { $id: "AdminHomeSectionDraftBody", additionalProperties: false },
 );
 const HomeDraftBody = Type.Object(
   {
@@ -86,7 +139,10 @@ const HomeSectionSchema = Type.Object(
     sectionKey: HomeSectionKeySchema,
     sortOrder: Type.Integer({ minimum: 0 }),
     isEnabled: Type.Boolean(),
-    payload: Type.Record(Type.String(), Type.Unknown()),
+    payload: Type.Union([
+      HomePromoBannerPayloadSchema,
+      Type.Record(Type.String(), Type.Unknown()),
+    ]),
     media: Type.Union([HomeMediaSchema, Type.Null()]),
     mobileMedia: Type.Union([HomeMediaSchema, Type.Null()]),
     hotspots: Type.Array(HomeHotspotSchema),
@@ -121,6 +177,8 @@ const AdminHomeResponse = Type.Object(
 const EmptyBody = Type.Object({}, { additionalProperties: false });
 
 type HomeDraftBodyType = Static<typeof HomeDraftBody>;
+type HomeSectionParamsType = Static<typeof HomeSectionParams>;
+type HomeSectionDraftBodyType = Static<typeof HomeSectionDraftBody>;
 
 export interface AdminHomeContentRouteDependencies extends AdminGuardDependencies {
   homeContentRepository: HomeContentRepository;
@@ -165,7 +223,168 @@ export function registerAdminHomeContentRoutes(
   dependencies: AdminHomeContentRouteDependencies,
 ): void {
   app.addSchema(HomeDraftBody);
+  app.addSchema(HomeSectionDraftBody);
   app.addSchema(AdminHomeResponse);
+
+  app.get<{ Params: HomeSectionParamsType }>(
+    "/api/v1/admin/content/home/:sectionKey",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: false,
+        permissions: ["content.read"],
+      }),
+      schema: {
+        operationId: "adminGetHomeSection",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: HomeSectionParams,
+        response: {
+          200: AdminHomeResponse,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) =>
+      reply
+        .header("cache-control", "no-store")
+        .send(
+          await dependencies.homeContentRepository.getAdminHomeSection(
+            request.params.sectionKey,
+          ),
+        ),
+  );
+
+  app.put<{
+    Params: HomeSectionParamsType;
+    Body: HomeSectionDraftBodyType;
+  }>(
+    "/api/v1/admin/content/home/:sectionKey",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.write"],
+      }),
+      schema: {
+        operationId: "adminUpdateHomeSection",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: HomeSectionParams,
+        body: HomeSectionDraftBody,
+        response: {
+          200: HomeRevisionSchema,
+          400: ProblemDetailSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const { expectedVersion, ...section } = request.body;
+      if (section.sectionKey !== request.params.sectionKey) {
+        throw new AppError({
+          statusCode: 400,
+          code: "HOME_SECTION_PATH_MISMATCH",
+          title: "Invalid home section",
+          detail: "The sectionKey path and body must match.",
+        });
+      }
+      const item = await dependencies.homeContentRepository.updateDraftSection(
+        {
+          ...section,
+          ...(expectedVersion === undefined ? {} : { expectedVersion }),
+        },
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.home_section_updated",
+        `${item.id}:${request.params.sectionKey}`,
+      );
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.post<{ Params: HomeSectionParamsType }>(
+    "/api/v1/admin/content/home/:sectionKey/publish",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.publish"],
+      }),
+      schema: {
+        operationId: "adminPublishHomeSection",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: HomeSectionParams,
+        body: EmptyBody,
+        response: {
+          200: HomeRevisionSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item = await dependencies.homeContentRepository.publishDraftSection(
+        request.params.sectionKey,
+        actor.userId,
+      );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.home_section_published",
+        `${item.id}:${request.params.sectionKey}`,
+      );
+      return reply.code(200).send(item);
+    },
+  );
+
+  app.post<{ Params: HomeSectionParamsType }>(
+    "/api/v1/admin/content/home/:sectionKey/archive",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["content.publish"],
+      }),
+      schema: {
+        operationId: "adminArchiveHomeSection",
+        tags: ["admin-content"],
+        security: [{ bearerAuth: [] }],
+        params: HomeSectionParams,
+        body: EmptyBody,
+        response: {
+          200: HomeRevisionSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const actor = principal(request);
+      const item =
+        await dependencies.homeContentRepository.archivePublishedSection(
+          request.params.sectionKey,
+          actor.userId,
+        );
+      await audit(
+        dependencies,
+        request,
+        actor,
+        "content.home_section_archived",
+        `${item.id}:${request.params.sectionKey}`,
+      );
+      return reply.code(200).send(item);
+    },
+  );
 
   app.get(
     "/api/v1/admin/content/home",
@@ -215,7 +434,7 @@ export function registerAdminHomeContentRoutes(
     async (request, reply) => {
       const actor = principal(request);
       const item = await dependencies.homeContentRepository.updateDraft(
-        request.body,
+        normalizeHomeDraftInput(request.body),
         actor.userId,
       );
       await audit(
