@@ -56,6 +56,8 @@ const AuditEventSchema = Type.Object(
 const AuditListQuerySchema = Type.Object(
   {
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    offset: Type.Optional(Type.Integer({ minimum: 0 })),
+    q: Type.Optional(Type.String({ maxLength: 120 })),
     actorUserId: Type.Optional(Type.String({ format: "uuid" })),
     action: Type.Optional(Type.String({ minLength: 1, maxLength: 120 })),
     resourceType: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
@@ -74,7 +76,12 @@ const AuditListQuerySchema = Type.Object(
 type AuditListQuery = Static<typeof AuditListQuerySchema>;
 
 const AuditListResponseSchema = Type.Object(
-  { items: Type.Array(AuditEventSchema) },
+  {
+    items: Type.Array(AuditEventSchema),
+    total: Type.Integer({ minimum: 0 }),
+    limit: Type.Integer({ minimum: 1 }),
+    offset: Type.Integer({ minimum: 0 }),
+  },
   { $id: "AuditListResponse", additionalProperties: false },
 );
 
@@ -169,6 +176,7 @@ export function registerAdminRoutes(
     },
     async (request) => {
       const filters: AuditListFilters = {};
+      if (request.query.q) filters.query = request.query.q;
       if (request.query.actorUserId)
         filters.actorUserId = request.query.actorUserId;
       if (request.query.action) filters.action = request.query.action;
@@ -177,12 +185,13 @@ export function registerAdminRoutes(
       if (request.query.outcome) filters.outcome = request.query.outcome;
       if (request.query.dateFrom) filters.dateFrom = request.query.dateFrom;
       if (request.query.dateTo) filters.dateTo = request.query.dateTo;
-      return {
-        items: await dependencies.auditRepository.listRecent(
-          request.query.limit ?? 50,
-          filters,
-        ),
-      };
+      const limit = request.query.limit ?? 50;
+      const offset = request.query.offset ?? 0;
+      return dependencies.auditRepository.listRecentPage(
+        limit,
+        offset,
+        filters,
+      );
     },
   );
 }

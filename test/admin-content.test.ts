@@ -82,7 +82,12 @@ describe("Admin content media API", () => {
       headers: { authorization: "Bearer valid-token" },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ items: [] });
+    expect(response.json()).toEqual({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
   });
 
   it("rejects incomplete dimensions and blank media text", async () => {

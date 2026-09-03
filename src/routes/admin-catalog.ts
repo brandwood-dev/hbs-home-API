@@ -360,6 +360,10 @@ const ProductListQuery = Type.Object(
   {
     status: Type.Optional(Status),
     q: Type.Optional(Type.String({ maxLength: 120 })),
+    category: Type.Optional(Type.String({ maxLength: 120 })),
+    stock: Type.Optional(
+      Type.Union([Type.Literal("low"), Type.Literal("out")]),
+    ),
     limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
     offset: Type.Optional(Type.Integer({ minimum: 0 })),
   },
@@ -870,6 +874,12 @@ export function registerAdminCatalogRoutes(
         ...(request.query.status === undefined
           ? {}
           : { status: request.query.status }),
+        ...(request.query.category === undefined
+          ? {}
+          : { category: request.query.category }),
+        ...(request.query.stock === undefined
+          ? {}
+          : { stock: request.query.stock }),
         ...(request.query.q === undefined ? {} : { query: request.query.q }),
       });
       return { ...result, limit, offset };

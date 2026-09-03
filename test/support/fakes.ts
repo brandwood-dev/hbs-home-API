@@ -115,17 +115,33 @@ export class FakeAuditRepository implements AuditRepository {
   }
 
   listRecent(limit: number): Promise<readonly AuditEventRecord[]> {
-    return Promise.resolve(
-      this.events.slice(-limit).map((event, index) => ({
-        ...event,
-        id: String(index + 1),
-        occurredAt: new Date(0).toISOString(),
-        resourceId: event.resourceId ?? null,
-        sourceIp: event.sourceIp ?? null,
-        userAgent: event.userAgent ?? null,
-        metadata: event.metadata ?? {},
-      })),
-    );
+    return this.listRecentPage(limit, 0).then((page) => page.items);
+  }
+
+  listRecentPage(
+    limit: number,
+    offset: number,
+  ): Promise<{
+    items: readonly AuditEventRecord[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const records = this.events.map((event, index) => ({
+      ...event,
+      id: String(index + 1),
+      occurredAt: new Date(0).toISOString(),
+      resourceId: event.resourceId ?? null,
+      sourceIp: event.sourceIp ?? null,
+      userAgent: event.userAgent ?? null,
+      metadata: event.metadata ?? {},
+    }));
+    return Promise.resolve({
+      items: records.slice(offset, offset + limit),
+      total: records.length,
+      limit,
+      offset,
+    });
   }
 }
 

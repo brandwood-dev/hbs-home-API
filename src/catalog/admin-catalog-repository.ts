@@ -451,6 +451,8 @@ export interface AdminCatalogRepository {
   listProducts(input: {
     status?: ProductStatus;
     query?: string;
+    category?: string;
+    stock?: "low" | "out";
     limit: number;
     offset: number;
   }): Promise<{ items: readonly AdminProduct[]; total: number }>;
@@ -1034,11 +1036,37 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   async listProducts(input: {
     status?: ProductStatus;
     query?: string;
+    category?: string;
+    stock?: "low" | "out";
     limit: number;
     offset: number;
   }): Promise<{ items: readonly AdminProduct[]; total: number }> {
     let filtered = this.database.selectFrom("catalog.products");
     if (input.status) filtered = filtered.where("status", "=", input.status);
+    if (input.category)
+      filtered = filtered.where("category", "=", input.category);
+    if (input.stock === "out") {
+      filtered = filtered.where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom("inventory.stock_balances")
+            .select("variant_id")
+            .whereRef("product_id", "=", "catalog.products.id")
+            .where("availability", "=", "out_of_stock"),
+        ),
+      );
+    }
+    if (input.stock === "low") {
+      filtered = filtered.where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom("inventory.stock_balances")
+            .select("variant_id")
+            .whereRef("product_id", "=", "catalog.products.id")
+            .where("availability", "=", "low_stock"),
+        ),
+      );
+    }
     if (input.query) {
       const term = `%${input.query}%`;
       filtered = filtered.where((eb) =>
