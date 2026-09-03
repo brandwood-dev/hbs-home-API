@@ -242,18 +242,23 @@ function createSmtpTransport(
 
 export class OrderEmailWorker {
   private readonly transport: OrderEmailTransport | null;
+  private readonly rolloutAt: Date | null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private running = false;
+  private rolloutInitialized = false;
 
   constructor(private readonly options: OrderEmailWorkerOptions) {
     this.transport = createSmtpTransport(options.environment);
+    this.rolloutAt = options.environment.orderEmailRolloutAt
+      ? new Date(options.environment.orderEmailRolloutAt)
+      : null;
   }
 
   get enabled(): boolean {
     return this.transport !== null;
   }
 
-  async start(): Promise<void> {
+  start(): void {
     if (!this.transport) {
       this.options.logger.info(
         {},
@@ -261,13 +266,14 @@ export class OrderEmailWorker {
       );
       return;
     }
-    await this.requeueExpiredProcessing();
-    await this.tick();
+    // Register the timer before any database or SMTP work so Fastify readiness
+    // is never blocked by a slow/unavailable relay.
     this.timer = setInterval(
       () => void this.tick(),
       this.options.environment.orderEmailPollIntervalSeconds * 1000,
     );
     this.timer.unref();
+    void this.tick();
     this.options.logger.info(
       {
         pollIntervalSeconds:
@@ -287,6 +293,10 @@ export class OrderEmailWorker {
     if (!this.transport || this.running) return;
     this.running = true;
     try {
+      if (!this.rolloutInitialized) {
+        await this.markPreRolloutEventsProcessed();
+        this.rolloutInitialized = true;
+      }
       await this.requeueExpiredProcessing();
       const events = await this.claimBatch();
       for (const event of events) await this.process(event);
@@ -305,12 +315,18 @@ export class OrderEmailWorker {
   > {
     const now = new Date();
     const processingUntil = new Date(now.getTime() + PROCESSING_TIMEOUT_MS);
+    const rolloutAt = this.rolloutAt;
     return this.options.database.transaction().execute(async (trx) => {
       const events = await trx
         .selectFrom("commerce.outbox_events")
         .selectAll()
         .where("status", "=", "pending")
+        .where("aggregate_type", "=", "order")
+        .where("event_type", "=", "order.created")
         .where("available_at", "<=", now)
+        .$if(rolloutAt !== null, (query) =>
+          query.where("created_at", ">=", rolloutAt ?? new Date(0)),
+        )
         .orderBy("created_at", "asc")
         .orderBy("id", "asc")
         .limit(this.options.environment.orderEmailBatchSize)
@@ -346,13 +362,7 @@ export class OrderEmailWorker {
     const transport = this.transport;
     if (!transport) return;
     try {
-      if (
-        event.aggregate_type !== "order" ||
-        event.event_type !== "order.created"
-      ) {
-        await this.markProcessed(event.id);
-        return;
-      }
+      await this.renewLease(event.id);
       const orderId = event.payload.orderId;
       if (typeof orderId !== "string" || !orderId) {
         throw new Error(
@@ -427,6 +437,17 @@ export class OrderEmailWorker {
       .executeTakeFirst();
   }
 
+  private async renewLease(id: string): Promise<void> {
+    await this.options.database
+      .updateTable("commerce.outbox_events")
+      .set({
+        available_at: new Date(Date.now() + PROCESSING_TIMEOUT_MS),
+      })
+      .where("id", "=", id)
+      .where("status", "=", "processing")
+      .executeTakeFirst();
+  }
+
   private async markFailed(
     event: OutboxEvent & { attempts: number },
     error: unknown,
@@ -463,6 +484,22 @@ export class OrderEmailWorker {
       .set({ status: "pending", available_at: new Date() })
       .where("status", "=", "processing")
       .where("available_at", "<=", new Date())
+      .executeTakeFirst();
+  }
+
+  private async markPreRolloutEventsProcessed(): Promise<void> {
+    if (!this.rolloutAt) return;
+    await this.options.database
+      .updateTable("commerce.outbox_events")
+      .set({
+        status: "processed",
+        processed_at: new Date(),
+        last_error: "Ignored because it predates order email rollout",
+      })
+      .where("status", "=", "pending")
+      .where("aggregate_type", "=", "order")
+      .where("event_type", "=", "order.created")
+      .where("created_at", "<", this.rolloutAt)
       .executeTakeFirst();
   }
 }

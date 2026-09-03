@@ -193,6 +193,7 @@ Configure these variables on the API service (never in the frontend):
 
 ```text
 ORDER_EMAIL_NOTIFICATIONS_ENABLED=false
+ORDER_EMAIL_ROLLOUT_AT=2026-01-01T00:00:00.000Z
 SMTP_HOST=ssl0.ovh.net
 SMTP_PORT=587
 SMTP_USER=contact@hbs-home.com

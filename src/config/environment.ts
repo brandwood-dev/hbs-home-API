@@ -40,6 +40,8 @@ const EnvironmentSchema = Type.Object(
     supabaseStorageSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageBucket: Type.String({ minLength: 1, maxLength: 80 }),
     orderEmailNotificationsEnabled: Type.Boolean(),
+    /** ISO timestamp from which order.created events are eligible for email delivery. */
+    orderEmailRolloutAt: Type.Optional(Type.String({ minLength: 1 })),
     smtpHost: Type.String({ minLength: 1, maxLength: 255 }),
     smtpPort: Type.Integer({ minimum: 1, maximum: 65_535 }),
     smtpUser: Type.Optional(Type.String({ minLength: 1, maxLength: 255 })),
@@ -104,6 +106,19 @@ function validateEmailAddress(name: string, value: string): void {
 function trimmedOrUndefined(value: string | undefined): string | undefined {
   const candidate = value?.trim();
   return candidate && candidate.length > 0 ? candidate : undefined;
+}
+
+function parseOptionalDate(
+  name: string,
+  value: string | undefined,
+): string | undefined {
+  const candidate = trimmedOrUndefined(value);
+  if (!candidate) return undefined;
+  const timestamp = Date.parse(candidate);
+  if (!Number.isFinite(timestamp)) {
+    throw new ConfigurationError(`${name} must be a valid ISO date.`);
+  }
+  return new Date(timestamp).toISOString();
 }
 
 function validateAbsoluteUrl(
@@ -202,6 +217,17 @@ export function loadEnvironment(
       source.ORDER_EMAIL_NOTIFICATIONS_ENABLED,
       false,
     ),
+    ...(parseOptionalDate(
+      "ORDER_EMAIL_ROLLOUT_AT",
+      source.ORDER_EMAIL_ROLLOUT_AT,
+    )
+      ? {
+          orderEmailRolloutAt: parseOptionalDate(
+            "ORDER_EMAIL_ROLLOUT_AT",
+            source.ORDER_EMAIL_ROLLOUT_AT,
+          ),
+        }
+      : {}),
     smtpHost: trimmedOrUndefined(source.SMTP_HOST) ?? "ssl0.ovh.net",
     smtpPort: parseInteger("SMTP_PORT", source.SMTP_PORT, 587),
     ...(source.SMTP_USER?.trim() ? { smtpUser: source.SMTP_USER.trim() } : {}),
@@ -267,6 +293,11 @@ export function loadEnvironment(
     if (!candidate.smtpUser || !candidate.smtpPassword) {
       throw new ConfigurationError(
         "SMTP_USER and SMTP_PASSWORD are required when order email notifications are enabled.",
+      );
+    }
+    if (!candidate.orderEmailRolloutAt) {
+      throw new ConfigurationError(
+        "ORDER_EMAIL_ROLLOUT_AT is required when order email notifications are enabled.",
       );
     }
   }

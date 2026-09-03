@@ -35,11 +35,13 @@ describe("loadEnvironment", () => {
       SMTP_PASSWORD: "test-only-secret",
       EMAIL_FROM: "contact@hbs-home.com",
       ADMIN_APP_URL: "https://preview.hbs-home.com",
+      ORDER_EMAIL_ROLLOUT_AT: "2026-09-03T00:00:00.000Z",
     });
 
     expect(environment.orderEmailNotificationsEnabled).toBe(true);
     expect(environment.smtpPort).toBe(587);
     expect(environment.smtpUser).toBe("contact@hbs-home.com");
+    expect(environment.orderEmailRolloutAt).toBe("2026-09-03T00:00:00.000Z");
   });
 
   it("parses a comma-separated CORS allowlist", () => {

@@ -268,7 +268,7 @@ export async function buildApp(
         }));
 
   if (orderEmailWorker) {
-    app.addHook("onReady", async () => orderEmailWorker.start());
+    app.addHook("onReady", () => orderEmailWorker.start());
     app.addHook("onClose", () => orderEmailWorker.stop());
   }
 
