@@ -31,9 +31,12 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - Admin category and subcategory image uploads with server-side WebP conversion, dimension
   normalization and an 8 MiB payload limit.
 
-Brevo notifications, the outbox worker, newsletter, custom quote and professional lead endpoints
-remain in their dedicated phases. The API is currently deployed to staging; the production service
-and production domain are not yet part of this repository's deployment configuration.
+Order notifications are delivered asynchronously through the transactional outbox to active Admin
+members who have the `orders.read` permission. The worker uses the OVH SMTP relay configured through
+server-only environment variables, retries transient failures with exponential backoff and moves
+permanently failing events to `dead_letter` without blocking checkout. The API is currently deployed
+to staging; the production service and production domain are not yet part of this repository's
+deployment configuration.
 Adding to a cart never reserves stock.
 
 Public cart endpoints:
@@ -121,7 +124,7 @@ This first phase provides only the API foundation:
 - unit and integration tests.
 
 Inventory was introduced through Phase 4. Checkout and customer/order persistence are now
-implemented; the remaining commerce roadmap covers Brevo notifications, the outbox worker and the
+implemented; the remaining commerce roadmap covers newsletter, custom quote, professional lead and
 future online-payment/customer-account surfaces.
 
 ## Phase 0 delivery foundation
@@ -178,6 +181,33 @@ GET /documentation
 ```
 
 Interactive documentation is disabled by default when `NODE_ENV=production`.
+
+## Order email notifications
+
+The API records `order.created` in `commerce.outbox_events` in the same transaction as the order.
+The background worker then loads the complete order, resolves active team members with
+`orders.read`, and sends one HBS HOME email to the deduplicated recipient list. No SMTP call is made
+when the feature flag is disabled.
+
+Configure these variables on the API service (never in the frontend):
+
+```text
+ORDER_EMAIL_NOTIFICATIONS_ENABLED=false
+ORDER_EMAIL_ROLLOUT_AT=2026-01-01T00:00:00.000Z
+SMTP_HOST=ssl0.ovh.net
+SMTP_PORT=587
+SMTP_USER=contact@hbs-home.com
+SMTP_PASSWORD=<OVH mailbox password>
+EMAIL_FROM=contact@hbs-home.com
+ADMIN_APP_URL=https://preview.hbs-home.com
+ORDER_EMAIL_POLL_INTERVAL_SECONDS=15
+ORDER_EMAIL_MAX_ATTEMPTS=5
+ORDER_EMAIL_BATCH_SIZE=10
+```
+
+Keep the feature disabled until the OVH mailbox credentials are present. After configuring the
+secrets in Render, enable the feature and redeploy the API; new orders will be notified without
+requiring an action in the Admin UI.
 
 ## Contract policy
 

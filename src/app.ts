@@ -105,6 +105,10 @@ import {
   PostgresAdminArticleRepository,
   type ArticleRepository,
 } from "./content/article-repository.js";
+import {
+  createOrderEmailWorker,
+  type OrderEmailWorker,
+} from "./notifications/order-email-worker.js";
 
 export interface BuildAppOptions {
   environment?: Environment;
@@ -128,6 +132,7 @@ export interface BuildAppOptions {
   homeContentRepository?: HomeContentRepository;
   articleRepository?: ArticleRepository;
   categoryMediaStorage?: CategoryMediaStorage | null;
+  orderEmailWorker?: OrderEmailWorker | null;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -250,6 +255,22 @@ export async function buildApp(
     void reply.header("x-request-id", request.id);
   });
   app.decorateRequest("adminPrincipal", null);
+
+  const orderEmailWorker =
+    options.orderEmailWorker === null
+      ? null
+      : (options.orderEmailWorker ??
+        createOrderEmailWorker({
+          database: database.client,
+          adminOrderRepository,
+          environment,
+          logger: app.log,
+        }));
+
+  if (orderEmailWorker) {
+    app.addHook("onReady", () => orderEmailWorker.start());
+    app.addHook("onClose", () => orderEmailWorker.stop());
+  }
 
   if (!options.database) {
     app.addHook("onClose", async () => database.destroy());
