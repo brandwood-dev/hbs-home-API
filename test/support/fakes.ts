@@ -128,14 +128,14 @@ export class FakeAuditRepository implements AuditRepository {
     offset: number;
   }> {
     const records = this.events.map((event, index) => ({
-        ...event,
-        id: String(index + 1),
-        occurredAt: new Date(0).toISOString(),
-        resourceId: event.resourceId ?? null,
-        sourceIp: event.sourceIp ?? null,
-        userAgent: event.userAgent ?? null,
-        metadata: event.metadata ?? {},
-      }));
+      ...event,
+      id: String(index + 1),
+      occurredAt: new Date(0).toISOString(),
+      resourceId: event.resourceId ?? null,
+      sourceIp: event.sourceIp ?? null,
+      userAgent: event.userAgent ?? null,
+      metadata: event.metadata ?? {},
+    }));
     return Promise.resolve({
       items: records.slice(offset, offset + limit),
       total: records.length,
