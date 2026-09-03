@@ -39,6 +39,16 @@ const EnvironmentSchema = Type.Object(
     supabaseSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageBucket: Type.String({ minLength: 1, maxLength: 80 }),
+    orderEmailNotificationsEnabled: Type.Boolean(),
+    smtpHost: Type.String({ minLength: 1, maxLength: 255 }),
+    smtpPort: Type.Integer({ minimum: 1, maximum: 65_535 }),
+    smtpUser: Type.Optional(Type.String({ minLength: 1, maxLength: 255 })),
+    smtpPassword: Type.Optional(Type.String({ minLength: 1 })),
+    emailFrom: Type.String({ minLength: 3, maxLength: 255 }),
+    adminAppUrl: Type.String({ minLength: 1 }),
+    orderEmailPollIntervalSeconds: Type.Integer({ minimum: 5, maximum: 300 }),
+    orderEmailMaxAttempts: Type.Integer({ minimum: 1, maximum: 20 }),
+    orderEmailBatchSize: Type.Integer({ minimum: 1, maximum: 100 }),
     releaseVersion: Type.String({ minLength: 1 }),
     gitSha: Type.String({ minLength: 1, maxLength: 64 }),
     buildTime: Type.String({ minLength: 1 }),
@@ -52,11 +62,15 @@ export class ConfigurationError extends Error {
   override readonly name = "ConfigurationError";
 }
 
-function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+function parseBoolean(
+  name: string,
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
   if (value === undefined) return fallback;
   if (value === "true") return true;
   if (value === "false") return false;
-  throw new ConfigurationError("DOCS_ENABLED must be either true or false.");
+  throw new ConfigurationError(`${name} must be either true or false.`);
 }
 
 function parsePort(value: string | undefined): number {
@@ -79,6 +93,17 @@ function parseInteger(
     throw new ConfigurationError(`${name} must be an integer.`);
   }
   return candidate;
+}
+
+function validateEmailAddress(name: string, value: string): void {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
+    throw new ConfigurationError(`${name} must be a valid email address.`);
+  }
+}
+
+function trimmedOrUndefined(value: string | undefined): string | undefined {
+  const candidate = value?.trim();
+  return candidate && candidate.length > 0 ? candidate : undefined;
 }
 
 function validateAbsoluteUrl(
@@ -144,7 +169,11 @@ export function loadEnvironment(
     port: parsePort(source.PORT),
     logLevel: source.LOG_LEVEL ?? (nodeEnv === "test" ? "silent" : "info"),
     corsOrigins: parseCorsOrigins(source.CORS_ORIGINS),
-    docsEnabled: parseBoolean(source.DOCS_ENABLED, nodeEnv !== "production"),
+    docsEnabled: parseBoolean(
+      "DOCS_ENABLED",
+      source.DOCS_ENABLED,
+      nodeEnv !== "production",
+    ),
     apiPublicUrl: source.API_PUBLIC_URL ?? "http://localhost:3000",
     databaseUrl:
       source.DATABASE_URL ??
@@ -168,6 +197,40 @@ export function loadEnvironment(
       ? { supabaseStorageSecretKey: source.SUPABASE_STORAGE_SECRET_KEY.trim() }
       : {}),
     supabaseStorageBucket: source.SUPABASE_STORAGE_BUCKET ?? "catalog-media",
+    orderEmailNotificationsEnabled: parseBoolean(
+      "ORDER_EMAIL_NOTIFICATIONS_ENABLED",
+      source.ORDER_EMAIL_NOTIFICATIONS_ENABLED,
+      false,
+    ),
+    smtpHost: trimmedOrUndefined(source.SMTP_HOST) ?? "ssl0.ovh.net",
+    smtpPort: parseInteger("SMTP_PORT", source.SMTP_PORT, 587),
+    ...(source.SMTP_USER?.trim() ? { smtpUser: source.SMTP_USER.trim() } : {}),
+    ...(source.SMTP_PASSWORD?.trim()
+      ? { smtpPassword: source.SMTP_PASSWORD.trim() }
+      : {}),
+    emailFrom: trimmedOrUndefined(source.EMAIL_FROM) ?? "contact@hbs-home.com",
+    adminAppUrl:
+      trimmedOrUndefined(source.ADMIN_APP_URL) ??
+      (nodeEnv === "production"
+        ? "https://hbs-home.com"
+        : nodeEnv === "staging"
+          ? "https://preview.hbs-home.com"
+          : "http://localhost:5173"),
+    orderEmailPollIntervalSeconds: parseInteger(
+      "ORDER_EMAIL_POLL_INTERVAL_SECONDS",
+      source.ORDER_EMAIL_POLL_INTERVAL_SECONDS,
+      15,
+    ),
+    orderEmailMaxAttempts: parseInteger(
+      "ORDER_EMAIL_MAX_ATTEMPTS",
+      source.ORDER_EMAIL_MAX_ATTEMPTS,
+      5,
+    ),
+    orderEmailBatchSize: parseInteger(
+      "ORDER_EMAIL_BATCH_SIZE",
+      source.ORDER_EMAIL_BATCH_SIZE,
+      10,
+    ),
     releaseVersion: source.RELEASE_VERSION ?? "0.2.0",
     gitSha: source.GIT_SHA ?? source.RENDER_GIT_COMMIT ?? "local",
     buildTime: source.BUILD_TIME ?? "1970-01-01T00:00:00.000Z",
@@ -194,6 +257,19 @@ export function loadEnvironment(
     "http:",
     "https:",
   ]);
+  validateAbsoluteUrl("ADMIN_APP_URL", candidate.adminAppUrl, [
+    "http:",
+    "https:",
+  ]);
+  validateEmailAddress("EMAIL_FROM", candidate.emailFrom);
+
+  if (candidate.orderEmailNotificationsEnabled) {
+    if (!candidate.smtpUser || !candidate.smtpPassword) {
+      throw new ConfigurationError(
+        "SMTP_USER and SMTP_PASSWORD are required when order email notifications are enabled.",
+      );
+    }
+  }
 
   if (
     ["staging", "production"].includes(candidate.nodeEnv) &&

@@ -10,6 +10,36 @@ describe("loadEnvironment", () => {
     expect(environment.port).toBe(3000);
     expect(environment.docsEnabled).toBe(true);
     expect(environment.logLevel).toBe("silent");
+    expect(environment.orderEmailNotificationsEnabled).toBe(false);
+    expect(environment.smtpHost).toBe("ssl0.ovh.net");
+  });
+
+  it("requires SMTP credentials when order emails are enabled", () => {
+    expect(() =>
+      loadEnvironment({
+        NODE_ENV: "test",
+        ORDER_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      }),
+    ).toThrow(
+      "SMTP_USER and SMTP_PASSWORD are required when order email notifications are enabled",
+    );
+  });
+
+  it("loads OVH SMTP settings when order emails are enabled", () => {
+    const environment = loadEnvironment({
+      NODE_ENV: "test",
+      ORDER_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      SMTP_HOST: "ssl0.ovh.net",
+      SMTP_PORT: "587",
+      SMTP_USER: "contact@hbs-home.com",
+      SMTP_PASSWORD: "test-only-secret",
+      EMAIL_FROM: "contact@hbs-home.com",
+      ADMIN_APP_URL: "https://preview.hbs-home.com",
+    });
+
+    expect(environment.orderEmailNotificationsEnabled).toBe(true);
+    expect(environment.smtpPort).toBe(587);
+    expect(environment.smtpUser).toBe("contact@hbs-home.com");
   });
 
   it("parses a comma-separated CORS allowlist", () => {
