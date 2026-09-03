@@ -50,8 +50,21 @@ const MediaSchema = Type.Object(
   { $id: "AdminMediaAsset", additionalProperties: false },
 );
 const MediaResponse = Type.Object(
-  { items: Type.Array(MediaSchema) },
+  {
+    items: Type.Array(MediaSchema),
+    total: Type.Integer({ minimum: 0 }),
+    limit: Type.Integer({ minimum: 1 }),
+    offset: Type.Integer({ minimum: 0 }),
+  },
   { $id: "AdminMediaResponse", additionalProperties: false },
+);
+const MediaListQuery = Type.Object(
+  {
+    q: Type.Optional(Type.String({ maxLength: 120 })),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+    offset: Type.Optional(Type.Integer({ minimum: 0 })),
+  },
+  { additionalProperties: false },
 );
 const MediaBody = Type.Object(
   {
@@ -285,7 +298,7 @@ export function registerAdminContentRoutes(
   app.addSchema(EditorialPageSchema);
   app.addSchema(EditorialPagesResponse);
 
-  app.get(
+  app.get<{ Querystring: Static<typeof MediaListQuery> }>(
     "/api/v1/admin/media",
     {
       preHandler: createAdminGuard(dependencies, {
@@ -296,6 +309,7 @@ export function registerAdminContentRoutes(
         operationId: "adminListMedia",
         tags: ["admin-content"],
         security: [{ bearerAuth: [] }],
+        querystring: MediaListQuery,
         response: {
           200: MediaResponse,
           401: ProblemDetailSchema,
@@ -303,9 +317,34 @@ export function registerAdminContentRoutes(
         },
       },
     },
-    async () => ({
-      items: await dependencies.adminContentRepository.listMedia(),
-    }),
+    async (request) => {
+      // Keep the legacy repository call useful for selectors and editors while
+      // paginated screens explicitly request a smaller page size.
+      const limit = request.query.limit ?? 100;
+      const offset = request.query.offset ?? 0;
+      if (dependencies.adminContentRepository.listMediaPage) {
+        return dependencies.adminContentRepository.listMediaPage({
+          limit,
+          offset,
+          ...(request.query.q === undefined ? {} : { query: request.query.q }),
+        });
+      }
+      const items = await dependencies.adminContentRepository.listMedia();
+      const needle = request.query.q?.trim().toLocaleLowerCase();
+      const filtered = needle
+        ? items.filter((item) =>
+            `${item.name} ${item.alt} ${item.usage}`
+              .toLocaleLowerCase()
+              .includes(needle),
+          )
+        : items;
+      return {
+        items: filtered.slice(offset, offset + limit),
+        total: filtered.length,
+        limit,
+        offset,
+      };
+    },
   );
 
   app.post<{ Body: MediaBodyType }>(

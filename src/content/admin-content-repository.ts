@@ -98,6 +98,16 @@ export interface EditorialPagePatch {
 
 export interface AdminContentRepository {
   listMedia(): Promise<readonly AdminMediaAsset[]>;
+  listMediaPage?(options: {
+    limit: number;
+    offset: number;
+    query?: string;
+  }): Promise<{
+    items: readonly AdminMediaAsset[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>;
   createMedia(
     input: MediaAssetInput,
     actorUserId: string,
@@ -332,6 +342,56 @@ export class PostgresAdminContentRepository implements AdminContentRepository {
       .orderBy("id", "desc")
       .execute();
     return rows.map(mediaRecord);
+  }
+
+  async listMediaPage(options: {
+    limit: number;
+    offset: number;
+    query?: string;
+  }): Promise<{
+    items: readonly AdminMediaAsset[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    let countQuery = this.database
+      .selectFrom("content.media_assets")
+      .select(({ fn }) => fn.countAll<number>().as("count"))
+      .where("status", "!=", "archived");
+    let rowsQuery = this.database
+      .selectFrom("content.media_assets")
+      .selectAll()
+      .where("status", "!=", "archived");
+    if (options.query?.trim()) {
+      const needle = `%${options.query.trim().replace(/[\\%_]/g, "\\$&")}%`;
+      countQuery = countQuery.where((eb) =>
+        eb.or([
+          eb("name", "ilike", needle),
+          eb("alt", "ilike", needle),
+          eb("usage", "ilike", needle),
+        ]),
+      );
+      rowsQuery = rowsQuery.where((eb) =>
+        eb.or([
+          eb("name", "ilike", needle),
+          eb("alt", "ilike", needle),
+          eb("usage", "ilike", needle),
+        ]),
+      );
+    }
+    const totalRow = await countQuery.executeTakeFirstOrThrow();
+    const rows = await rowsQuery
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .limit(options.limit)
+      .offset(options.offset)
+      .execute();
+    return {
+      items: rows.map(mediaRecord),
+      total: Number.parseInt(String(totalRow.count), 10),
+      limit: options.limit,
+      offset: options.offset,
+    };
   }
 
   async createMedia(
