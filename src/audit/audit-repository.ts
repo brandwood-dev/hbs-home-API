@@ -42,7 +42,7 @@ export interface AuditRepository {
     filters?: AuditListFilters,
   ): Promise<readonly AuditEventRecord[]>;
   /** Paginated variant used by the Admin activity screen. */
-  listRecentPage?(
+  listRecentPage(
     limit: number,
     offset: number,
     filters?: AuditListFilters,

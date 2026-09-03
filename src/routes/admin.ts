@@ -187,18 +187,11 @@ export function registerAdminRoutes(
       if (request.query.dateTo) filters.dateTo = request.query.dateTo;
       const limit = request.query.limit ?? 50;
       const offset = request.query.offset ?? 0;
-      if (dependencies.auditRepository.listRecentPage) {
-        return dependencies.auditRepository.listRecentPage(
-          limit,
-          offset,
-          filters,
-        );
-      }
-      const items = await dependencies.auditRepository.listRecent(
+      return dependencies.auditRepository.listRecentPage(
         limit,
+        offset,
         filters,
       );
-      return { items, total: items.length, limit, offset };
     },
   );
 }

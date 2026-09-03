@@ -1047,14 +1047,12 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       filtered = filtered.where("category", "=", input.category);
     if (input.stock === "out") {
       filtered = filtered.where((eb) =>
-        eb.not(
-          eb.exists(
-            eb
-              .selectFrom("inventory.stock_balances")
-              .select("variant_id")
-              .whereRef("product_id", "=", "catalog.products.id")
-              .where("on_hand", ">", 0),
-          ),
+        eb.exists(
+          eb
+            .selectFrom("inventory.stock_balances")
+            .select("variant_id")
+            .whereRef("product_id", "=", "catalog.products.id")
+            .where("availability", "=", "out_of_stock"),
         ),
       );
     }
@@ -1065,8 +1063,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             .selectFrom("inventory.stock_balances")
             .select("variant_id")
             .whereRef("product_id", "=", "catalog.products.id")
-            .where("on_hand", ">", 0)
-            .whereRef("on_hand", "<=", "low_stock_threshold"),
+            .where("availability", "=", "low_stock"),
         ),
       );
     }
