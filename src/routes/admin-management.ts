@@ -374,6 +374,61 @@ export function registerAdminManagementRoutes(
     },
   );
 
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/admin/users/:id",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["users.manage"],
+      }),
+      schema: {
+        operationId: "removeAdminUser",
+        summary: "Remove an Admin member and revoke all access",
+        tags: ["admin-users"],
+        security: [{ bearerAuth: [] }],
+        params: Type.Object({ id: Type.String({ format: "uuid" }) }),
+        response: {
+          200: UserSchema,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const actor = principal(request);
+      if (!actor.roles.includes("super_admin"))
+        throw new AppError({
+          statusCode: 403,
+          code: "SUPER_ADMIN_REQUIRED",
+          title: "Super Admin required",
+          detail: "Only a Super Admin can remove an Admin team member.",
+        });
+      if (actor.userId === request.params.id)
+        throw new AppError({
+          statusCode: 409,
+          code: "SELF_ADMIN_DELETE",
+          title: "Cannot remove yourself",
+          detail: "A Super Admin cannot remove its own account.",
+        });
+      const result = await dependencies.adminManagementRepository.removeMember(
+        request.params.id,
+        actor.userId,
+      );
+      await audit(
+        dependencies.auditRepository,
+        request,
+        actor,
+        "admin_user.removed",
+        "admin_user",
+        request.params.id,
+        "success",
+      );
+      return result;
+    },
+  );
+
   app.post<{ Params: { id: string }; Body: Static<typeof RoleBodySchema> }>(
     "/api/v1/admin/users/:id/roles",
     {

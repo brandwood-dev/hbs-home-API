@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely, type Transaction } from "kysely";
 import { createClient } from "@supabase/supabase-js";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
@@ -50,6 +50,11 @@ export interface AdminManagementRepository {
     roleKey: string,
     revokedBy: string,
   ): Promise<AdminManagedUser>;
+  /**
+   * Permanently revoke a member's Admin access while retaining their profile
+   * and role history for auditability.
+   */
+  removeMember(userId: string, revokedBy: string): Promise<AdminManagedUser>;
   invite(
     input: {
       email: string;
@@ -210,6 +215,14 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     );
   }
 
+  private async lockSuperAdminMembership(
+    trx: Transaction<DatabaseSchema>,
+  ): Promise<void> {
+    await sql`select pg_advisory_xact_lock(
+      hashtextextended('iam.admin_super_admin_membership', 0)
+    )`.execute(trx);
+  }
+
   async updateStatus(
     id: string,
     status: AdminStatus,
@@ -311,6 +324,7 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     revokedBy: string,
   ): Promise<AdminManagedUser> {
     return this.database.transaction().execute(async (trx) => {
+      await this.lockSuperAdminMembership(trx);
       const target = await this.user(trx, userId);
       if (roleKey === "super_admin" && target.roles.includes("super_admin")) {
         const count = await trx
@@ -346,6 +360,66 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
         .where("role_key", "=", roleKey)
         .where("revoked_at", "is", null)
         .execute();
+      return this.user(trx, userId);
+    });
+  }
+
+  async removeMember(
+    userId: string,
+    revokedBy: string,
+  ): Promise<AdminManagedUser> {
+    return this.database.transaction().execute(async (trx) => {
+      await this.lockSuperAdminMembership(trx);
+      const target = await this.user(trx, userId);
+      if (target.status === "active" && target.roles.includes("super_admin")) {
+        const count = await trx
+          .selectFrom("iam.admin_user_roles as userRole")
+          .innerJoin(
+            "iam.admin_profiles as profile",
+            "profile.auth_user_id",
+            "userRole.auth_user_id",
+          )
+          .select(({ fn }) => fn.countAll<number>().as("count"))
+          .where("userRole.role_key", "=", "super_admin")
+          .where("userRole.revoked_at", "is", null)
+          .where("profile.status", "=", "active")
+          .where((eb) =>
+            eb.or([
+              eb("userRole.expires_at", "is", null),
+              eb("userRole.expires_at", ">", new Date()),
+            ]),
+          )
+          .executeTakeFirstOrThrow();
+        if (Number.parseInt(String(count.count), 10) <= 1)
+          throw new AppError({
+            statusCode: 409,
+            code: "LAST_SUPER_ADMIN",
+            title: "Last Super Admin",
+            detail: "At least one active Super Admin must remain.",
+          });
+      }
+
+      const now = new Date();
+      const profileResult = await trx
+        .updateTable("iam.admin_profiles")
+        .set({ status: "revoked", updated_at: now })
+        .where("auth_user_id", "=", userId)
+        .executeTakeFirst();
+      if (Number(profileResult.numUpdatedRows) === 0)
+        throw new AppError({
+          statusCode: 404,
+          code: "ADMIN_USER_NOT_FOUND",
+          title: "Admin user not found",
+          detail: "The Admin profile does not exist.",
+        });
+
+      await trx
+        .updateTable("iam.admin_user_roles")
+        .set({ revoked_at: now, revoked_by: revokedBy })
+        .where("auth_user_id", "=", userId)
+        .where("revoked_at", "is", null)
+        .execute();
+
       return this.user(trx, userId);
     });
   }

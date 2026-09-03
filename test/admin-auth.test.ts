@@ -698,6 +698,11 @@ describe("Admin Auth, MFA and RBAC", () => {
       headers: { authorization: "Bearer valid-token" },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ items: [] });
+    expect(response.json()).toEqual({
+      items: [],
+      total: 0,
+      limit: 10,
+      offset: 0,
+    });
   });
 });
