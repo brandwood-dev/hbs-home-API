@@ -44,6 +44,9 @@ interface OrderEmailWorkerOptions {
 
 const PROCESSING_TIMEOUT_MS = 2 * 60 * 1000;
 const RETRY_BASE_DELAY_MS = 15 * 1000;
+// Render runs in UTC, while HBS HOME's customer-facing times are Tunisian time.
+// Keeping the zone explicit also handles any future runtime/hosting changes.
+const STORE_TIME_ZONE = "Africa/Tunis";
 
 function escapeHtml(value: string): string {
   return value.replace(
@@ -118,7 +121,9 @@ function orderMessage(
   const formattedDate = new Intl.DateTimeFormat("fr-TN", {
     dateStyle: "long",
     timeStyle: "short",
+    timeZone: STORE_TIME_ZONE,
   }).format(new Date(order.createdAt));
+  const logoUrl = emailImageUrl("/apple-touch-icon.png", adminAppUrl);
   const address = [
     order.addressLine,
     order.landmark,
@@ -192,7 +197,7 @@ function orderMessage(
   <body style="margin:0;background:#f7f4f1;color:#211e1b;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:680px;margin:0 auto;padding:32px 20px;">
       <div style="background:#ad7658;color:#fff;padding:18px 24px;">
-        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;">HBS HOME</div>
+        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="HBS HOME" width="104" style="display:block;width:104px;height:auto;margin:0 0 8px;background:#fff;border-radius:4px;" />` : '<div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;">HBS HOME</div>'}
         <h1 style="margin:8px 0 0;font-size:24px;font-weight:600;">Nouvelle commande ${escapeHtml(order.orderNumber)}</h1>
       </div>
       <div style="background:#fff;padding:24px;">
