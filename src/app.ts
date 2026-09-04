@@ -239,6 +239,7 @@ export async function buildApp(
       "accept",
       "authorization",
       "content-type",
+      "idempotency-key",
       "x-request-id",
       "x-image-alt",
       "x-image-name",
