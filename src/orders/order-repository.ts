@@ -862,7 +862,13 @@ export class PostgresOrderRepository implements OrderRepository {
               email: customer.email ?? null,
               governorate: input.shippingAddress?.governorate ?? "",
               preferred_channel: null,
-              tags: [],
+              // `tags` is JSONB (not a PostgreSQL text[]). Passing a native
+              // JavaScript array through node-postgres serializes it as a
+              // PostgreSQL array literal, which is stored as a JSON object
+              // and violates commerce_customers_tags_array. Cast the JSON
+              // representation explicitly so guest checkout can create a
+              // customer profile reliably.
+              tags: sql`cast(${JSON.stringify([])} as jsonb)` as unknown as string[],
               internal_notes: "",
               merged_into_customer_id: null,
               merged_at: null,
