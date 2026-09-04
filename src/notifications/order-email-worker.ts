@@ -262,7 +262,12 @@ function createBrevoTransport(
           sender: { email: environment.emailFrom, name: "HBS HOME" },
           to: recipients.map((recipient) => ({
             email: recipient.email,
-            ...(recipient.displayName ? { name: recipient.displayName } : {}),
+            ...(recipient.displayName
+              ? {
+                  // Brevo rejects recipient names longer than 70 characters.
+                  name: Array.from(recipient.displayName).slice(0, 70).join(""),
+                }
+              : {}),
           })),
           subject: message.subject,
           textContent: message.text,
@@ -271,9 +276,26 @@ function createBrevoTransport(
         signal: AbortSignal.timeout(20_000),
       });
 
+      const responseBody = (await response.text()).trim();
+      // Reading the body also releases the underlying fetch connection.
       if (response.ok) return;
 
-      const responseBody = (await response.text()).trim();
+      // A retried request can be reported as a duplicate after Brevo already
+      // accepted the message with the same idempotency key. Treat it as sent.
+      try {
+        const parsed: unknown = JSON.parse(responseBody);
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          "code" in parsed &&
+          parsed.code === "duplicate_parameter"
+        ) {
+          return;
+        }
+      } catch {
+        // Keep the original response text in the error below when it is not JSON.
+      }
+
       const detail = responseBody ? `: ${responseBody.slice(0, 500)}` : "";
       throw new Error(
         `Brevo API request failed (${String(response.status)})${detail}`,
