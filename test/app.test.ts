@@ -113,6 +113,26 @@ describe("HBS HOME API foundation", () => {
     expect(response.headers["access-control-allow-methods"]).toContain("PATCH");
   });
 
+  it("allows the idempotency key used by guest checkout", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/orders",
+      headers: {
+        origin: "http://localhost:3001",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type,idempotency-key",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:3001",
+    );
+    expect(response.headers["access-control-allow-headers"]).toContain(
+      "idempotency-key",
+    );
+  });
+
   it("reports release and contract versions", async () => {
     const response = await app.inject({
       method: "GET",
