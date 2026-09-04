@@ -59,12 +59,18 @@ describe("order email message", () => {
 
     expect(message.subject).toContain("HBS-20260903-0001");
     expect(message.text).toContain("Nadia <test>");
+    expect(message.text).toContain("Créée le : 3 septembre 2026 à 11:15 AM");
     expect(message.text).toContain("Rideau Lin");
     expect(message.text).toContain("LIN-001-VAR-01");
     expect(message.text).toContain(
       "https://preview.hbs-home.com/admin/commandes/order-123",
     );
     expect(message.html).toContain("Nadia &lt;test&gt;");
+    expect(message.html).toContain("Reçue le 3 septembre 2026 à 11:15 AM");
+    expect(message.html).toContain(
+      '<img src="https://preview.hbs-home.com/apple-touch-icon.png"',
+    );
+    expect(message.html).toContain('alt="HBS HOME"');
     expect(message.html).toContain("Rideau Lin");
     expect(message.html).toContain(
       '<img src="https://cdn.example.com/rideau.webp"',
