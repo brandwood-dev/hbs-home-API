@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import type {
   CustomerAddressTable,
   CustomerNoteTable,
@@ -783,7 +783,10 @@ export class PostgresAdminCustomerRepository {
     }
     const row = await this.database
       .updateTable("commerce.customers")
-      .set({ tags: normalized, updated_at: new Date() })
+      .set({
+        tags: sql`cast(${JSON.stringify(normalized)} as jsonb)` as unknown as string[],
+        updated_at: new Date(),
+      })
       .where("id", "=", customerId)
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -886,7 +889,7 @@ export class PostgresAdminCustomerRepository {
         .set({
           phone: primaryPhone,
           email: primaryEmail,
-          tags: mergedTags,
+          tags: sql`cast(${JSON.stringify(mergedTags)} as jsonb)` as unknown as string[],
           updated_at: new Date(),
         })
         .where("id", "=", primary.id)
