@@ -275,9 +275,13 @@ function createBrevoTransport(
 
       const responseBody = (await response.text()).trim();
       const detail = responseBody ? `: ${responseBody.slice(0, 500)}` : "";
-      throw new Error(`Brevo API request failed (${response.status})${detail}`);
+      throw new Error(
+        `Brevo API request failed (${String(response.status)})${detail}`,
+      );
     },
-    close() {},
+    close() {
+      return;
+    },
   };
 }
 
