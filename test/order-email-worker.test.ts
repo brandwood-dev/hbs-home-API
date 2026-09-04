@@ -67,6 +67,10 @@ describe("order email message", () => {
     expect(message.html).toContain("Nadia &lt;test&gt;");
     expect(message.html).toContain("Rideau Lin");
     expect(message.html).toContain(
+      '<img src="https://cdn.example.com/rideau.webp"',
+    );
+    expect(message.html).toContain('alt="Rideau en lin"');
+    expect(message.html).toContain(
       "https://preview.hbs-home.com/admin/commandes/order-123",
     );
   });
@@ -76,6 +80,23 @@ describe("order email message", () => {
 
     expect(message.text).toContain(
       "https://preview.hbs-home.com/admin/commandes/order-123",
+    );
+  });
+
+  it("makes relative product images renderable in email clients", () => {
+    const item = order.items[0];
+    if (!item) throw new Error("The order fixture must contain an item.");
+
+    const message = orderMessage(
+      {
+        ...order,
+        items: [{ ...item, imageUrl: "/catalog/rideau.jpg" }],
+      },
+      "https://preview.hbs-home.com/",
+    );
+
+    expect(message.html).toContain(
+      '<img src="https://preview.hbs-home.com/catalog/rideau.jpg"',
     );
   });
 });
