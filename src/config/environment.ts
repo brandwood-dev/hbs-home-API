@@ -46,6 +46,8 @@ const EnvironmentSchema = Type.Object(
     smtpPort: Type.Integer({ minimum: 1, maximum: 65_535 }),
     smtpUser: Type.Optional(Type.String({ minLength: 1, maxLength: 255 })),
     smtpPassword: Type.Optional(Type.String({ minLength: 1 })),
+    /** Server-only Brevo v3 API key. Prefer this over SMTP on hosted free tiers. */
+    brevoApiKey: Type.Optional(Type.String({ minLength: 1 })),
     emailFrom: Type.String({ minLength: 3, maxLength: 255 }),
     adminAppUrl: Type.String({ minLength: 1 }),
     orderEmailPollIntervalSeconds: Type.Integer({ minimum: 5, maximum: 300 }),
@@ -234,6 +236,9 @@ export function loadEnvironment(
     ...(source.SMTP_PASSWORD?.trim()
       ? { smtpPassword: source.SMTP_PASSWORD.trim() }
       : {}),
+    ...(source.BREVO_API_KEY?.trim()
+      ? { brevoApiKey: source.BREVO_API_KEY.trim() }
+      : {}),
     emailFrom: trimmedOrUndefined(source.EMAIL_FROM) ?? "contact@hbs-home.com",
     adminAppUrl:
       trimmedOrUndefined(source.ADMIN_APP_URL) ??
@@ -290,9 +295,12 @@ export function loadEnvironment(
   validateEmailAddress("EMAIL_FROM", candidate.emailFrom);
 
   if (candidate.orderEmailNotificationsEnabled) {
-    if (!candidate.smtpUser || !candidate.smtpPassword) {
+    if (
+      !candidate.brevoApiKey &&
+      (!candidate.smtpUser || !candidate.smtpPassword)
+    ) {
       throw new ConfigurationError(
-        "SMTP_USER and SMTP_PASSWORD are required when order email notifications are enabled.",
+        "SMTP_USER and SMTP_PASSWORD are required when order email notifications are enabled unless BREVO_API_KEY is configured.",
       );
     }
     if (!candidate.orderEmailRolloutAt) {

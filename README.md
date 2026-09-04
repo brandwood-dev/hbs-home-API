@@ -32,11 +32,11 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
   normalization and an 8 MiB payload limit.
 
 Order notifications are delivered asynchronously through the transactional outbox to active Admin
-members who have the `orders.read` permission. The worker uses the OVH SMTP relay configured through
-server-only environment variables, retries transient failures with exponential backoff and moves
-permanently failing events to `dead_letter` without blocking checkout. The API is currently deployed
-to staging; the production service and production domain are not yet part of this repository's
-deployment configuration.
+members who have the `orders.read` permission. The worker prefers Brevo's HTTPS transactional email
+API (suitable for Render Free) when `BREVO_API_KEY` is configured and falls back to the legacy SMTP
+relay otherwise. It retries transient failures with exponential backoff and moves permanently failing
+events to `dead_letter` without blocking checkout. The API is currently deployed to staging; the
+production service and production domain are not yet part of this repository's deployment configuration.
 Adding to a cart never reserves stock.
 
 Public cart endpoints:
@@ -189,11 +189,13 @@ The background worker then loads the complete order, resolves active team member
 `orders.read`, and sends one HBS HOME email to the deduplicated recipient list. No SMTP call is made
 when the feature flag is disabled.
 
-Configure these variables on the API service (never in the frontend):
+Configure these variables on the API service (never in the frontend). For Render Free, use a Brevo
+v3 API key (not a Brevo SMTP key):
 
 ```text
 ORDER_EMAIL_NOTIFICATIONS_ENABLED=false
 ORDER_EMAIL_ROLLOUT_AT=2026-01-01T00:00:00.000Z
+BREVO_API_KEY=xkeysib-...
 SMTP_HOST=ssl0.ovh.net
 SMTP_PORT=587
 SMTP_USER=contact@hbs-home.com
@@ -205,9 +207,10 @@ ORDER_EMAIL_MAX_ATTEMPTS=5
 ORDER_EMAIL_BATCH_SIZE=10
 ```
 
-Keep the feature disabled until the OVH mailbox credentials are present. After configuring the
-secrets in Render, enable the feature and redeploy the API; new orders will be notified without
-requiring an action in the Admin UI.
+Keep the feature disabled until the Brevo sender is verified and the API key is present. After
+configuring the secrets in Render, enable the feature and redeploy the API; new orders will be
+notified without requiring an action in the Admin UI. SMTP remains supported for paid hosting or
+local development, but Render Free blocks outbound SMTP ports.
 
 ## Contract policy
 

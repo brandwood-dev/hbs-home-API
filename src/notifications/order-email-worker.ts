@@ -240,6 +240,47 @@ function createSmtpTransport(
   };
 }
 
+function createBrevoTransport(
+  environment: Environment,
+): OrderEmailTransport | null {
+  if (!environment.orderEmailNotificationsEnabled || !environment.brevoApiKey) {
+    return null;
+  }
+
+  return {
+    async send(message, recipients, messageId) {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "api-key": environment.brevoApiKey,
+          "content-type": "application/json",
+          // Keep retries idempotent if the API response is interrupted.
+          "Idempotency-Key": messageId,
+        },
+        body: JSON.stringify({
+          sender: { email: environment.emailFrom, name: "HBS HOME" },
+          to: recipients.map((recipient) => ({
+            email: recipient.email,
+            ...(recipient.displayName ? { name: recipient.displayName } : {}),
+          })),
+          subject: message.subject,
+          textContent: message.text,
+          htmlContent: message.html,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (response.ok) return;
+
+      const responseBody = (await response.text()).trim();
+      const detail = responseBody ? `: ${responseBody.slice(0, 500)}` : "";
+      throw new Error(`Brevo API request failed (${response.status})${detail}`);
+    },
+    close() {},
+  };
+}
+
 export class OrderEmailWorker {
   private readonly transport: OrderEmailTransport | null;
   private readonly rolloutAt: Date | null;
@@ -248,7 +289,9 @@ export class OrderEmailWorker {
   private rolloutInitialized = false;
 
   constructor(private readonly options: OrderEmailWorkerOptions) {
-    this.transport = createSmtpTransport(options.environment);
+    this.transport =
+      createBrevoTransport(options.environment) ??
+      createSmtpTransport(options.environment);
     this.rolloutAt = options.environment.orderEmailRolloutAt
       ? new Date(options.environment.orderEmailRolloutAt)
       : null;
@@ -262,7 +305,7 @@ export class OrderEmailWorker {
     if (!this.transport) {
       this.options.logger.info(
         {},
-        "Order email notifications are disabled or SMTP credentials are missing",
+        "Order email notifications are disabled or no email transport is configured",
       );
       return;
     }
