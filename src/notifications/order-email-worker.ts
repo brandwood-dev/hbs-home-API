@@ -97,6 +97,19 @@ function orderStatusLabel(status: AdminOrder["status"]): string {
   )[status];
 }
 
+function emailImageUrl(imageUrl: string, adminAppUrl: string): string | null {
+  const value = imageUrl.trim();
+  if (!value) return null;
+
+  try {
+    const url = new URL(value, adminAppUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function orderMessage(
   order: AdminOrder,
   adminAppUrl: string,
@@ -122,17 +135,29 @@ function orderMessage(
     )
     .join("\n");
   const itemRows = order.items
-    .map(
-      (item) => `
+    .map((item) => {
+      const imageUrl = emailImageUrl(item.imageUrl, adminAppUrl);
+      const imageMarkup = imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.imageAlt || item.productName)}" width="64" height="64" style="display:block;width:64px;height:64px;object-fit:cover;border-radius:6px;background:#f7f4f1;" />`
+        : "";
+
+      return `
         <tr>
           <td style="padding:12px 0;border-bottom:1px solid #eee;">
-            <strong>${escapeHtml(item.productName)}</strong><br />
-            <span style="color:#6b625c;font-size:13px;">${escapeHtml(item.variantLabel)} · SKU ${escapeHtml(item.sku)}</span>
+            <table style="border-collapse:collapse;">
+              <tr>
+                ${imageMarkup ? `<td style="width:64px;padding-right:12px;vertical-align:middle;">${imageMarkup}</td>` : ""}
+                <td style="vertical-align:middle;">
+                  <strong>${escapeHtml(item.productName)}</strong><br />
+                  <span style="color:#6b625c;font-size:13px;">${escapeHtml(item.variantLabel)} · SKU ${escapeHtml(item.sku)}</span>
+                </td>
+              </tr>
+            </table>
           </td>
           <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:center;">${String(item.quantity)}</td>
           <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;">${escapeHtml(money(item.lineTotalMinor))}</td>
-        </tr>`,
-    )
+        </tr>`;
+    })
     .join("");
   const customerEmail = order.customerEmail ?? "Non renseigné";
   const deliveryNote = order.deliveryNote?.trim();
