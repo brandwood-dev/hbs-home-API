@@ -44,6 +44,22 @@ describe("loadEnvironment", () => {
     expect(environment.orderEmailRolloutAt).toBe("2026-09-03T00:00:00.000Z");
   });
 
+  it("accepts a Brevo API key without SMTP credentials", () => {
+    const environment = loadEnvironment({
+      NODE_ENV: "test",
+      ORDER_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      BREVO_API_KEY: "xkeysib-test-only-secret",
+      EMAIL_FROM: "contact@hbs-home.com",
+      ADMIN_APP_URL: "https://preview.hbs-home.com",
+      ORDER_EMAIL_ROLLOUT_AT: "2026-09-03T00:00:00.000Z",
+    });
+
+    expect(environment.orderEmailNotificationsEnabled).toBe(true);
+    expect(environment.brevoApiKey).toBe("xkeysib-test-only-secret");
+    expect(environment.smtpUser).toBeUndefined();
+    expect(environment.smtpPassword).toBeUndefined();
+  });
+
   it("parses a comma-separated CORS allowlist", () => {
     const environment = loadEnvironment({
       NODE_ENV: "staging",
