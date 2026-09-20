@@ -421,6 +421,8 @@ export interface CartItemTable {
   cart_id: string;
   product_id: string;
   variant_id: string;
+  confection_key: string;
+  selected_options: readonly { label: string; value: string }[];
   quantity: number;
   price_at_add_minor: number;
   added_at: Generated<Date>;

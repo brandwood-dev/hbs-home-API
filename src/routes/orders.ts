@@ -104,6 +104,7 @@ const OrderItemInputSchema = Type.Object(
   {
     productId: Type.String({ minLength: 1, maxLength: 160 }),
     variantId: Type.String({ minLength: 1, maxLength: 160 }),
+    confectionKey: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
     quantity: Type.Integer({ minimum: 1, maximum: 99 }),
     expectedUnitPriceMinor: Type.Integer({ minimum: 0 }),
   },

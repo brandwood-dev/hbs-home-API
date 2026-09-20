@@ -849,6 +849,29 @@
             "type": "object",
             "additionalProperties": {}
           },
+          "confectionOptions": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "key",
+                "label",
+                "description"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "seo": {
             "type": "object",
             "required": [
@@ -8084,6 +8107,7 @@
           "productName",
           "productReference",
           "variantId",
+          "confectionKey",
           "sku",
           "quantity",
           "unitPriceMinor",
@@ -8123,6 +8147,16 @@
           },
           "variantId": {
             "type": "string"
+          },
+          "confectionKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "sku": {
             "type": "string"
@@ -8356,6 +8390,7 @@
                 "productName",
                 "productReference",
                 "variantId",
+                "confectionKey",
                 "sku",
                 "quantity",
                 "unitPriceMinor",
@@ -8395,6 +8430,16 @@
                 },
                 "variantId": {
                   "type": "string"
+                },
+                "confectionKey": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "sku": {
                   "type": "string"
@@ -12119,6 +12164,29 @@
                             "type": "object",
                             "additionalProperties": {}
                           },
+                          "confectionOptions": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "key",
+                                "label",
+                                "description"
+                              ],
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
                           "seo": {
                             "type": "object",
                             "required": [
@@ -12828,6 +12896,29 @@
                         "type": "object",
                         "additionalProperties": {}
                       },
+                      "confectionOptions": {
+                        "type": "array",
+                        "items": {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "key",
+                            "label",
+                            "description"
+                          ],
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
                       "seo": {
                         "type": "object",
                         "required": [
@@ -13372,6 +13463,29 @@
                             "type": "object",
                             "additionalProperties": {}
                           },
+                          "confectionOptions": {
+                            "type": "array",
+                            "items": {
+                              "additionalProperties": false,
+                              "type": "object",
+                              "required": [
+                                "key",
+                                "label",
+                                "description"
+                              ],
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
                           "seo": {
                             "type": "object",
                             "required": [
@@ -13909,6 +14023,29 @@
                     "attributes": {
                       "type": "object",
                       "additionalProperties": {}
+                    },
+                    "confectionOptions": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "key",
+                          "label",
+                          "description"
+                        ],
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     },
                     "seo": {
                       "type": "object",
@@ -14524,6 +14661,29 @@
                       "attributes": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "confectionOptions": {
+                        "type": "array",
+                        "items": {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "key",
+                            "label",
+                            "description"
+                          ],
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            }
+                          }
+                        }
                       },
                       "seo": {
                         "type": "object",
@@ -17878,7 +18038,7 @@
     "/api/v1/admin/users/{id}": {
       "delete": {
         "operationId": "removeAdminUser",
-        "summary": "Remove an Admin member and revoke all access",
+        "summary": "Permanently remove an Admin member and revoke all access",
         "tags": [
           "admin-users"
         ],
@@ -63324,6 +63484,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -63363,6 +63524,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -63835,6 +64006,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -63874,6 +64046,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -64256,6 +64438,11 @@
                     "maxLength": 160,
                     "type": "string"
                   },
+                  "confectionKey": {
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "type": "string"
+                  },
                   "quantity": {
                     "minimum": 1,
                     "maximum": 99,
@@ -64313,6 +64500,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -64352,6 +64540,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -64995,6 +65193,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -65034,6 +65233,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -65586,6 +65795,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -65625,6 +65835,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -66120,6 +66340,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -66159,6 +66380,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -66767,6 +66998,7 @@
                           "productName",
                           "productReference",
                           "variantId",
+                          "confectionKey",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -66806,6 +67038,16 @@
                           },
                           "variantId": {
                             "type": "string"
+                          },
+                          "confectionKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "sku": {
                             "type": "string"
@@ -67914,6 +68156,11 @@
                         "variantId": {
                           "minLength": 1,
                           "maxLength": 160,
+                          "type": "string"
+                        },
+                        "confectionKey": {
+                          "minLength": 1,
+                          "maxLength": 80,
                           "type": "string"
                         },
                         "quantity": {

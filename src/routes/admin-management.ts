@@ -383,7 +383,7 @@ export function registerAdminManagementRoutes(
       }),
       schema: {
         operationId: "removeAdminUser",
-        summary: "Remove an Admin member and revoke all access",
+        summary: "Permanently remove an Admin member and revoke all access",
         tags: ["admin-users"],
         security: [{ bearerAuth: [] }],
         params: Type.Object({ id: Type.String({ format: "uuid" }) }),
