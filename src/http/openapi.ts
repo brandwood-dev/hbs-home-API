@@ -24,7 +24,8 @@ export async function registerOpenApi(
         { name: "system", description: "Service health and release metadata." },
         {
           name: "admin-identity",
-          description: "Authenticated Admin identity, roles and optional MFA state.",
+          description:
+            "Authenticated Admin identity, roles and optional MFA state.",
         },
         {
           name: "admin-audit",
