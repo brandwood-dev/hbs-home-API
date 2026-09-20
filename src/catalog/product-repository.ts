@@ -1,5 +1,9 @@
 import { sql, type Kysely } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
+import {
+  confectionOptionsFor,
+  type ConfectionOption,
+} from "./confection-options.js";
 
 export type ProductSort =
   | "recommended"
@@ -188,6 +192,7 @@ export interface Product {
   details: Record<string, unknown>;
   /** Attributs de catalogue normalisés, projetés pour la recherche et les filtres. */
   attributes: Record<string, unknown>;
+  confectionOptions?: readonly ConfectionOption[];
   seo: { title: string; description: string };
   isThermal: boolean;
   isNew: boolean;
@@ -534,6 +539,7 @@ function parseProduct(row: CatalogProductRow): Product | null {
     colors: colors.filter((value): value is ProductColor => value !== null),
     details: details,
     attributes,
+    confectionOptions: confectionOptionsFor(category),
     seo: {
       title: mergeString(seo.title, row.slug) ?? `${name} — ${category}`,
       description:

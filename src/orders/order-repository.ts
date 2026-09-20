@@ -54,6 +54,7 @@ export interface OrderAddressInput {
 export interface OrderItemInput {
   productId: string;
   variantId: string;
+  confectionKey?: string;
   quantity: number;
   expectedUnitPriceMinor: number;
 }
@@ -212,14 +213,25 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
     .map((item) => {
       const productId = requiredText(item.productId, "productId", 160);
       const variantId = requiredText(item.variantId, "variantId", 160);
-      if (seen.has(variantId))
+      const confectionValue = item.confectionKey?.trim();
+      const confectionKey =
+        confectionValue === "" ? undefined : confectionValue;
+      if (confectionKey && confectionKey.length > 80)
         fail(
           400,
           "INVALID_ORDER_ITEMS",
           "Invalid order items",
-          "A variant may appear only once in an order.",
+          "A confection key must be at most eighty characters.",
         );
-      seen.add(variantId);
+      const lineIdentity = `${variantId}\u0000${confectionKey ?? ""}`;
+      if (seen.has(lineIdentity))
+        fail(
+          400,
+          "INVALID_ORDER_ITEMS",
+          "Invalid order items",
+          "The same variant and confection may appear only once in an order.",
+        );
+      seen.add(lineIdentity);
       if (
         !Number.isInteger(item.quantity) ||
         item.quantity < 1 ||
@@ -244,11 +256,18 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
       return {
         productId,
         variantId,
+        ...(confectionKey ? { confectionKey } : {}),
         quantity: item.quantity,
         expectedUnitPriceMinor: item.expectedUnitPriceMinor,
       };
     })
-    .sort((left, right) => left.variantId.localeCompare(right.variantId));
+    .sort((left, right) => {
+      const variantOrder = left.variantId.localeCompare(right.variantId);
+      if (variantOrder !== 0) return variantOrder;
+      return (left.confectionKey ?? "").localeCompare(
+        right.confectionKey ?? "",
+      );
+    });
 }
 
 function fingerprint(input: {
@@ -370,6 +389,7 @@ function snapshot(
   product: Product,
   variant: ProductVariant,
   quantity: number,
+  selectedOptions?: readonly { label: string; value: string }[],
 ): OrderItemSnapshot {
   const image = resolveLineImage(product, variant);
   const color = product.colors.find(
@@ -395,7 +415,10 @@ function snapshot(
       : {}),
     ...(variant.eyeletColor ? { eyeletColorLabel: variant.eyeletColor } : {}),
     ...(variant.lining ? { liningLabel: variant.lining } : {}),
-    selectedOptions: getVariantDisplayOptions(product, variant),
+    selectedOptions:
+      selectedOptions && selectedOptions.length > 0
+        ? selectedOptions
+        : getVariantDisplayOptions(product, variant),
     sellingUnitLabel: product.sellingMode,
     ...(profile ? { shippingProfile: profile } : {}),
     quantity,
@@ -674,7 +697,9 @@ export class PostgresOrderRepository implements OrderRepository {
         cartRows.length !== items.length ||
         cartRows.some((row) => {
           const expectedItem = items.find(
-            (item) => item.variantId === row.variant_id,
+            (item) =>
+              item.variantId === row.variant_id &&
+              (item.confectionKey ?? "") === row.confection_key,
           );
           if (!expectedItem) return true;
           return (
@@ -709,12 +734,22 @@ export class PostgresOrderRepository implements OrderRepository {
       const balancesByVariant = new Map(
         balances.map((balance) => [balance.variant_id, balance]),
       );
+      const requestedByVariant = new Map<string, number>();
+      for (const row of cartRows) {
+        requestedByVariant.set(
+          row.variant_id,
+          (requestedByVariant.get(row.variant_id) ?? 0) + row.quantity,
+        );
+      }
       const snapshots: OrderItemSnapshot[] = [];
-      const reservationItems: {
-        productId: string;
-        variantId: string;
-        quantity: number;
-      }[] = [];
+      const reservationItemsByVariant = new Map<
+        string,
+        {
+          productId: string;
+          variantId: string;
+          quantity: number;
+        }
+      >();
       for (const row of cartRows) {
         const product = productsById.get(row.product_id);
         const variant = product?.variants.find(
@@ -728,7 +763,9 @@ export class PostgresOrderRepository implements OrderRepository {
             "One of the cart items is no longer available.",
           );
         const expected = items.find(
-          (item) => item.variantId === row.variant_id,
+          (item) =>
+            item.variantId === row.variant_id &&
+            (item.confectionKey ?? "") === row.confection_key,
         );
         if (expected?.expectedUnitPriceMinor !== variant.price.amountMinor)
           fail(
@@ -738,25 +775,36 @@ export class PostgresOrderRepository implements OrderRepository {
             "One of the cart prices has changed. Refresh your cart.",
           );
         const balance = balancesByVariant.get(row.variant_id);
+        const requestedQuantity =
+          requestedByVariant.get(row.variant_id) ?? row.quantity;
         const available =
           balance &&
           (balance.availability === "made_to_order" || !balance.track_inventory)
-            ? row.quantity
+            ? requestedQuantity
             : Math.max(0, (balance?.on_hand ?? 0) - (balance?.reserved ?? 0));
-        if (!balance || available < row.quantity)
+        if (!balance || available < requestedQuantity)
           fail(
             409,
             "INSUFFICIENT_STOCK",
             "Insufficient stock",
             `Only ${String(available)} unit(s) are available for ${product.name}.`,
           );
-        snapshots.push(snapshot(product, variant, row.quantity));
-        if (balance.track_inventory && balance.availability !== "made_to_order")
-          reservationItems.push({
+        snapshots.push(
+          snapshot(product, variant, row.quantity, row.selected_options),
+        );
+        if (
+          balance.track_inventory &&
+          balance.availability !== "made_to_order"
+        ) {
+          const existingReservation = reservationItemsByVariant.get(
+            row.variant_id,
+          );
+          reservationItemsByVariant.set(row.variant_id, {
             productId: row.product_id,
             variantId: row.variant_id,
-            quantity: row.quantity,
+            quantity: (existingReservation?.quantity ?? 0) + row.quantity,
           });
+        }
       }
 
       let discountMinor = 0;
@@ -928,11 +976,11 @@ export class PostgresOrderRepository implements OrderRepository {
         .executeTakeFirstOrThrow();
 
       let reservationId: string | null = null;
-      if (reservationItems.length > 0) {
+      if (reservationItemsByVariant.size > 0) {
         const reservation = await reserveWithinTransaction(trx, {
           reservationKey: `order:${id}`,
           orderId: id,
-          items: reservationItems,
+          items: [...reservationItemsByVariant.values()],
           expiresAt: new Date(Date.now() + ORDER_RESERVATION_TTL_MS),
           actorUserId: null,
         });

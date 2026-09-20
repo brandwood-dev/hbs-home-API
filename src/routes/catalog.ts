@@ -84,6 +84,15 @@ const ColorSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const ConfectionOptionSchema = Type.Object(
+  {
+    key: Type.String(),
+    label: Type.String(),
+    description: Type.String(),
+  },
+  { additionalProperties: false },
+);
+
 export const ProductSchema = Type.Object(
   {
     id: Type.String(),
@@ -123,6 +132,7 @@ export const ProductSchema = Type.Object(
     colors: Type.Array(ColorSchema),
     details: Type.Record(Type.String(), Type.Unknown()),
     attributes: Type.Record(Type.String(), Type.Unknown()),
+    confectionOptions: Type.Optional(Type.Array(ConfectionOptionSchema)),
     seo: Type.Object({ title: Type.String(), description: Type.String() }),
     isThermal: Type.Boolean(),
     isNew: Type.Boolean(),
