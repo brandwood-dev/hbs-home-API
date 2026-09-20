@@ -149,7 +149,9 @@ export function registerAdminRoutes(
         roles: [...principal.roles],
         permissions: [...principal.permissions],
         assuranceLevel: principal.assuranceLevel,
-        mfaRequired: principal.assuranceLevel !== "aal2",
+        mfaRequired:
+          dependencies.adminMfaEnabled !== false &&
+          principal.assuranceLevel !== "aal2",
       };
     },
   );

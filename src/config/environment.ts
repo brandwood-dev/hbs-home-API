@@ -35,6 +35,8 @@ const EnvironmentSchema = Type.Object(
     }),
     supabaseUrl: Type.String({ minLength: 1 }),
     supabaseJwtAudience: Type.String({ minLength: 1, maxLength: 128 }),
+    /** Whether Admin mutations require a Supabase aal2/TOTP step-up. */
+    adminMfaEnabled: Type.Boolean(),
     /** Server-only Supabase Auth Admin key; never expose to the browser. */
     supabaseSecretKey: Type.Optional(Type.String({ minLength: 1 })),
     supabaseStorageSecretKey: Type.Optional(Type.String({ minLength: 1 })),
@@ -207,6 +209,11 @@ export function loadEnvironment(
     ),
     supabaseUrl: source.SUPABASE_URL ?? "http://127.0.0.1:54321",
     supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    adminMfaEnabled: parseBoolean(
+      "ADMIN_MFA_ENABLED",
+      source.ADMIN_MFA_ENABLED,
+      true,
+    ),
     ...(source.SUPABASE_SECRET_KEY?.trim()
       ? { supabaseSecretKey: source.SUPABASE_SECRET_KEY.trim() }
       : {}),

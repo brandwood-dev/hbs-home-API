@@ -31,6 +31,8 @@ La configuration non sensible de staging est décrite dans `render.yaml`. Render
 - `SUPABASE_STORAGE_SECRET_KEY` : clé secrète Supabase serveur (jamais la publishable key), utilisée
   uniquement par l'API pour écrire dans Storage ;
 - `SUPABASE_STORAGE_BUCKET` : `catalog-media`.
+- `ADMIN_MFA_ENABLED` : `false` sur le staging si l'accès Admin doit être limité à l'e-mail et au
+  mot de passe ; `true` conserve la vérification TOTP `aal2`.
 
 La migration `20260826181903_phase_10d_category_media_upload.sql` crée le bucket public
 `catalog-media`, limite les uploads à 8 MiB et ajoute le lien `image_media_asset_id` aux catégories.
@@ -56,8 +58,9 @@ Le mot de passe doit être aléatoire et contenir au moins 32 caractères. Const
 connexion dont le login de session est `postgres`, même si le rôle courant a été abaissé.
 
 Supabase Auth staging doit conserver les inscriptions publiques désactivées, autoriser exactement
-`https://preview.hbs-home.com/admin/auth/callback`, imposer des mots de passe forts et activer le MFA
-TOTP. Le premier compte est invité après migration avec :
+`https://preview.hbs-home.com/admin/auth/callback` et imposer des mots de passe forts. Le MFA TOTP
+reste disponible comme option réactivable via `ADMIN_MFA_ENABLED=true`. Le premier compte est invité
+après migration avec :
 
 ```bash
 ADMIN_EMAIL=hhometn@gmail.com \
