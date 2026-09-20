@@ -199,10 +199,9 @@ export function registerAdminDashboardRoutes(
     {
       preHandler: createAdminGuard(dependencies, {
         requireMfa: true,
-        // The Admin access gate already validates the active Admin profile.
-        // The landing dashboard is the shared entry point, so it must not
-        // require the separate orders/inventory module permissions here.
-        permissions: [],
+        // The dashboard includes recent orders and low-stock inventory rows,
+        // so keep the data-specific permissions on this aggregate endpoint.
+        permissions: ["orders.read", "inventory.read"],
       }),
       schema: {
         operationId: "getAdminDashboard",
