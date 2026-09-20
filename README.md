@@ -8,7 +8,7 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 
 - Supabase JWT verification through the project's rotating JWKS;
 - database-backed Admin profiles, roles and granular permissions;
-- mandatory TOTP MFA (`aal2`) for sensitive Admin endpoints;
+- configurable TOTP MFA (`aal2`) for sensitive Admin endpoints (`ADMIN_MFA_ENABLED`);
 - private `iam` and `audit` PostgreSQL schemas;
 - least-privilege `hbs_api` database role, RLS and explicit grants;
 - public product media plus private quote/import Storage buckets;
@@ -17,7 +17,7 @@ The API now provides the secure identity foundation used by HBS HOME Admin:
 - Admin catalogue CRUD for categories, typed attributes and products;
 - variant management with integer TND pricing and SKU uniqueness;
 - explicit draft, publish and archive transitions;
-- MFA-protected mutations, granular RBAC and append-only mutation audits;
+- optional MFA-protected mutations, granular RBAC and append-only mutation audits;
 - optimistic product version checks and synchronization with the public JSONB read model.
 - opaque-token guest carts with server-side price, availability and shipping recalculation;
 - one-code V1 promotion evaluation (the redemption counter is consumed by checkout in Phase 6).

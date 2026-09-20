@@ -12,6 +12,16 @@ describe("loadEnvironment", () => {
     expect(environment.logLevel).toBe("silent");
     expect(environment.orderEmailNotificationsEnabled).toBe(false);
     expect(environment.smtpHost).toBe("ssl0.ovh.net");
+    expect(environment.adminMfaEnabled).toBe(true);
+  });
+
+  it("allows password-only Admin access when MFA is explicitly disabled", () => {
+    const environment = loadEnvironment({
+      NODE_ENV: "test",
+      ADMIN_MFA_ENABLED: "false",
+    });
+
+    expect(environment.adminMfaEnabled).toBe(false);
   });
 
   it("requires SMTP credentials when order emails are enabled", () => {

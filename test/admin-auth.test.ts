@@ -664,6 +664,44 @@ describe("Admin Auth, MFA and RBAC", () => {
     );
   });
 
+  it("allows the Admin session and protected reads at aal1 when MFA is disabled", async () => {
+    await app.close();
+    const passwordOnlyEnvironment = loadEnvironment({
+      NODE_ENV: "test",
+      LOG_LEVEL: "silent",
+      CORS_ORIGINS: "http://localhost:3001",
+      DOCS_ENABLED: "false",
+      ADMIN_MFA_ENABLED: "false",
+    });
+    app = await buildApp({
+      environment: passwordOnlyEnvironment,
+      logger: false,
+      database: new FakeDatabaseConnection(),
+      jwtVerifier,
+      adminAccessRepository: accessRepository,
+      auditRepository,
+    });
+    authorize("aal1");
+
+    const session = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/session",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(session.statusCode).toBe(200);
+    expect(session.json()).toMatchObject({
+      assuranceLevel: "aal1",
+      mfaRequired: false,
+    });
+
+    const audit = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/audit-events",
+      headers: { authorization: "Bearer valid-token" },
+    });
+    expect(audit.statusCode).toBe(200);
+  });
+
   it("blocks sensitive resources until a TOTP challenge reaches aal2", async () => {
     authorize("aal1");
     const response = await app.inject({

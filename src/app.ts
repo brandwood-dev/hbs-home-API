@@ -286,6 +286,7 @@ export async function buildApp(
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminManagementRoutes(app, {
     jwtVerifier,
@@ -293,6 +294,7 @@ export async function buildApp(
     auditRepository,
     adminManagementRepository,
     adminSettingsRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminDashboardRoutes(app, {
     jwtVerifier,
@@ -300,6 +302,7 @@ export async function buildApp(
     auditRepository,
     adminOrderRepository,
     inventoryRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminCatalogRoutes(app, {
     jwtVerifier,
@@ -308,18 +311,21 @@ export async function buildApp(
     adminCatalogRepository,
     adminContentRepository,
     categoryMediaStorage,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminPromotionRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
     adminPromotionRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminInventoryRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
     inventoryRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminInventoryReservationRoutes(app, {
     jwtVerifier,
@@ -327,24 +333,28 @@ export async function buildApp(
     auditRepository,
     reservationRepository,
     environment,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminOrderRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
     adminOrderRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminCustomerRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
     adminCustomerRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerAdminContentRoutes(app, {
     jwtVerifier,
     adminAccessRepository,
     auditRepository,
     adminContentRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerContentRoutes(app, { adminContentRepository });
   registerArticleRoutes(app, {
@@ -352,6 +362,7 @@ export async function buildApp(
     adminAccessRepository,
     articleRepository,
     auditRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerCartRoutes(app, { cartRepository });
   registerFavoritesRoutes(app, { favoritesRepository });
@@ -361,6 +372,7 @@ export async function buildApp(
     adminAccessRepository,
     auditRepository,
     homeContentRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerHomeContentRoutes(app, { homeContentRepository });
 

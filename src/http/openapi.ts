@@ -24,7 +24,7 @@ export async function registerOpenApi(
         { name: "system", description: "Service health and release metadata." },
         {
           name: "admin-identity",
-          description: "Authenticated Admin identity, roles and MFA state.",
+          description: "Authenticated Admin identity, roles and optional MFA state.",
         },
         {
           name: "admin-audit",
@@ -72,7 +72,7 @@ export async function registerOpenApi(
             scheme: "bearer",
             bearerFormat: "JWT",
             description:
-              "Supabase Auth access token. Admin mutations require an aal2 MFA session.",
+              "Supabase Auth access token. Admin mutations may require an aal2 MFA session when ADMIN_MFA_ENABLED is true.",
           },
         },
       },

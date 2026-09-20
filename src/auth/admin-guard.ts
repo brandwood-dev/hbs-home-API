@@ -16,6 +16,8 @@ export interface AdminGuardDependencies {
   jwtVerifier: JwtVerifier;
   adminAccessRepository: AdminAccessRepository;
   auditRepository: AuditRepository;
+  /** Runtime switch for the optional MFA step-up policy. Defaults to enabled. */
+  adminMfaEnabled?: boolean;
 }
 
 export interface AdminGuardOptions {
@@ -103,7 +105,11 @@ export function createAdminGuard(
       });
     }
 
-    if (options.requireMfa && token.assuranceLevel !== "aal2") {
+    if (
+      options.requireMfa &&
+      dependencies.adminMfaEnabled !== false &&
+      token.assuranceLevel !== "aal2"
+    ) {
       await recordDenial(dependencies, request, access, "mfa_required");
       throw new AppError({
         statusCode: 403,
