@@ -213,7 +213,9 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
     .map((item) => {
       const productId = requiredText(item.productId, "productId", 160);
       const variantId = requiredText(item.variantId, "variantId", 160);
-      const confectionKey = item.confectionKey?.trim() || undefined;
+      const confectionValue = item.confectionKey?.trim();
+      const confectionKey =
+        confectionValue === "" ? undefined : confectionValue;
       if (confectionKey && confectionKey.length > 80)
         fail(
           400,
