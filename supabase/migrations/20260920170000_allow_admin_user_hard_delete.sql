@@ -1,0 +1,11 @@
+-- Allow the server-side Admin management repository to permanently remove a
+-- team member's IAM rows. Audit events remain immutable and are intentionally
+-- not deleted.
+
+grant delete on iam.admin_profiles, iam.admin_user_roles to hbs_api;
+
+create policy admin_profiles_api_delete on iam.admin_profiles
+  for delete to hbs_api using (true);
+
+create policy admin_user_roles_api_delete on iam.admin_user_roles
+  for delete to hbs_api using (true);

@@ -17878,7 +17878,7 @@
     "/api/v1/admin/users/{id}": {
       "delete": {
         "operationId": "removeAdminUser",
-        "summary": "Remove an Admin member and revoke all access",
+        "summary": "Permanently remove an Admin member and revoke all access",
         "tags": [
           "admin-users"
         ],

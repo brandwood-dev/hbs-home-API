@@ -51,8 +51,12 @@ export interface AdminManagementRepository {
     revokedBy: string,
   ): Promise<AdminManagedUser>;
   /**
-   * Permanently revoke a member's Admin access while retaining their profile
-   * and role history for auditability.
+   * Permanently remove a member from Admin and Supabase Auth.
+   *
+   * The returned value is a deletion receipt for the existing API contract;
+   * the profile and role rows are no longer present after this call. Audit
+   * events intentionally remain available because they do not reference the
+   * profile with a foreign key.
    */
   removeMember(userId: string, revokedBy: string): Promise<AdminManagedUser>;
   invite(
@@ -105,6 +109,12 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
     if (options.status) {
       countQuery = countQuery.where("status", "=", options.status);
       profilesQuery = profilesQuery.where("status", "=", options.status);
+    } else {
+      // Revoked members have been removed from the team and must not remain
+      // visible in the normal Users & Roles table. Callers can still request
+      // status=revoked explicitly for audit/recovery tooling.
+      countQuery = countQuery.where("status", "!=", "revoked");
+      profilesQuery = profilesQuery.where("status", "!=", "revoked");
     }
     if (options.query?.trim()) {
       const needle = `%${options.query.trim().replace(/[\\%_]/g, "\\$&")}%`;
@@ -366,62 +376,99 @@ export class PostgresAdminManagementRepository implements AdminManagementReposit
 
   async removeMember(
     userId: string,
-    revokedBy: string,
+    _revokedBy: string,
   ): Promise<AdminManagedUser> {
-    return this.database.transaction().execute(async (trx) => {
-      await this.lockSuperAdminMembership(trx);
-      const target = await this.user(trx, userId);
-      if (target.status === "active" && target.roles.includes("super_admin")) {
-        const count = await trx
-          .selectFrom("iam.admin_user_roles as userRole")
-          .innerJoin(
-            "iam.admin_profiles as profile",
-            "profile.auth_user_id",
-            "userRole.auth_user_id",
-          )
-          .select(({ fn }) => fn.countAll<number>().as("count"))
-          .where("userRole.role_key", "=", "super_admin")
-          .where("userRole.revoked_at", "is", null)
-          .where("profile.status", "=", "active")
-          .where((eb) =>
-            eb.or([
-              eb("userRole.expires_at", "is", null),
-              eb("userRole.expires_at", ">", new Date()),
-            ]),
-          )
-          .executeTakeFirstOrThrow();
-        if (Number.parseInt(String(count.count), 10) <= 1)
+    // The actor is recorded by the route-level immutable audit event. Keep it
+    // in this interface for callers and backwards compatibility.
+    void _revokedBy;
+    if (!this.supabaseUrl || !this.supabaseSecretKey)
+      throw new AppError({
+        statusCode: 503,
+        code: "AUTH_ADMIN_NOT_CONFIGURED",
+        title: "Admin user deletion unavailable",
+        detail:
+          "Configure SUPABASE_SECRET_KEY on the API before deleting an Admin user.",
+      });
+
+    const deletedUser = await this.database
+      .transaction()
+      .execute(async (trx) => {
+        await this.lockSuperAdminMembership(trx);
+        const target = await this.user(trx, userId);
+        if (
+          target.status === "active" &&
+          target.roles.includes("super_admin")
+        ) {
+          const count = await trx
+            .selectFrom("iam.admin_user_roles as userRole")
+            .innerJoin(
+              "iam.admin_profiles as profile",
+              "profile.auth_user_id",
+              "userRole.auth_user_id",
+            )
+            .select(({ fn }) => fn.countAll<number>().as("count"))
+            .where("userRole.role_key", "=", "super_admin")
+            .where("userRole.revoked_at", "is", null)
+            .where("profile.status", "=", "active")
+            .where((eb) =>
+              eb.or([
+                eb("userRole.expires_at", "is", null),
+                eb("userRole.expires_at", ">", new Date()),
+              ]),
+            )
+            .executeTakeFirstOrThrow();
+          if (Number.parseInt(String(count.count), 10) <= 1)
+            throw new AppError({
+              statusCode: 409,
+              code: "LAST_SUPER_ADMIN",
+              title: "Last Super Admin",
+              detail: "At least one active Super Admin must remain.",
+            });
+        }
+
+        // Roles must be deleted before the profile because the database keeps
+        // this relationship restrictive. The profile is then removed before
+        // Supabase Auth so its auth.users foreign key can be deleted safely.
+        await trx
+          .deleteFrom("iam.admin_user_roles")
+          .where("auth_user_id", "=", userId)
+          .execute();
+        const profileResult = await trx
+          .deleteFrom("iam.admin_profiles")
+          .where("auth_user_id", "=", userId)
+          .executeTakeFirst();
+        if (Number(profileResult.numDeletedRows) === 0)
           throw new AppError({
-            statusCode: 409,
-            code: "LAST_SUPER_ADMIN",
-            title: "Last Super Admin",
-            detail: "At least one active Super Admin must remain.",
+            statusCode: 404,
+            code: "ADMIN_USER_NOT_FOUND",
+            title: "Admin user not found",
+            detail: "The Admin profile does not exist.",
           });
-      }
 
-      const now = new Date();
-      const profileResult = await trx
-        .updateTable("iam.admin_profiles")
-        .set({ status: "revoked", updated_at: now })
-        .where("auth_user_id", "=", userId)
-        .executeTakeFirst();
-      if (Number(profileResult.numUpdatedRows) === 0)
-        throw new AppError({
-          statusCode: 404,
-          code: "ADMIN_USER_NOT_FOUND",
-          title: "Admin user not found",
-          detail: "The Admin profile does not exist.",
-        });
+        return target;
+      });
 
-      await trx
-        .updateTable("iam.admin_user_roles")
-        .set({ revoked_at: now, revoked_by: revokedBy })
-        .where("auth_user_id", "=", userId)
-        .where("revoked_at", "is", null)
-        .execute();
-
-      return this.user(trx, userId);
+    const supabase = createClient(this.supabaseUrl, this.supabaseSecretKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false,
+      },
     });
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    // A previously removed Auth user is already in the desired final state;
+    // still allow the database cleanup above to complete in that case.
+    if (error && error.status !== 404)
+      throw new AppError({
+        statusCode: 502,
+        code: "ADMIN_USER_AUTH_DELETE_FAILED",
+        title: "Admin user deletion failed",
+        detail: error.message,
+      });
+
+    // Keep the existing response schema stable for current clients while
+    // making the deletion explicit to the UI and audit trail.
+    return { ...deletedUser, status: "revoked", roles: [] };
   }
 
   async invite(
