@@ -11,6 +11,7 @@ const CartLineSchema = Type.Object(
     productName: Type.String(),
     productReference: Type.String(),
     variantId: Type.String(),
+    confectionKey: Type.Union([Type.String(), Type.Null()]),
     sku: Type.String(),
     quantity: Type.Integer({ minimum: 1, maximum: 99 }),
     unitPriceMinor: Type.Integer({ minimum: 0 }),
@@ -110,6 +111,7 @@ const CartItemBody = Type.Object(
   {
     productId: Type.String({ minLength: 1, maxLength: 160 }),
     variantId: Type.String({ minLength: 1, maxLength: 160 }),
+    confectionKey: Type.Optional(Type.String({ minLength: 1, maxLength: 80 })),
     quantity: Type.Integer({ minimum: 1, maximum: 99 }),
   },
   { additionalProperties: false },

@@ -54,6 +54,7 @@ export interface OrderAddressInput {
 export interface OrderItemInput {
   productId: string;
   variantId: string;
+  confectionKey?: string;
   quantity: number;
   expectedUnitPriceMinor: number;
 }
@@ -370,6 +371,7 @@ function snapshot(
   product: Product,
   variant: ProductVariant,
   quantity: number,
+  selectedOptions?: readonly { label: string; value: string }[],
 ): OrderItemSnapshot {
   const image = resolveLineImage(product, variant);
   const color = product.colors.find(
@@ -395,7 +397,10 @@ function snapshot(
       : {}),
     ...(variant.eyeletColor ? { eyeletColorLabel: variant.eyeletColor } : {}),
     ...(variant.lining ? { liningLabel: variant.lining } : {}),
-    selectedOptions: getVariantDisplayOptions(product, variant),
+    selectedOptions:
+      selectedOptions && selectedOptions.length > 0
+        ? selectedOptions
+        : getVariantDisplayOptions(product, variant),
     sellingUnitLabel: product.sellingMode,
     ...(profile ? { shippingProfile: profile } : {}),
     quantity,
@@ -674,7 +679,9 @@ export class PostgresOrderRepository implements OrderRepository {
         cartRows.length !== items.length ||
         cartRows.some((row) => {
           const expectedItem = items.find(
-            (item) => item.variantId === row.variant_id,
+            (item) =>
+              item.variantId === row.variant_id &&
+              (item.confectionKey ?? "") === row.confection_key,
           );
           if (!expectedItem) return true;
           return (
@@ -728,7 +735,9 @@ export class PostgresOrderRepository implements OrderRepository {
             "One of the cart items is no longer available.",
           );
         const expected = items.find(
-          (item) => item.variantId === row.variant_id,
+          (item) =>
+            item.variantId === row.variant_id &&
+            (item.confectionKey ?? "") === row.confection_key,
         );
         if (expected?.expectedUnitPriceMinor !== variant.price.amountMinor)
           fail(
@@ -750,7 +759,9 @@ export class PostgresOrderRepository implements OrderRepository {
             "Insufficient stock",
             `Only ${String(available)} unit(s) are available for ${product.name}.`,
           );
-        snapshots.push(snapshot(product, variant, row.quantity));
+        snapshots.push(
+          snapshot(product, variant, row.quantity, row.selected_options),
+        );
         if (balance.track_inventory && balance.availability !== "made_to_order")
           reservationItems.push({
             productId: row.product_id,

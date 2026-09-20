@@ -11,6 +11,7 @@ import {
   type Product,
 } from "../catalog/product-repository.js";
 import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
+import { confectionOptionFor } from "../catalog/confection-options.js";
 import { AppError } from "../http/problem.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -25,6 +26,7 @@ export interface CartItemInput {
   productId: string;
   variantId: string;
   quantity: number;
+  confectionKey?: string;
 }
 
 export interface CartPromotion {
@@ -43,6 +45,7 @@ export interface CartLine {
   productName: string;
   productReference: string;
   variantId: string;
+  confectionKey: string | null;
   sku: string;
   quantity: number;
   unitPriceMinor: number;
@@ -242,6 +245,7 @@ export class PostgresCartRepository implements CartRepository {
     const session = await this.ensureSession(token);
     const productId = input.productId.trim();
     const variantId = input.variantId.trim();
+    const confectionKey = input.confectionKey?.trim() ?? "";
     if (
       !productId ||
       !variantId ||
@@ -267,6 +271,25 @@ export class PostgresCartRepository implements CartRepository {
         "The requested catalog variant is not available.",
       );
     }
+    const confection = confectionOptionFor(product.category, confectionKey);
+    const requiresConfection =
+      product.category === "rideaux" || product.category === "voilages";
+    if (requiresConfection && !confectionKey) {
+      fail(
+        400,
+        "INVALID_CONFECTION",
+        "Confection required",
+        "A curtain confection must be selected before adding this product to the cart.",
+      );
+    }
+    if (confectionKey && !confection) {
+      fail(
+        400,
+        "INVALID_CONFECTION",
+        "Invalid confection",
+        "The selected curtain confection is not available for this product.",
+      );
+    }
     const stock = await this.stock(variantId);
     const available = availableQuantity(stock);
     if (available.quantity === 0) {
@@ -282,6 +305,7 @@ export class PostgresCartRepository implements CartRepository {
       .selectAll()
       .where("cart_id", "=", session.cart.id)
       .where("variant_id", "=", variantId)
+      .where("confection_key", "=", confectionKey)
       .executeTakeFirst();
     const wanted = (existing?.quantity ?? 0) + input.quantity;
     const quantity = Math.min(
@@ -294,6 +318,13 @@ export class PostgresCartRepository implements CartRepository {
         cart_id: session.cart.id,
         product_id: product.id,
         variant_id: variant.id,
+        confection_key: confectionKey,
+        selected_options: confection
+          ? [
+              ...getVariantDisplayOptions(product, variant),
+              { label: "Confection", value: confection.label },
+            ]
+          : getVariantDisplayOptions(product, variant),
         quantity,
         price_at_add_minor:
           existing?.price_at_add_minor ?? variant.price.amountMinor,
@@ -302,7 +333,7 @@ export class PostgresCartRepository implements CartRepository {
       })
       .onConflict((oc) =>
         oc
-          .columns(["cart_id", "variant_id"])
+          .columns(["cart_id", "variant_id", "confection_key"])
           .doUpdateSet({ quantity, updated_at: new Date() }),
       )
       .executeTakeFirstOrThrow();
@@ -330,6 +361,7 @@ export class PostgresCartRepository implements CartRepository {
       .where("cart_id", "=", session.cart.id)
       .where("product_id", "=", parsed.productId)
       .where("variant_id", "=", parsed.variantId)
+      .where("confection_key", "=", parsed.confectionKey ?? "")
       .executeTakeFirst();
     if (!existing)
       fail(
@@ -343,6 +375,7 @@ export class PostgresCartRepository implements CartRepository {
         session.cart.id,
         parsed.productId,
         parsed.variantId,
+        parsed.confectionKey ?? "",
       );
     } else {
       const stock = availableQuantity(await this.stock(parsed.variantId));
@@ -354,6 +387,7 @@ export class PostgresCartRepository implements CartRepository {
         .where("cart_id", "=", session.cart.id)
         .where("product_id", "=", parsed.productId)
         .where("variant_id", "=", parsed.variantId)
+        .where("confection_key", "=", parsed.confectionKey ?? "")
         .executeTakeFirstOrThrow();
     }
     return { token: session.token, cart: await this.view(session.cart) };
@@ -373,6 +407,7 @@ export class PostgresCartRepository implements CartRepository {
       session.cart.id,
       parsed.productId,
       parsed.variantId,
+      parsed.confectionKey ?? "",
     );
     return { token: session.token, cart: await this.view(session.cart) };
   }
@@ -456,12 +491,14 @@ export class PostgresCartRepository implements CartRepository {
 
   private parseLineId(
     lineId: string,
-  ): { productId: string; variantId: string } | null {
-    const separator = lineId.indexOf(":");
-    if (separator <= 0 || separator === lineId.length - 1) return null;
+  ): { productId: string; variantId: string; confectionKey?: string } | null {
+    const parts = lineId.split(":");
+    if (parts.length < 2 || !parts[0] || !parts[1]) return null;
+    const confectionKey = parts.slice(2).join(":");
     return {
-      productId: lineId.slice(0, separator),
-      variantId: lineId.slice(separator + 1),
+      productId: parts[0],
+      variantId: parts[1],
+      ...(confectionKey ? { confectionKey } : {}),
     };
   }
 
@@ -469,12 +506,14 @@ export class PostgresCartRepository implements CartRepository {
     cartId: string,
     productId: string,
     variantId: string,
+    confectionKey: string,
   ): Promise<void> {
     await this.database
       .deleteFrom("commerce.cart_items")
       .where("cart_id", "=", cartId)
       .where("product_id", "=", productId)
       .where("variant_id", "=", variantId)
+      .where("confection_key", "=", confectionKey)
       .execute();
   }
 
@@ -637,7 +676,7 @@ export class PostgresCartRepository implements CartRepository {
     product: Product | undefined,
     stock: Selectable<DatabaseSchema["inventory.stock_balances"]> | undefined,
   ): CartLine {
-    const lineId = `${row.product_id}:${row.variant_id}`;
+    const lineId = `${row.product_id}:${row.variant_id}:${row.confection_key}`;
     if (!product) {
       return {
         lineId,
@@ -646,6 +685,7 @@ export class PostgresCartRepository implements CartRepository {
         productName: "Article indisponible",
         productReference: "",
         variantId: row.variant_id,
+        confectionKey: row.confection_key || null,
         sku: "",
         quantity: row.quantity,
         unitPriceMinor: 0,
@@ -693,7 +733,9 @@ export class PostgresCartRepository implements CartRepository {
     else if (quantity !== row.quantity) status = "quantity_adjusted";
     else if (priceChanged) status = "price_changed";
     else if (available.availability === "low_stock") status = "low_stock";
-    const selectedOptions = getVariantDisplayOptions(product, variant);
+    const selectedOptions = row.selected_options.length
+      ? row.selected_options
+      : getVariantDisplayOptions(product, variant);
     const shippingProfile =
       typeof product.details.shippingProfile === "string"
         ? product.details.shippingProfile
@@ -705,6 +747,7 @@ export class PostgresCartRepository implements CartRepository {
       productName: product.name,
       productReference: product.reference,
       variantId: variant.id,
+      confectionKey: row.confection_key || null,
       sku: variant.sku,
       quantity,
       unitPriceMinor: variant.price.amountMinor,
