@@ -822,7 +822,11 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
           await trx
             .updateTable("catalog.products")
             .set({ category: patch.slug })
-            .where("id", "in", productRows.map((product) => product.id))
+            .where(
+              "id",
+              "in",
+              productRows.map((product) => product.id),
+            )
             .execute();
           for (const product of productRows)
             await this.refreshProductPayload(product.id, trx);

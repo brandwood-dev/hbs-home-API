@@ -965,8 +965,8 @@ export class PostgresProductRepository implements ProductRepository {
       .execute();
 
     const byId = new Map<string, Product>();
-    for (const row of (await this.withCanonicalPaths(rows)).filter(
-      (item) => Boolean(item.canonical_category_path),
+    for (const row of (await this.withCanonicalPaths(rows)).filter((item) =>
+      Boolean(item.canonical_category_path),
     )) {
       const product = parseProduct(row);
       if (product) byId.set(product.id, product);
