@@ -792,6 +792,50 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirstOrThrow();
+
+      // `products.category` is a legacy denormalized root slug still used by
+      // search, exports and older clients. Keep it aligned when a root slug
+      // changes; the normalized category_id remains the source of truth for
+      // canonical paths and subcategory URLs.
+      if (
+        !current.parent_id &&
+        patch.slug !== undefined &&
+        patch.slug !== current.slug
+      ) {
+        // Resolve the resulting root after applying both the rename and a
+        // possible parent move. The legacy field stores the root slug, never
+        // the slug of a category that has just become a child.
+        const legacyRootSlug = await this.rootCategorySlug(trx, row);
+        const subtree = await trx
+          .selectFrom("catalog.categories")
+          .select("id")
+          .where((eb) => eb.or([eb("id", "=", id), eb("parent_id", "=", id)]))
+          .execute();
+        const subtreeIds = subtree.map((category) => category.id);
+        const productRows = await trx
+          .selectFrom("catalog.products")
+          .select("id")
+          .where((eb) =>
+            eb.or([
+              eb("category_id", "in", subtreeIds),
+              eb("category", "=", current.slug),
+            ]),
+          )
+          .execute();
+        if (productRows.length > 0) {
+          await trx
+            .updateTable("catalog.products")
+            .set({ category: legacyRootSlug })
+            .where(
+              "id",
+              "in",
+              productRows.map((product) => product.id),
+            )
+            .execute();
+          for (const product of productRows)
+            await this.refreshProductPayload(product.id, trx);
+        }
+      }
       return categoryRecord(row);
     });
   }

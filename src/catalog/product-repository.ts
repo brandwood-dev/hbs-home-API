@@ -897,11 +897,6 @@ function toScopeParams(scope?: CatalogScope): ProductListParams {
 }
 
 export class PostgresProductRepository implements ProductRepository {
-  private categoryPathsCache: {
-    expiresAt: number;
-    value: CategoryPaths;
-  } | null = null;
-
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
   async listProducts(input: ProductListParams): Promise<PaginatedProducts> {
@@ -947,7 +942,10 @@ export class PostgresProductRepository implements ProductRepository {
     const row = rows[0];
     if (!row) return null;
     const [hydrated] = await this.withCanonicalPaths([row]);
-    return hydrated ? parseProduct(hydrated) : null;
+    // A published product whose primary category is inactive (or whose
+    // ancestor is inactive) has no public canonical path and must not be
+    // reachable by a direct product URL.
+    return hydrated?.canonical_category_path ? parseProduct(hydrated) : null;
   }
 
   async getByIds(ids: readonly string[]): Promise<Product[]> {
@@ -967,7 +965,9 @@ export class PostgresProductRepository implements ProductRepository {
       .execute();
 
     const byId = new Map<string, Product>();
-    for (const row of await this.withCanonicalPaths(rows)) {
+    for (const row of (await this.withCanonicalPaths(rows)).filter((item) =>
+      Boolean(item.canonical_category_path),
+    )) {
       const product = parseProduct(row);
       if (product) byId.set(product.id, product);
     }
@@ -1132,24 +1132,29 @@ export class PostgresProductRepository implements ProductRepository {
       query = query.where("blind_type", "in", [...params.blindTypes]);
     }
 
-    return this.withCanonicalPaths(await query.execute());
+    return (await this.withCanonicalPaths(await query.execute())).filter(
+      (row) => Boolean(row.canonical_category_path),
+    );
   }
 
   /**
    * Hydrate the active category path without adding a join to every catalogue
-   * query. The category tree is small and cached briefly in the API process;
-   * this keeps list/detail requests to one product query plus one bounded tree
-   * query per cache window.
+   * query. The category tree is small, so this keeps list/detail requests to
+   * one product query plus one bounded tree query while always observing the
+   * latest Admin taxonomy mutation.
    */
   private async withCanonicalPaths<TRow extends CatalogProductRow>(
     rows: readonly TRow[],
-  ): Promise<TRow[]> {
+  ): Promise<(TRow & { canonical_category_path: string | null })[]> {
     if (rows.length === 0) return [];
     const paths = await this.getCategoryPaths();
     return rows.map((row) => {
-      const categoryPath =
-        (row.category_id ? paths.byId.get(row.category_id) : undefined) ??
-        paths.bySlug.get(row.category);
+      // Never fall back to the legacy root slug when a normalized category id
+      // exists. Falling back would keep products visible after their category
+      // is disabled and would expose a stale URL after a slug change.
+      const categoryPath = row.category_id
+        ? paths.byId.get(row.category_id)
+        : paths.bySlug.get(row.category);
       return {
         ...row,
         canonical_category_path: categoryPath ?? null,
@@ -1158,11 +1163,10 @@ export class PostgresProductRepository implements ProductRepository {
   }
 
   private async getCategoryPaths(): Promise<CategoryPaths> {
-    const now = Date.now();
-    if (this.categoryPathsCache && this.categoryPathsCache.expiresAt > now) {
-      return this.categoryPathsCache.value;
-    }
-
+    // Category edits are administrative mutations and must be reflected on
+    // the very next public request. Do not retain a process-local snapshot:
+    // otherwise renamed or disabled categories can serve stale paths for up to
+    // the cache TTL and break canonical product URLs.
     const rows = await this.database
       .selectFrom("catalog.categories")
       .select(["id", "slug", "parent_id", "status"])
@@ -1190,9 +1194,7 @@ export class PostgresProductRepository implements ProductRepository {
     };
 
     for (const node of nodes.values()) resolve(node.id, new Set());
-    const value = { byId, bySlug };
-    this.categoryPathsCache = { value, expiresAt: now + 60_000 };
-    return value;
+    return { byId, bySlug };
   }
 }
 
