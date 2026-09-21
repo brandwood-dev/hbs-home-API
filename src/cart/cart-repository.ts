@@ -11,7 +11,10 @@ import {
   type Product,
 } from "../catalog/product-repository.js";
 import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
-import { confectionOptionFor } from "../catalog/confection-options.js";
+import {
+  confectionOptionFor,
+  isCurtainCategory,
+} from "../catalog/confection-options.js";
 import { AppError } from "../http/problem.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -272,8 +275,7 @@ export class PostgresCartRepository implements CartRepository {
       );
     }
     const confection = confectionOptionFor(product.category, confectionKey);
-    const requiresConfection =
-      product.category === "rideaux" || product.category === "voilages";
+    const requiresConfection = isCurtainCategory(product.category);
     if (requiresConfection && !confectionKey) {
       fail(
         400,

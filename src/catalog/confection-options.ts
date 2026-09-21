@@ -39,18 +39,19 @@ function normalizeCategoryToken(category: string): string {
     .replace(/-+/g, "-");
 }
 
-export function confectionOptionsFor(
-  category: string,
-): readonly ConfectionOption[] {
-  const normalizedCategory = normalizeCategoryToken(category);
+export function isCurtainCategory(category: string): boolean {
   return [
     "rideaux",
     "voilages",
     "rideaux-voilages",
     "rideaux-et-voilages",
-  ].includes(normalizedCategory)
-    ? DEFAULT_CONFECTION_OPTIONS
-    : [];
+  ].includes(normalizeCategoryToken(category));
+}
+
+export function confectionOptionsFor(
+  category: string,
+): readonly ConfectionOption[] {
+  return isCurtainCategory(category) ? DEFAULT_CONFECTION_OPTIONS : [];
 }
 
 export function confectionOptionFor(
