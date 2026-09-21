@@ -9,7 +9,9 @@ describe("curtain confection defaults", () => {
   it.each(["rideaux", "voilages", "rideaux-voilages", "Rideaux & Voilages"])(
     "returns all defaults for the catalogue family %s",
     (category) => {
-      expect(confectionOptionsFor(category)).toEqual(DEFAULT_CONFECTION_OPTIONS);
+      expect(confectionOptionsFor(category)).toEqual(
+        DEFAULT_CONFECTION_OPTIONS,
+      );
     },
   );
 
