@@ -802,6 +802,10 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         patch.slug !== undefined &&
         patch.slug !== current.slug
       ) {
+        // Resolve the resulting root after applying both the rename and a
+        // possible parent move. The legacy field stores the root slug, never
+        // the slug of a category that has just become a child.
+        const legacyRootSlug = await this.rootCategorySlug(trx, row);
         const subtree = await trx
           .selectFrom("catalog.categories")
           .select("id")
@@ -821,7 +825,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         if (productRows.length > 0) {
           await trx
             .updateTable("catalog.products")
-            .set({ category: patch.slug })
+            .set({ category: legacyRootSlug })
             .where(
               "id",
               "in",
