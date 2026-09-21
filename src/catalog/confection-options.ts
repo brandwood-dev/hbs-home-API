@@ -30,12 +30,28 @@ export const DEFAULT_CONFECTION_OPTIONS: readonly ConfectionOption[] = [
   },
 ];
 
+function normalizeCategoryToken(category: string): string {
+  return category
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/&/g, "et")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+export function isCurtainCategory(category: string): boolean {
+  return [
+    "rideaux",
+    "voilages",
+    "rideaux-voilages",
+    "rideaux-et-voilages",
+  ].includes(normalizeCategoryToken(category));
+}
+
 export function confectionOptionsFor(
   category: string,
 ): readonly ConfectionOption[] {
-  return category === "rideaux" || category === "voilages"
-    ? DEFAULT_CONFECTION_OPTIONS
-    : [];
+  return isCurtainCategory(category) ? DEFAULT_CONFECTION_OPTIONS : [];
 }
 
 export function confectionOptionFor(
