@@ -115,7 +115,7 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
   async listCategories(
     options: { navigationOnly?: boolean } = {},
   ): Promise<readonly PublicCategory[]> {
-    const rows = await this.database
+    const allRows = await this.database
       .selectFrom("catalog.categories")
       .selectAll()
       .where("status", "=", "active")
@@ -123,6 +123,28 @@ export class PostgresPublicCategoryRepository implements PublicCategoryRepositor
       .orderBy("name")
       .orderBy("id")
       .execute();
+
+    // A child can remain marked active while its parent is disabled. It must
+    // not become a public root in that state: public taxonomy is the connected
+    // active tree only. This also keeps its generated path unavailable until
+    // the complete ancestor chain is active again.
+    const allById = new Map(allRows.map((row) => [row.id, row]));
+    const connectedCache = new Map<string, boolean>();
+    const isConnected = (id: string, trail: ReadonlySet<string>): boolean => {
+      const cached = connectedCache.get(id);
+      if (cached !== undefined) return cached;
+      if (trail.has(id)) return false;
+      const row = allById.get(id);
+      if (!row) return false;
+      if (!row.parent_id) {
+        connectedCache.set(id, true);
+        return true;
+      }
+      const connected = isConnected(row.parent_id, new Set([...trail, id]));
+      connectedCache.set(id, connected);
+      return connected;
+    };
+    const rows = allRows.filter((row) => isConnected(row.id, new Set()));
 
     if (rows.length === 0) return [];
 
