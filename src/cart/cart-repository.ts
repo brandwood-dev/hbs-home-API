@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import type {
   CartItemTable,
   CartTable,
@@ -321,12 +321,17 @@ export class PostgresCartRepository implements CartRepository {
         product_id: product.id,
         variant_id: variant.id,
         confection_key: confectionKey,
-        selected_options: confection
-          ? [
-              ...getVariantDisplayOptions(product, variant),
-              { label: "Confection", value: confection.label },
-            ]
-          : getVariantDisplayOptions(product, variant),
+        // pg does not serialize an array of objects as JSON when it is bound
+        // directly. Explicitly cast the JSON string so PostgreSQL receives a
+        // valid jsonb value instead of the driver's array literal syntax.
+        selected_options: sql`cast(${JSON.stringify(
+          confection
+            ? [
+                ...getVariantDisplayOptions(product, variant),
+                { label: "Confection", value: confection.label },
+              ]
+            : getVariantDisplayOptions(product, variant),
+        )} as jsonb)`,
         quantity,
         price_at_add_minor:
           existing?.price_at_add_minor ?? variant.price.amountMinor,
