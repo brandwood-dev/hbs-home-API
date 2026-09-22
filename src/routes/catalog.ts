@@ -256,6 +256,9 @@ const RelatedQuerySchema = Type.Object(
 );
 
 function asStringList(value: unknown): string[] {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? [String(value)] : [];
+  }
   if (typeof value === "string") {
     const normalized = value.trim();
     if (!normalized) return [];
