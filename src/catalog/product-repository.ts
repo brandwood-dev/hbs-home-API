@@ -99,6 +99,10 @@ export interface ProductVariant {
   id: string;
   sku: string;
   colorId: string;
+  /** Optional color metadata copied from the variant payload when available. */
+  colorLabel?: string;
+  colorHex?: string;
+  colorFamily?: string;
   widthCm: number;
   heightCm: number;
   curtainHeader?: string;
@@ -369,6 +373,15 @@ function parseVariant(value: unknown): ProductVariant | null {
     imageIds: toArrayString(record.imageIds),
     price,
   };
+
+  const colorLabel =
+    asString(record.colorLabel) ?? asString(record.color_label);
+  if (colorLabel) variant.colorLabel = colorLabel;
+  const colorHex = asString(record.colorHex) ?? asString(record.color_hex);
+  if (colorHex) variant.colorHex = colorHex;
+  const colorFamily =
+    asString(record.colorFamily) ?? asString(record.color_family);
+  if (colorFamily) variant.colorFamily = colorFamily;
 
   const compareAt = parseMoney(record.compareAtPrice);
   if (compareAt.amountMinor > 0) variant.compareAtPrice = compareAt;
@@ -661,14 +674,67 @@ function includesAnyNumber(
   return values.includes(candidate);
 }
 
+/**
+ * Resolve the canonical color family used by public filters for a variant.
+ *
+ * Older Admin-created products store the color only on the variant (for
+ * example `c-gris`) and leave the product-level `colors` array empty.  The
+ * frontend can reconstruct the swatch, but the API must also resolve that
+ * same family before applying server-side filters.
+ */
+const COLOR_FAMILY_BY_VARIANT_TOKEN: Readonly<Record<string, string>> = {
+  ivoire: "white",
+  blanc: "white",
+  beige: "beige",
+  grege: "beige",
+  gris: "grey",
+  anthracite: "grey",
+  noir: "black",
+  camel: "brown",
+  chocolat: "brown",
+  bois: "brown",
+  bordeaux: "red",
+  rouge: "red",
+  rose: "pink",
+  moutarde: "yellow",
+  jaune: "yellow",
+  terracotta: "orange",
+  orange: "orange",
+  vert: "green",
+  emeraude: "green",
+  bleu: "blue",
+  bleuciel: "blue",
+  prune: "purple",
+  violet: "purple",
+  dore: "metallic",
+  or: "metallic",
+  argent: "metallic",
+};
+
+export function getVariantColorFamily(
+  product: Product,
+  variant: ProductVariant,
+): string | undefined {
+  const declared = product.colors.find((entry) => entry.id === variant.colorId);
+  if (declared?.family) return declared.family;
+  if (variant.colorFamily) return variant.colorFamily;
+
+  const token = variant.colorId
+    .trim()
+    .toLocaleLowerCase("fr-FR")
+    .replace(/^c-/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return COLOR_FAMILY_BY_VARIANT_TOKEN[token];
+}
+
 function variantMatches(
   product: Product,
   variant: ProductVariant,
   params: ProductListParams,
 ): boolean {
-  const color = product.colors.find((entry) => entry.id === variant.colorId);
   if (params.colors && params.colors.length > 0) {
-    const colorFamily = color?.family;
+    const colorFamily = getVariantColorFamily(product, variant);
     if (!colorFamily || !params.colors.includes(colorFamily)) return false;
   }
   if (!includesOneOrAll(params.curtainHeaders, variant.curtainHeader))
