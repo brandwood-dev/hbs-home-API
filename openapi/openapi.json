@@ -671,6 +671,15 @@
                 "colorId": {
                   "type": "string"
                 },
+                "colorLabel": {
+                  "type": "string"
+                },
+                "colorHex": {
+                  "type": "string"
+                },
+                "colorFamily": {
+                  "type": "string"
+                },
                 "widthCm": {
                   "minimum": 1,
                   "type": "integer"
@@ -11986,6 +11995,15 @@
                                 "colorId": {
                                   "type": "string"
                                 },
+                                "colorLabel": {
+                                  "type": "string"
+                                },
+                                "colorHex": {
+                                  "type": "string"
+                                },
+                                "colorFamily": {
+                                  "type": "string"
+                                },
                                 "widthCm": {
                                   "minimum": 1,
                                   "type": "integer"
@@ -12718,6 +12736,15 @@
                             "colorId": {
                               "type": "string"
                             },
+                            "colorLabel": {
+                              "type": "string"
+                            },
+                            "colorHex": {
+                              "type": "string"
+                            },
+                            "colorFamily": {
+                              "type": "string"
+                            },
                             "widthCm": {
                               "minimum": 1,
                               "type": "integer"
@@ -13285,6 +13312,15 @@
                                 "colorId": {
                                   "type": "string"
                                 },
+                                "colorLabel": {
+                                  "type": "string"
+                                },
+                                "colorHex": {
+                                  "type": "string"
+                                },
+                                "colorFamily": {
+                                  "type": "string"
+                                },
                                 "widthCm": {
                                   "minimum": 1,
                                   "type": "integer"
@@ -13844,6 +13880,15 @@
                             "type": "string"
                           },
                           "colorId": {
+                            "type": "string"
+                          },
+                          "colorLabel": {
+                            "type": "string"
+                          },
+                          "colorHex": {
+                            "type": "string"
+                          },
+                          "colorFamily": {
                             "type": "string"
                           },
                           "widthCm": {
@@ -14482,6 +14527,15 @@
                               "type": "string"
                             },
                             "colorId": {
+                              "type": "string"
+                            },
+                            "colorLabel": {
+                              "type": "string"
+                            },
+                            "colorHex": {
+                              "type": "string"
+                            },
+                            "colorFamily": {
                               "type": "string"
                             },
                             "widthCm": {

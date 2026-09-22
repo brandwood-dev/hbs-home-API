@@ -22,6 +22,9 @@ const VariantSchema = Type.Object(
     id: Type.String(),
     sku: Type.String(),
     colorId: Type.String(),
+    colorLabel: Type.Optional(Type.String()),
+    colorHex: Type.Optional(Type.String()),
+    colorFamily: Type.Optional(Type.String()),
     widthCm: Type.Integer({ minimum: 1 }),
     heightCm: Type.Integer({ minimum: 1 }),
     curtainHeader: Type.Optional(Type.String()),
@@ -253,8 +256,21 @@ const RelatedQuerySchema = Type.Object(
 );
 
 function asStringList(value: unknown): string[] {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? [String(value)] : [];
+  }
   if (typeof value === "string") {
-    return value
+    const normalized = value.trim();
+    if (!normalized) return [];
+    if (normalized.startsWith("[") && normalized.endsWith("]")) {
+      try {
+        const decoded: unknown = JSON.parse(normalized);
+        if (Array.isArray(decoded)) return asStringList(decoded);
+      } catch {
+        // Keep accepting comma-separated values for manually edited URLs.
+      }
+    }
+    return normalized
       .split(",")
       .map((entry) => entry.trim())
       .filter(Boolean);
