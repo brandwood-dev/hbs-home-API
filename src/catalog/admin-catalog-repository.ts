@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { sql, type Kysely, type Selectable, type Transaction } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
+import {
+  managedSystemAttributeKeys,
+  shouldIgnoreUnavailableAttributeValue,
+  systemAttributeKeysForRootCategory,
+} from "./system-attributes.js";
 import { validateVariantBusinessRules } from "./variant-business-rules.js";
 
 type DbExecutor = Kysely<DatabaseSchema> | Transaction<DatabaseSchema>;
@@ -17,176 +22,6 @@ type AttributeValueType =
   "text" | "number" | "boolean" | "select" | "color" | "dimension";
 type JsonAttributeValue =
   Record<string, unknown> | readonly unknown[] | string | number | boolean;
-
-/**
- * Canonical system attributes provisioned for each catalogue family.  The
- * public slugs are kept here (rather than in the UI) so categories created
- * after the migration receive the same bindings as the seeded categories.
- */
-const SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY: Readonly<
-  Record<string, readonly string[]>
-> = {
-  rideaux: [
-    "material",
-    "opacity",
-    "rooms",
-    "large_width",
-    "care",
-    "installation",
-  ],
-  voilages: [
-    "material",
-    "opacity",
-    "rooms",
-    "large_width",
-    "care",
-    "installation",
-  ],
-  stores: [
-    "material",
-    "opacity",
-    "rooms",
-    "care",
-    "installation",
-    "blind_type",
-    "mechanism",
-  ],
-  coussins: [
-    "material",
-    "rooms",
-    "shape",
-    "removable_cover",
-    "machine_washable",
-    "filling",
-    "closure",
-  ],
-  "galettes-de-chaise": [
-    "material",
-    "rooms",
-    "shape",
-    "removable_cover",
-    "machine_washable",
-    "fastening",
-    "thickness_cm",
-  ],
-  galettes_de_chaise: [
-    "material",
-    "rooms",
-    "shape",
-    "removable_cover",
-    "machine_washable",
-    "fastening",
-    "thickness_cm",
-  ],
-  accessoires: [
-    "material",
-    "installation",
-    "accessory_type",
-    "compatibilities",
-    "finish",
-    "min_length_cm",
-    "max_length_cm",
-    "diameter_mm",
-  ],
-  mobilier: [
-    "rooms",
-    "furniture_type",
-    "removable_cover",
-    "upholstery",
-    "frame_material",
-    "leg_material",
-    "features",
-    "seat_comfort",
-    "number_of_seats",
-    "assembly_level",
-    "assembly_time",
-    "shipping_profile",
-    "free_shipping_eligible",
-    "width_cm",
-    "depth_cm",
-    "height_cm",
-    "seat_width_cm",
-    "seat_depth_cm",
-    "seat_height_cm",
-    "back_height_cm",
-    "armrest_height_cm",
-    "weight_kg",
-    "max_load_kg",
-    "storage_volume_l",
-    "package_count",
-  ],
-  mobilier_interieur: [
-    "rooms",
-    "furniture_type",
-    "removable_cover",
-    "upholstery",
-    "frame_material",
-    "leg_material",
-    "features",
-    "seat_comfort",
-    "number_of_seats",
-    "assembly_level",
-    "assembly_time",
-    "shipping_profile",
-    "free_shipping_eligible",
-    "width_cm",
-    "depth_cm",
-    "height_cm",
-    "seat_width_cm",
-    "seat_depth_cm",
-    "seat_height_cm",
-    "back_height_cm",
-    "armrest_height_cm",
-    "weight_kg",
-    "max_load_kg",
-    "storage_volume_l",
-    "package_count",
-  ],
-  plantes: [
-    "rooms",
-    "care",
-    "shipping_profile",
-    "plant_nature",
-    "plant_type",
-    "plant_size",
-    "common_name",
-    "botanical_name",
-    "plant_family",
-    "origin",
-    "light_need",
-    "watering",
-    "pet_safe",
-    "toxicity_note",
-    "flowering",
-    "trailing",
-    "pot_included",
-    "indoor_use",
-    "preservation",
-    "fragile",
-  ],
-  plantes_decoration: [
-    "rooms",
-    "care",
-    "shipping_profile",
-    "plant_nature",
-    "plant_type",
-    "plant_size",
-    "common_name",
-    "botanical_name",
-    "plant_family",
-    "origin",
-    "light_need",
-    "watering",
-    "pet_safe",
-    "toxicity_note",
-    "flowering",
-    "trailing",
-    "pot_included",
-    "indoor_use",
-    "preservation",
-    "fragile",
-  ],
-};
 
 export interface AdminCategory {
   id: string;
@@ -690,8 +525,8 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         })
         .returningAll()
         .executeTakeFirstOrThrow();
-      const rootSlug = await this.rootCategorySlug(trx, row);
-      await this.bindSystemAttributesForCategory(trx, row.id, rootSlug);
+      const rootCategory = await this.rootCategoryRow(trx, row);
+      await this.bindSystemAttributesForCategory(trx, row.id, rootCategory);
       return categoryRecord(row);
     });
   }
@@ -792,6 +627,33 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         .where("id", "=", id)
         .returningAll()
         .executeTakeFirstOrThrow();
+
+      const parentChanged =
+        patch.parentId !== undefined && patch.parentId !== current.parent_id;
+      const rootSlugChanged =
+        !current.parent_id &&
+        patch.slug !== undefined &&
+        patch.slug !== current.slug;
+      if (row.status !== "archived" && (parentChanged || rootSlugChanged)) {
+        const affectedCategories = row.parent_id
+          ? [row]
+          : await trx
+              .selectFrom("catalog.categories")
+              .selectAll()
+              .where((eb) =>
+                eb.or([eb("id", "=", row.id), eb("parent_id", "=", row.id)]),
+              )
+              .where("status", "!=", "archived")
+              .execute();
+        for (const category of affectedCategories) {
+          const rootCategory = await this.rootCategoryRow(trx, category);
+          await this.bindSystemAttributesForCategory(
+            trx,
+            category.id,
+            rootCategory,
+          );
+        }
+      }
 
       // `products.category` is a legacy denormalized root slug still used by
       // search, exports and older clients. Keep it aligned when a root slug
@@ -2078,13 +1940,23 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       if (
         scopedBindings.length > 0 &&
         !scopedBindings.some((binding) => binding.category_id === categoryId)
-      )
+      ) {
+        if (
+          shouldIgnoreUnavailableAttributeValue(
+            definition.key,
+            definition.is_system,
+            definition.value_type,
+            rawValue,
+          )
+        )
+          continue;
         fail(
           422,
           "ATTRIBUTE_CATEGORY_MISMATCH",
           "Invalid product attribute",
           `The attribute '${key}' is not available for the selected category.`,
         );
+      }
       const value = normalizeAttributeValue(
         definition.value_type,
         rawValue,
@@ -2256,17 +2128,70 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
   private async bindSystemAttributesForCategory(
     executor: DbExecutor,
     categoryId: string,
-    rootSlug: string,
+    rootCategory: CategoryRow,
   ): Promise<void> {
-    const keys = SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY[rootSlug];
-    if (!keys || keys.length === 0) return;
-    const attributes = await executor
-      .selectFrom("catalog.attributes")
-      .select(["id", "is_required", "sort_order"])
-      .where("key", "in", keys)
-      .where("is_system", "=", true)
-      .where("status", "!=", "archived")
-      .execute();
+    const attributesById = new Map<
+      string,
+      { id: string; is_required: boolean; sort_order: number }
+    >();
+    if (categoryId !== rootCategory.id) {
+      const inheritedAttributes = await executor
+        .selectFrom("catalog.category_attributes as categoryAttribute")
+        .innerJoin(
+          "catalog.attributes as attribute",
+          "attribute.id",
+          "categoryAttribute.attribute_id",
+        )
+        .select([
+          "attribute.id as id",
+          "categoryAttribute.is_required as is_required",
+          "categoryAttribute.sort_order as sort_order",
+        ])
+        .where("categoryAttribute.category_id", "=", rootCategory.id)
+        .where("attribute.is_system", "=", true)
+        .where("attribute.status", "!=", "archived")
+        .execute();
+      for (const attribute of inheritedAttributes)
+        attributesById.set(attribute.id, attribute);
+    }
+
+    const expectedKeys = systemAttributeKeysForRootCategory(rootCategory.slug);
+    const defaultAttributes = expectedKeys.length
+      ? await executor
+          .selectFrom("catalog.attributes")
+          .select(["id", "is_required", "sort_order"])
+          .where("key", "in", expectedKeys)
+          .where("is_system", "=", true)
+          .where("status", "!=", "archived")
+          .execute()
+      : [];
+    for (const attribute of defaultAttributes)
+      if (!attributesById.has(attribute.id))
+        attributesById.set(attribute.id, attribute);
+
+    const attributes = [...attributesById.values()];
+    const desiredAttributeIds = new Set(
+      attributes.map((attribute) => attribute.id),
+    );
+    const managedKeys = managedSystemAttributeKeys();
+    const managedAttributes = managedKeys.length
+      ? await executor
+          .selectFrom("catalog.attributes")
+          .select("id")
+          .where("key", "in", managedKeys)
+          .where("is_system", "=", true)
+          .execute()
+      : [];
+    const staleAttributeIds = managedAttributes
+      .map((attribute) => attribute.id)
+      .filter((attributeId) => !desiredAttributeIds.has(attributeId));
+    if (staleAttributeIds.length > 0)
+      await executor
+        .deleteFrom("catalog.category_attributes")
+        .where("category_id", "=", categoryId)
+        .where("attribute_id", "in", staleAttributeIds)
+        .execute();
+
     if (attributes.length === 0) return;
     await executor
       .insertInto("catalog.category_attributes")
@@ -2287,10 +2212,10 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       .execute();
   }
 
-  private async rootCategorySlug(
+  private async rootCategoryRow(
     executor: DbExecutor,
     category: CategoryRow,
-  ): Promise<string> {
+  ): Promise<CategoryRow> {
     let current = category;
     const visited = new Set<string>();
     while (current.parent_id) {
@@ -2304,7 +2229,14 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
       visited.add(current.id);
       current = await this.assertCategory(executor, current.parent_id);
     }
-    return current.slug;
+    return current;
+  }
+
+  private async rootCategorySlug(
+    executor: DbExecutor,
+    category: CategoryRow,
+  ): Promise<string> {
+    return (await this.rootCategoryRow(executor, category)).slug;
   }
 
   private async assertCategoryParent(
