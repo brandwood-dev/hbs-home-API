@@ -4,11 +4,12 @@ import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
 import {
   incompatibleManagedSystemAttributeIds,
+  hasSystemAttributeCategoryOverride,
   managedSystemAttributeKeys,
   orderCategoryBindingSyncTargets,
   shouldIgnoreUnavailableAttributeValue,
   shouldResynchronizeSystemAttributes,
-  systemAttributeKeysForRootCategory,
+  systemAttributeKeysForCategory,
 } from "./system-attributes.js";
 import { validateVariantBusinessRules } from "./variant-business-rules.js";
 
@@ -2143,11 +2144,22 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     categoryId: string,
     rootCategory: CategoryRow,
   ): Promise<void> {
+    const categorySlug =
+      categoryId === rootCategory.id
+        ? rootCategory.slug
+        : (
+            await executor
+              .selectFrom("catalog.categories")
+              .select("slug")
+              .where("id", "=", categoryId)
+              .executeTakeFirstOrThrow()
+          ).slug;
+    const categoryOverride = hasSystemAttributeCategoryOverride(categorySlug);
     const attributesById = new Map<
       string,
       { id: string; is_required: boolean; sort_order: number }
     >();
-    if (categoryId !== rootCategory.id) {
+    if (categoryId !== rootCategory.id && !categoryOverride) {
       const inheritedAttributes = await executor
         .selectFrom("catalog.category_attributes as categoryAttribute")
         .innerJoin(
@@ -2168,7 +2180,10 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         attributesById.set(attribute.id, attribute);
     }
 
-    const expectedKeys = systemAttributeKeysForRootCategory(rootCategory.slug);
+    const expectedKeys = systemAttributeKeysForCategory(
+      categorySlug,
+      rootCategory.slug,
+    );
     const defaultAttributes = expectedKeys.length
       ? await executor
           .selectFrom("catalog.attributes")

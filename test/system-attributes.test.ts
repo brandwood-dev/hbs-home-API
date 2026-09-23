@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   incompatibleManagedSystemAttributeIds,
+  hasSystemAttributeCategoryOverride,
   managedSystemAttributeKeys,
   orderCategoryBindingSyncTargets,
   shouldIgnoreUnavailableAttributeValue,
   shouldResynchronizeSystemAttributes,
+  systemAttributeKeysForCategory,
   systemAttributeKeysForRootCategory,
 } from "../src/catalog/system-attributes.js";
 
@@ -32,6 +34,27 @@ describe("system category attributes", () => {
     expect(systemAttributeKeysForRootCategory(rootSlug)).toContain(
       attributeKey,
     );
+  });
+
+  it("narrows the managed schema for curtain rods without changing other accessories", () => {
+    expect(
+      systemAttributeKeysForCategory("accessoires-tringles", "accessoires"),
+    ).toEqual([
+      "material",
+      "installation",
+      "accessory_type",
+      "min_length_cm",
+      "max_length_cm",
+    ]);
+    expect(hasSystemAttributeCategoryOverride("accessoires-tringles")).toBe(
+      true,
+    );
+    expect(hasSystemAttributeCategoryOverride("accessoires-embrasses")).toBe(
+      false,
+    );
+    expect(
+      systemAttributeKeysForCategory("accessoires-embrasses", "accessoires"),
+    ).toContain("compatibilities");
   });
 
   it("lists every automatically managed system attribute", () => {
