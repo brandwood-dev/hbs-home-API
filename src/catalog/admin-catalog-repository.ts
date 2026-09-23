@@ -3,8 +3,11 @@ import { sql, type Kysely, type Selectable, type Transaction } from "kysely";
 import type { DatabaseSchema } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
 import {
+  incompatibleManagedSystemAttributeIds,
   managedSystemAttributeKeys,
+  orderCategoryBindingSyncTargets,
   shouldIgnoreUnavailableAttributeValue,
+  shouldResynchronizeSystemAttributes,
   systemAttributeKeysForRootCategory,
 } from "./system-attributes.js";
 import { validateVariantBusinessRules } from "./variant-business-rules.js";
@@ -634,17 +637,27 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         !current.parent_id &&
         patch.slug !== undefined &&
         patch.slug !== current.slug;
-      if (row.status !== "archived" && (parentChanged || rootSlugChanged)) {
+      if (
+        shouldResynchronizeSystemAttributes({
+          previousStatus: current.status,
+          nextStatus: row.status,
+          parentChanged,
+          rootSlugChanged,
+        })
+      ) {
         const affectedCategories = row.parent_id
           ? [row]
-          : await trx
-              .selectFrom("catalog.categories")
-              .selectAll()
-              .where((eb) =>
-                eb.or([eb("id", "=", row.id), eb("parent_id", "=", row.id)]),
-              )
-              .where("status", "!=", "archived")
-              .execute();
+          : orderCategoryBindingSyncTargets(
+              row,
+              await trx
+                .selectFrom("catalog.categories")
+                .selectAll()
+                .where((eb) =>
+                  eb.or([eb("id", "=", row.id), eb("parent_id", "=", row.id)]),
+                )
+                .where("status", "!=", "archived")
+                .execute(),
+            );
         for (const category of affectedCategories) {
           const rootCategory = await this.rootCategoryRow(trx, category);
           await this.bindSystemAttributesForCategory(
@@ -2177,20 +2190,30 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
     const managedAttributes = managedKeys.length
       ? await executor
           .selectFrom("catalog.attributes")
-          .select("id")
+          .select(["id", "key", "is_system"])
           .where("key", "in", managedKeys)
-          .where("is_system", "=", true)
           .execute()
       : [];
-    const staleAttributeIds = managedAttributes
-      .map((attribute) => attribute.id)
-      .filter((attributeId) => !desiredAttributeIds.has(attributeId));
-    if (staleAttributeIds.length > 0)
+    const staleAttributeIds = incompatibleManagedSystemAttributeIds(
+      managedAttributes.map((attribute) => ({
+        id: attribute.id,
+        key: attribute.key,
+        isSystem: attribute.is_system,
+      })),
+      desiredAttributeIds,
+    );
+    if (staleAttributeIds.length > 0) {
       await executor
         .deleteFrom("catalog.category_attributes")
         .where("category_id", "=", categoryId)
         .where("attribute_id", "in", staleAttributeIds)
         .execute();
+      await this.removeIncompatibleManagedProductAttributes(
+        executor,
+        categoryId,
+        staleAttributeIds,
+      );
+    }
 
     if (attributes.length === 0) return;
     await executor
@@ -2210,6 +2233,32 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
         })),
       )
       .execute();
+  }
+
+  private async removeIncompatibleManagedProductAttributes(
+    executor: DbExecutor,
+    categoryId: string,
+    attributeIds: readonly string[],
+  ): Promise<void> {
+    if (attributeIds.length === 0) return;
+    const deletedValues = await executor
+      .deleteFrom("catalog.product_attributes")
+      .where(
+        "product_id",
+        "in",
+        executor
+          .selectFrom("catalog.products")
+          .select("id")
+          .where("category_id", "=", categoryId),
+      )
+      .where("attribute_id", "in", attributeIds)
+      .returning("product_id")
+      .execute();
+    const affectedProductIds = [
+      ...new Set(deletedValues.map((value) => value.product_id)),
+    ];
+    for (const productId of affectedProductIds)
+      await this.refreshProductPayload(productId, executor);
   }
 
   private async rootCategoryRow(
