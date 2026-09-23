@@ -160,6 +160,23 @@ const SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY: Readonly<
   ],
 };
 
+/**
+ * A child category can deliberately narrow a family schema.  Keep these
+ * overrides next to the managed system contract so a future category sync
+ * cannot silently restore fields that were removed from the Admin form.
+ */
+const SYSTEM_ATTRIBUTE_KEYS_BY_CATEGORY_SLUG: Readonly<
+  Record<string, readonly string[]>
+> = {
+  "accessoires-tringles": [
+    "material",
+    "installation",
+    "accessory_type",
+    "min_length_cm",
+    "max_length_cm",
+  ],
+};
+
 function normalizedCategorySlug(value: string): string {
   return value
     .trim()
@@ -178,6 +195,26 @@ export function systemAttributeKeysForRootCategory(
     SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY[
       normalizedCategorySlug(rootCategorySlug)
     ] ?? []
+  );
+}
+
+export function systemAttributeKeysForCategory(
+  categorySlug: string,
+  rootCategorySlug: string,
+): readonly string[] {
+  const normalizedCategory = normalizedCategorySlug(categorySlug);
+  return (
+    SYSTEM_ATTRIBUTE_KEYS_BY_CATEGORY_SLUG[normalizedCategory] ??
+    systemAttributeKeysForRootCategory(rootCategorySlug)
+  );
+}
+
+export function hasSystemAttributeCategoryOverride(
+  categorySlug: string,
+): boolean {
+  return Object.prototype.hasOwnProperty.call(
+    SYSTEM_ATTRIBUTE_KEYS_BY_CATEGORY_SLUG,
+    normalizedCategorySlug(categorySlug),
   );
 }
 
