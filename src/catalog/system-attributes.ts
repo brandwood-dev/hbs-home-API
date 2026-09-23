@@ -189,6 +189,49 @@ export function managedSystemAttributeKeys(): readonly string[] {
   return MANAGED_SYSTEM_ATTRIBUTE_KEYS;
 }
 
+export function orderCategoryBindingSyncTargets<T extends { id: string }>(
+  rootCategory: T,
+  categories: readonly T[],
+): readonly T[] {
+  return [
+    rootCategory,
+    ...categories.filter((category) => category.id !== rootCategory.id),
+  ];
+}
+
+export function shouldResynchronizeSystemAttributes(input: {
+  previousStatus: string;
+  nextStatus: string;
+  parentChanged: boolean;
+  rootSlugChanged: boolean;
+}): boolean {
+  return (
+    input.nextStatus !== "archived" &&
+    (input.parentChanged ||
+      input.rootSlugChanged ||
+      input.previousStatus === "archived")
+  );
+}
+
+export function incompatibleManagedSystemAttributeIds(
+  attributes: readonly {
+    id: string;
+    key: string;
+    isSystem: boolean;
+  }[],
+  desiredAttributeIds: ReadonlySet<string>,
+): readonly string[] {
+  const managedKeys = new Set(MANAGED_SYSTEM_ATTRIBUTE_KEYS);
+  return attributes
+    .filter(
+      (attribute) =>
+        attribute.isSystem &&
+        managedKeys.has(attribute.key) &&
+        !desiredAttributeIds.has(attribute.id),
+    )
+    .map((attribute) => attribute.id);
+}
+
 export function shouldIgnoreUnavailableAttributeValue(
   attributeKey: string,
   isSystem: boolean,

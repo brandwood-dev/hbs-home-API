@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  incompatibleManagedSystemAttributeIds,
   managedSystemAttributeKeys,
+  orderCategoryBindingSyncTargets,
   shouldIgnoreUnavailableAttributeValue,
+  shouldResynchronizeSystemAttributes,
   systemAttributeKeysForRootCategory,
 } from "../src/catalog/system-attributes.js";
 
@@ -40,6 +43,59 @@ describe("system category attributes", () => {
         "fastening",
       ]),
     );
+  });
+
+  it("orders the root before descendants when synchronizing bindings", () => {
+    const root = { id: "root", label: "Root" };
+    const childA = { id: "child-a", label: "A" };
+    const childB = { id: "child-b", label: "B" };
+
+    expect(
+      orderCategoryBindingSyncTargets(root, [childA, childB, root]),
+    ).toEqual([root, childA, childB]);
+  });
+
+  it("resynchronizes managed bindings when an archived category is reactivated", () => {
+    expect(
+      shouldResynchronizeSystemAttributes({
+        previousStatus: "archived",
+        nextStatus: "active",
+        parentChanged: false,
+        rootSlugChanged: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldResynchronizeSystemAttributes({
+        previousStatus: "active",
+        nextStatus: "active",
+        parentChanged: false,
+        rootSlugChanged: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldResynchronizeSystemAttributes({
+        previousStatus: "active",
+        nextStatus: "archived",
+        parentChanged: true,
+        rootSlugChanged: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("removes only incompatible managed system attribute values", () => {
+    const desiredAttributeIds = new Set(["system-material"]);
+    expect(
+      incompatibleManagedSystemAttributeIds(
+        [
+          { id: "system-material", key: "material", isSystem: true },
+          { id: "system-shape", key: "shape", isSystem: true },
+          { id: "custom-shape", key: "shape", isSystem: false },
+          { id: "custom-toggle", key: "custom_toggle", isSystem: false },
+          { id: "future-system", key: "future_key", isSystem: true },
+        ],
+        desiredAttributeIds,
+      ),
+    ).toEqual(["system-shape"]);
   });
 
   it("ignores only the disabled legacy large-width system checkbox", () => {
