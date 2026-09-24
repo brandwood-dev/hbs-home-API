@@ -211,14 +211,64 @@ export interface AdminOrderReturnInput {
   refundPayment: boolean;
 }
 
+/**
+ * Admin corrections are intentionally reversible. Operational safeguards are
+ * enforced separately (reason for sensitive changes, stock restoration only
+ * through the cancellation workflow, and an append-only status history).
+ */
+const EDITABLE_ORDER_STATUSES: readonly OrderStatus[] = [
+  "pending_confirmation",
+  "confirmed",
+  "preparing",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
+const NORMAL_EDITABLE_ORDER_STATUSES = EDITABLE_ORDER_STATUSES.filter(
+  (status) => status !== "cancelled",
+);
+
 const STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  pending_confirmation: ["confirmed", "cancelled"],
-  confirmed: ["preparing", "cancelled"],
-  preparing: ["shipped", "cancelled"],
-  shipped: ["delivered"],
-  delivered: [],
-  cancelled: [],
+  pending_confirmation: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+    (status) => status !== "pending_confirmation",
+  ),
+  confirmed: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+    (status) => status !== "confirmed",
+  ),
+  preparing: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+    (status) => status !== "preparing",
+  ),
+  shipped: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+    (status) => status !== "shipped",
+  ),
+  delivered: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+    (status) => status !== "delivered",
+  ),
+  // A cancelled order can be corrected back to any operational status. The
+  // reverse path is deliberately handled by cancelOrder so stock reservations
+  // are restored consistently.
+  cancelled: NORMAL_EDITABLE_ORDER_STATUSES,
 };
+
+const STATUS_ORDER: Record<OrderStatus, number> = {
+  pending_confirmation: 0,
+  confirmed: 1,
+  preparing: 2,
+  shipped: 3,
+  delivered: 4,
+  cancelled: 5,
+};
+
+function statusTransitionRequiresReason(
+  from: OrderStatus,
+  to: OrderStatus,
+): boolean {
+  if (from === to) return false;
+  if (to === "cancelled" || to === "delivered") return true;
+  if (from === "delivered" || from === "cancelled") return true;
+  return STATUS_ORDER[to] < STATUS_ORDER[from];
+}
 
 function iso(value: Date): string {
   return value.toISOString();
@@ -645,15 +695,6 @@ export class PostgresAdminOrderRepository {
         detail: "The internal note must be at most 1000 characters.",
       });
     }
-    if (input.status === "cancelled" && !reason) {
-      throw new AppError({
-        statusCode: 400,
-        code: "ORDER_STATUS_REASON_REQUIRED",
-        title: "A reason is required",
-        detail: "A reason is required when cancelling an order.",
-      });
-    }
-
     await this.database.transaction().execute(async (trx) => {
       const current = await trx
         .selectFrom("commerce.orders")
@@ -667,6 +708,20 @@ export class PostgresAdminOrderRepository {
           code: "ORDER_NOT_FOUND",
           title: "Order not found",
           detail: "The requested order does not exist.",
+        });
+      }
+
+      if (current.status === input.status) return;
+      if (
+        statusTransitionRequiresReason(current.status, input.status) &&
+        !reason
+      ) {
+        throw new AppError({
+          statusCode: 400,
+          code: "ORDER_STATUS_REASON_REQUIRED",
+          title: "A reason is required",
+          detail:
+            "A reason is required for a backward or sensitive status correction.",
         });
       }
 
@@ -1071,12 +1126,12 @@ export class PostgresAdminOrderRepository {
           detail: "The requested order does not exist.",
         });
       }
-      if (!STATUS_TRANSITIONS[current.status].includes("cancelled")) {
+      if (current.status === "cancelled") {
         throw new AppError({
           statusCode: 409,
           code: "ORDER_STATUS_TRANSITION_INVALID",
           title: "Invalid order status transition",
-          detail: `The order cannot move from ${current.status} to cancelled.`,
+          detail: "The order is already cancelled.",
         });
       }
       if (input.restoreStock && current.reservation_id) {
