@@ -22,7 +22,7 @@ jobs:
       name: staging
       url: https://api-preview.hbs-home.com/health/ready
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
       - uses: oven-sh/setup-bun@v2
