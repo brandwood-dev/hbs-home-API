@@ -41,7 +41,7 @@ describe("Category media conversion", () => {
     });
   });
 
-  it("uploads with the secret key in apikey only", async () => {
+  it("uploads with the secret key in both Storage auth headers", async () => {
     const source = await sharp({
       create: {
         width: 12,
@@ -81,7 +81,7 @@ describe("Category media conversion", () => {
       "/storage/v1/object/public/catalog-media/",
     );
     expect(capturedHeaders.get("apikey")).toBe("sb_secret_test");
-    expect(capturedHeaders.get("authorization")).toBeNull();
+    expect(capturedHeaders.get("authorization")).toBe("Bearer sb_secret_test");
   });
 
   it("keeps Bearer auth for legacy JWT-shaped service keys", async () => {

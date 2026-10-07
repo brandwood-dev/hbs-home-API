@@ -173,20 +173,17 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
     const storagePath = `catalog/categories/uploads/${randomUUID()}.webp`;
     const objectPath = encodeStoragePath(`${this.bucket}/${storagePath}`);
 
-    // Supabase's new `sb_secret_…` keys are API keys, not JWTs. They must be
-    // sent in `apikey` only; sending them as `Authorization: Bearer …` makes
-    // Storage reject an otherwise valid upload with HTTP 400 (Invalid JWT).
-    // Keep Bearer auth only for legacy JWT-shaped service-role keys so an
-    // existing deployment can be rotated without breaking category uploads.
+    // Supabase Storage validates an Authorization header for object uploads.
+    // Send the same server-side key in both headers: `apikey` routes the
+    // request and `Authorization: Bearer` satisfies Storage's auth schema for
+    // modern opaque `sb_secret_…` keys as well as legacy JWT service keys.
     const headers = new Headers({
       apikey: this.secretKey,
+      authorization: `Bearer ${this.secretKey}`,
       "cache-control": "max-age=31536000",
       "content-type": CATEGORY_IMAGE_OUTPUT_MIME,
       "x-upsert": "false",
     });
-    if (this.secretKey.startsWith("eyJ")) {
-      headers.set("authorization", `Bearer ${this.secretKey}`);
-    }
 
     let response: Response;
     try {
