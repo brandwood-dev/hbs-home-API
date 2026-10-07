@@ -542,6 +542,7 @@ export function registerAdminCatalogRoutes(
           400: ProblemDetailSchema,
           401: ProblemDetailSchema,
           403: ProblemDetailSchema,
+          502: ProblemDetailSchema,
           413: ProblemDetailSchema,
           503: ProblemDetailSchema,
         },

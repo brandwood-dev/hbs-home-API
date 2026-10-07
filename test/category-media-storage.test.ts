@@ -84,6 +84,74 @@ describe("Category media conversion", () => {
     expect(capturedHeaders.get("authorization")).toBeNull();
   });
 
+  it("keeps Bearer auth for legacy JWT-shaped service keys", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    let capturedHeaders = new Headers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+        capturedHeaders = new Headers(init?.headers);
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }),
+    );
+
+    const legacyKey = "eyJhbGciOiJIUzI1NiJ9.legacy.service.role";
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      legacyKey,
+    );
+    await storage.upload({ bytes: source, contentType: "image/png" });
+
+    expect(capturedHeaders.get("apikey")).toBe(legacyKey);
+    expect(capturedHeaders.get("authorization")).toBe(`Bearer ${legacyKey}`);
+  });
+
+  it("returns an actionable configuration error for rejected storage credentials", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "InvalidJWT" }), {
+            status: 401,
+            headers: { "x-request-id": "storage-test-request" },
+          }),
+        ),
+      ),
+    );
+
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      "sb_secret_test",
+    );
+    await expect(
+      storage.upload({ bytes: source, contentType: "image/png" }),
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MEDIA_STORAGE_MISCONFIGURED",
+    });
+  });
+
   it("rejects a publishable key before attempting a Storage write", async () => {
     const storage = new SupabaseCategoryMediaStorage(
       "catalog-media",

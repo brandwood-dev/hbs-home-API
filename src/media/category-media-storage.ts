@@ -28,10 +28,14 @@ function encodeStoragePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
-function failUpload(detail: string): never {
+function failUpload(
+  detail: string,
+  code = "MEDIA_STORAGE_UPLOAD_FAILED",
+  statusCode = 502,
+): never {
   throw new AppError({
-    statusCode: 502,
-    code: "MEDIA_STORAGE_UPLOAD_FAILED",
+    statusCode,
+    code,
     title: "Media storage unavailable",
     detail,
   });
@@ -53,6 +57,42 @@ function failInvalidImage(detail: string): never {
     title: "Invalid category image",
     detail,
   });
+}
+
+function safeStorageErrorCode(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return /^[A-Za-z0-9_.:-]{1,80}$/.test(normalized) ? normalized : undefined;
+}
+
+async function readStorageError(response: Response): Promise<{
+  code?: string;
+  requestId?: string;
+}> {
+  let body: unknown;
+  try {
+    body = await response.clone().json();
+  } catch {
+    body = undefined;
+  }
+
+  const payload =
+    body && typeof body === "object"
+      ? (body as Record<string, unknown>)
+      : undefined;
+  const code = safeStorageErrorCode(
+    payload?.error ?? payload?.code ?? payload?.statusCode,
+  );
+  const requestId =
+    response.headers.get("x-request-id") ??
+    response.headers.get("sb-request-id") ??
+    response.headers.get("x-sb-request-id") ??
+    undefined;
+
+  return {
+    ...(code ? { code } : {}),
+    ...(requestId ? { requestId } : {}),
+  };
 }
 
 export async function convertCategoryImage(bytes: Buffer): Promise<{
@@ -136,34 +176,57 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
     // Supabase's new `sb_secret_…` keys are API keys, not JWTs. They must be
     // sent in `apikey` only; sending them as `Authorization: Bearer …` makes
     // Storage reject an otherwise valid upload with HTTP 400 (Invalid JWT).
+    // Keep Bearer auth only for legacy JWT-shaped service-role keys so an
+    // existing deployment can be rotated without breaking category uploads.
+    const headers = new Headers({
+      apikey: this.secretKey,
+      "cache-control": "max-age=31536000",
+      "content-type": CATEGORY_IMAGE_OUTPUT_MIME,
+      "x-upsert": "false",
+    });
+    if (this.secretKey.startsWith("eyJ")) {
+      headers.set("authorization", `Bearer ${this.secretKey}`);
+    }
+
     let response: Response;
     try {
       response = await fetch(`${this.storageUrl}/object/${objectPath}`, {
         method: "POST",
-        headers: {
-          apikey: this.secretKey,
-          "cache-control": "max-age=31536000",
-          "content-type": CATEGORY_IMAGE_OUTPUT_MIME,
-          "x-upsert": "false",
-        },
+        headers,
         body: converted.data,
       });
     } catch {
-      failUpload("The category image could not be stored.");
+      failUpload(
+        "Category image storage could not be reached. Please try again.",
+        "MEDIA_STORAGE_NETWORK_ERROR",
+      );
     }
 
     if (!response.ok) {
-      let responseBody = "";
-      try {
-        responseBody = (await response.clone().text()).slice(0, 300);
-      } catch {
-        // The status code is still useful when Storage returns a body that
-        // cannot be decoded.
-      }
+      const storageError = await readStorageError(response);
       console.warn("Supabase Storage rejected category image upload", {
         status: response.status,
-        body: responseBody,
+        storageCode: storageError.code,
+        storageRequestId: storageError.requestId,
       });
+
+      if (response.status === 401 || response.status === 403) {
+        failStorageConfiguration(
+          "Category image storage credentials were rejected. Check the server-side Supabase storage key.",
+        );
+      }
+      if (response.status === 404) {
+        failStorageConfiguration(
+          "The category image storage bucket was not found. Check SUPABASE_STORAGE_BUCKET.",
+        );
+      }
+      if (response.status === 413) {
+        failUpload(
+          "The category image is too large for storage. Use an image under 8 MiB.",
+          "MEDIA_STORAGE_FILE_TOO_LARGE",
+          413,
+        );
+      }
       failUpload("The category image could not be stored.");
     }
 
