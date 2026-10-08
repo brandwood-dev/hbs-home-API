@@ -21,6 +21,8 @@ export interface CategoryMediaStorage {
   upload(input: {
     bytes: Buffer;
     contentType: CategoryImageInputMime;
+    /** JWT from the authenticated admin request, forwarded to Storage for RLS. */
+    authorization?: string;
   }): Promise<CategoryImageUpload>;
 }
 
@@ -159,6 +161,7 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
   async upload(input: {
     bytes: Buffer;
     contentType: CategoryImageInputMime;
+    authorization?: string;
   }): Promise<CategoryImageUpload> {
     // Publishable keys are intentionally read-only for this server-side
     // pipeline. Failing early gives operators an actionable error instead of
@@ -173,13 +176,24 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
     const storagePath = `catalog/categories/uploads/${randomUUID()}.webp`;
     const objectPath = encodeStoragePath(`${this.bucket}/${storagePath}`);
 
-    // Supabase Storage validates an Authorization header for object uploads.
-    // Send the same server-side key in both headers: `apikey` routes the
-    // request and `Authorization: Bearer` satisfies Storage's auth schema for
-    // modern opaque `sb_secret_…` keys as well as legacy JWT service keys.
+    // Modern `sb_secret_…` keys are opaque API keys, not JWTs. They belong in
+    // `apikey` only; Storage must receive the signed admin session JWT in
+    // `Authorization` so its RLS policies can evaluate the actor. Legacy
+    // service-role JWTs remain supported as a backwards-compatible fallback.
+    const authorization =
+      input.authorization?.trim() ??
+      (this.secretKey.startsWith("eyJ")
+        ? `Bearer ${this.secretKey}`
+        : undefined);
+    if (!authorization) {
+      failStorageConfiguration(
+        "Category image storage requires an authenticated admin session.",
+      );
+    }
+
     const headers = new Headers({
       apikey: this.secretKey,
-      authorization: `Bearer ${this.secretKey}`,
+      authorization,
       "cache-control": "max-age=31536000",
       "content-type": CATEGORY_IMAGE_OUTPUT_MIME,
       "x-upsert": "false",

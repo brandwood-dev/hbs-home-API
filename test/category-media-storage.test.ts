@@ -41,7 +41,7 @@ describe("Category media conversion", () => {
     });
   });
 
-  it("uploads with the secret key in both Storage auth headers", async () => {
+  it("uses the admin JWT for Storage auth with a modern secret key", async () => {
     const source = await sharp({
       create: {
         width: 12,
@@ -74,6 +74,7 @@ describe("Category media conversion", () => {
     const result = await storage.upload({
       bytes: source,
       contentType: "image/png",
+      authorization: "Bearer admin.jwt",
     });
 
     expect(result.mimeType).toBe("image/webp");
@@ -81,7 +82,7 @@ describe("Category media conversion", () => {
       "/storage/v1/object/public/catalog-media/",
     );
     expect(capturedHeaders.get("apikey")).toBe("sb_secret_test");
-    expect(capturedHeaders.get("authorization")).toBe("Bearer sb_secret_test");
+    expect(capturedHeaders.get("authorization")).toBe("Bearer admin.jwt");
   });
 
   it("keeps Bearer auth for legacy JWT-shaped service keys", async () => {
