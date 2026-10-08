@@ -226,6 +226,19 @@ export class SupabaseCategoryMediaStorage implements CategoryMediaStorage {
           "Category image storage credentials were rejected. Check the server-side Supabase storage key.",
         );
       }
+      // Supabase Storage reports an RLS rejection as HTTP 400 with an
+      // AccessDenied/Unauthorized error code. Surface it as a permission
+      // problem so the admin UI does not suggest a broken storage setup.
+      if (
+        storageError.code === "AccessDenied" ||
+        storageError.code === "Unauthorized"
+      ) {
+        failUpload(
+          "The current administrator is not allowed to upload category images.",
+          "MEDIA_STORAGE_PERMISSION_DENIED",
+          403,
+        );
+      }
       if (response.status === 404) {
         failStorageConfiguration(
           "The category image storage bucket was not found. Check SUPABASE_STORAGE_BUCKET.",

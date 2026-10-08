@@ -153,6 +153,46 @@ describe("Category media conversion", () => {
     });
   });
 
+  it("returns a permission error for an RLS rejection from Storage", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "AccessDenied" }), {
+            status: 400,
+            headers: { "x-request-id": "storage-rls-test-request" },
+          }),
+        ),
+      ),
+    );
+
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      "sb_secret_test",
+    );
+    await expect(
+      storage.upload({
+        bytes: source,
+        contentType: "image/png",
+        authorization: "Bearer admin.jwt",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: "MEDIA_STORAGE_PERMISSION_DENIED",
+    });
+  });
+
   it("rejects a publishable key before attempting a Storage write", async () => {
     const storage = new SupabaseCategoryMediaStorage(
       "catalog-media",
