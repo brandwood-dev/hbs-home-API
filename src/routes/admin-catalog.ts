@@ -542,6 +542,7 @@ export function registerAdminCatalogRoutes(
           400: ProblemDetailSchema,
           401: ProblemDetailSchema,
           403: ProblemDetailSchema,
+          502: ProblemDetailSchema,
           413: ProblemDetailSchema,
           503: ProblemDetailSchema,
         },
@@ -575,9 +576,15 @@ export function registerAdminCatalogRoutes(
           requestId: request.id,
         });
       }
+      const authorizationHeader = request.headers.authorization as
+        string | string[] | undefined;
+      const authorization = Array.isArray(authorizationHeader)
+        ? authorizationHeader[0]
+        : authorizationHeader;
       const upload = await dependencies.categoryMediaStorage.upload({
         bytes: request.body,
         contentType,
+        ...(authorization ? { authorization } : {}),
       });
       const name = imageHeader(
         request.headers["x-image-name"],

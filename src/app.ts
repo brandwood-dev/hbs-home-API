@@ -94,6 +94,7 @@ import { registerArticleRoutes } from "./routes/articles.js";
 import { registerHomeContentRoutes } from "./routes/home-content.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCatalogCategoryRoutes } from "./routes/catalog-categories.js";
+import { registerCustomQuoteRoutes } from "./routes/custom-quotes.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerStoreSettingsRoutes } from "./routes/store-settings.js";
 import {
@@ -109,6 +110,11 @@ import {
   createOrderEmailWorker,
   type OrderEmailWorker,
 } from "./notifications/order-email-worker.js";
+import {
+  createCustomQuoteEmailWorker,
+  type CustomQuoteEmailWorker,
+} from "./notifications/custom-quote-email-worker.js";
+import { PostgresCustomQuoteRepository } from "./quotes/custom-quote-repository.js";
 
 export interface BuildAppOptions {
   environment?: Environment;
@@ -133,6 +139,7 @@ export interface BuildAppOptions {
   articleRepository?: ArticleRepository;
   categoryMediaStorage?: CategoryMediaStorage | null;
   orderEmailWorker?: OrderEmailWorker | null;
+  customQuoteEmailWorker?: CustomQuoteEmailWorker | null;
 }
 
 function requestIdFromHeader(value: string | string[] | undefined): string {
@@ -199,6 +206,9 @@ export async function buildApp(
   const articleRepository =
     options.articleRepository ??
     new PostgresAdminArticleRepository(database.client);
+  const customQuoteRepository = new PostgresCustomQuoteRepository(
+    database.client,
+  );
   const categoryMediaStorage =
     options.categoryMediaStorage === undefined
       ? createCategoryMediaStorage(environment)
@@ -268,9 +278,25 @@ export async function buildApp(
           logger: app.log,
         }));
 
+  const customQuoteEmailWorker =
+    options.customQuoteEmailWorker === null
+      ? null
+      : (options.customQuoteEmailWorker ??
+        createCustomQuoteEmailWorker({
+          database: database.client,
+          quoteRepository: customQuoteRepository,
+          environment,
+          logger: app.log,
+        }));
+
   if (orderEmailWorker) {
     app.addHook("onReady", () => orderEmailWorker.start());
     app.addHook("onClose", () => orderEmailWorker.stop());
+  }
+
+  if (customQuoteEmailWorker) {
+    app.addHook("onReady", () => customQuoteEmailWorker.start());
+    app.addHook("onClose", () => customQuoteEmailWorker.stop());
   }
 
   if (!options.database) {
@@ -375,6 +401,14 @@ export async function buildApp(
     adminMfaEnabled: environment.adminMfaEnabled,
   });
   registerHomeContentRoutes(app, { homeContentRepository });
+  registerCustomQuoteRoutes(app, {
+    database,
+    jwtVerifier,
+    adminAccessRepository,
+    auditRepository,
+    customQuoteRepository,
+    adminMfaEnabled: environment.adminMfaEnabled,
+  });
 
   await app.ready();
   return app;
