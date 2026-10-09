@@ -604,6 +604,29 @@ export interface OutboxEventTable {
   created_at: Generated<Date>;
 }
 
+export interface CustomQuoteRequestTable {
+  id: Generated<string>;
+  reference: string;
+  product_type: "rideaux" | "voilages" | "stores" | "ensemble_fenetre";
+  openings: readonly Record<string, unknown>[];
+  preferences: Record<string, unknown>;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  city: string;
+  preferred_contact: "phone" | "whatsapp" | "email";
+  attachment_metadata: readonly Record<string, unknown>[];
+  accepted_privacy: boolean;
+  read_at: Date | null;
+  archived_at: Date | null;
+  email_sent_at: Date | null;
+  email_last_error: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -647,4 +670,5 @@ export interface DatabaseSchema {
   "commerce.order_notes": OrderNoteTable;
   "commerce.order_returns": OrderReturnTable;
   "commerce.outbox_events": OutboxEventTable;
+  "commerce.custom_quote_requests": CustomQuoteRequestTable;
 }

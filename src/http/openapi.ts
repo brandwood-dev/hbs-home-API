@@ -56,6 +56,15 @@ export async function registerOpenApi(
             "Authenticated stock balances, movements and transactional reservations.",
         },
         {
+          name: "custom-quotes",
+          description: "Public custom measurement quote submissions.",
+        },
+        {
+          name: "admin-custom-quotes",
+          description:
+            "Authenticated custom quote inbox for the Admin back-office.",
+        },
+        {
           name: "cart",
           description:
             "Opaque-token guest cart, authoritative prices and single-code promotions.",
