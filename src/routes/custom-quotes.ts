@@ -102,8 +102,40 @@ const QuoteResponse = Type.Object(
       Type.String({ format: "date-time" }),
       Type.Null(),
     ]),
+    customerId: Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    convertedAt: Type.Union([
+      Type.String({ format: "date-time" }),
+      Type.Null(),
+    ]),
+    convertedBy: Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
   },
   { $id: "CustomQuoteRequest", additionalProperties: false },
+);
+const CustomerConversionResponse = Type.Object(
+  {
+    quote: QuoteResponse,
+    customer: Type.Object(
+      {
+        id: Type.String({ format: "uuid" }),
+        firstName: Type.String(),
+        lastName: Type.String(),
+        phone: Type.String(),
+        email: Type.Union([Type.String(), Type.Null()]),
+        governorate: Type.String(),
+        preferredChannel: Type.Union([PreferredContact, Type.Null()]),
+      },
+      { additionalProperties: false },
+    ),
+    action: Type.Union([
+      Type.Literal("created"),
+      Type.Literal("associated"),
+      Type.Literal("already_associated"),
+    ]),
+  },
+  {
+    $id: "CustomQuoteConversionResponse",
+    additionalProperties: false,
+  },
 );
 const QuoteListResponse = Type.Object(
   {
@@ -171,6 +203,7 @@ export function registerCustomQuoteRoutes(
 ): void {
   app.addSchema(QuoteResponse);
   app.addSchema(QuoteListResponse);
+  app.addSchema(CustomerConversionResponse);
 
   app.post<{ Body: CreateBodyType }>(
     "/api/v1/custom-quotes",
@@ -277,6 +310,45 @@ export function registerCustomQuoteRoutes(
           requestId: request.id,
         })
       );
+    },
+  );
+
+  app.post<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/custom-quotes/:id/convert-to-customer",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["customers.write"],
+      }),
+      schema: {
+        operationId: "convertAdminCustomQuoteToCustomer",
+        summary: "Convert a custom quote prospect into a customer",
+        tags: ["admin-custom-quotes"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        response: {
+          200: CustomerConversionResponse,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+          409: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request) => {
+      const current = principal(request);
+      const result = await dependencies.customQuoteRepository.convertToCustomer(
+        request.params.id,
+        current.userId,
+        current.email,
+      );
+      await audit(
+        dependencies,
+        request,
+        "custom_quote.converted_to_customer",
+        result.quote.id,
+      );
+      return result;
     },
   );
 
