@@ -244,7 +244,9 @@ export class CustomQuoteEmailWorker {
           to: recipients.map((recipient) => ({
             email: recipient.email,
             ...(recipient.displayName
-              ? { name: Array.from(recipient.displayName).slice(0, 70).join("") }
+              ? {
+                  name: Array.from(recipient.displayName).slice(0, 70).join(""),
+                }
               : {}),
           })),
           subject: message.subject,
