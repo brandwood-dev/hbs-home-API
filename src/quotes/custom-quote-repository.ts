@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import type {
   DatabaseSchema,
   CustomQuoteRequestTable,
@@ -162,8 +162,16 @@ export class PostgresCustomQuoteRepository {
           id,
           reference,
           product_type: input.productType,
-          openings: input.openings as unknown as Record<string, unknown>[],
-          preferences: input.preferences,
+          openings:
+            sql`cast(${JSON.stringify(input.openings)} as jsonb)` as unknown as Record<
+              string,
+              unknown
+            >[],
+          preferences:
+            sql`cast(${JSON.stringify(input.preferences)} as jsonb)` as unknown as Record<
+              string,
+              unknown
+            >,
           first_name: firstName,
           last_name: lastName,
           phone,
@@ -171,10 +179,11 @@ export class PostgresCustomQuoteRepository {
           governorate,
           city,
           preferred_contact: input.contact.preferredContact,
-          attachment_metadata: input.attachmentMetadata as unknown as Record<
-            string,
-            unknown
-          >[],
+          attachment_metadata:
+            sql`cast(${JSON.stringify(input.attachmentMetadata)} as jsonb)` as unknown as Record<
+              string,
+              unknown
+            >[],
           accepted_privacy: true,
         })
         .returningAll()
@@ -186,7 +195,11 @@ export class PostgresCustomQuoteRepository {
           aggregate_type: "custom_quote",
           aggregate_id: id,
           event_type: "custom_quote.created",
-          payload: { quoteId: id, reference },
+          payload:
+            sql`cast(${JSON.stringify({ quoteId: id, reference })} as jsonb)` as unknown as Record<
+              string,
+              unknown
+            >,
           status: "pending",
           attempts: 0,
           processed_at: null,
