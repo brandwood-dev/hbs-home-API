@@ -10915,7 +10915,10 @@
           "createdAt",
           "readAt",
           "archivedAt",
-          "emailSentAt"
+          "emailSentAt",
+          "customerId",
+          "convertedAt",
+          "convertedBy"
         ],
         "properties": {
           "id": {
@@ -11064,6 +11067,39 @@
                 "type": "null"
               }
             ]
+          },
+          "customerId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "convertedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "convertedBy": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -11096,7 +11132,10 @@
                 "createdAt",
                 "readAt",
                 "archivedAt",
-                "emailSentAt"
+                "emailSentAt",
+                "customerId",
+                "convertedAt",
+                "convertedBy"
               ],
               "properties": {
                 "id": {
@@ -11245,6 +11284,39 @@
                       "type": "null"
                     }
                   ]
+                },
+                "customerId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "convertedAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "convertedBy": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               }
             }
@@ -11268,6 +11340,312 @@
           "pageCount": {
             "minimum": 1,
             "type": "integer"
+          }
+        }
+      },
+      "CustomQuoteConversionResponse": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quote",
+          "customer",
+          "action"
+        ],
+        "properties": {
+          "quote": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "reference",
+              "productType",
+              "openings",
+              "preferences",
+              "contact",
+              "attachmentMetadata",
+              "acceptedPrivacy",
+              "createdAt",
+              "readAt",
+              "archivedAt",
+              "emailSentAt",
+              "customerId",
+              "convertedAt",
+              "convertedBy"
+            ],
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              },
+              "productType": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "rideaux"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "voilages"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "stores"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "ensemble_fenetre"
+                    ]
+                  }
+                ]
+              },
+              "openings": {
+                "type": "array",
+                "items": {}
+              },
+              "preferences": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "contact": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "lastName",
+                  "phone",
+                  "governorate",
+                  "city",
+                  "preferredContact"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "governorate": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "preferredContact": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "phone"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "whatsapp"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "email"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "attachmentMetadata": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              },
+              "acceptedPrivacy": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "readAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "archivedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "emailSentAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customerId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "convertedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "convertedBy": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "customer": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "firstName",
+              "lastName",
+              "phone",
+              "email",
+              "governorate",
+              "preferredChannel"
+            ],
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "firstName": {
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "email": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "governorate": {
+                "type": "string"
+              },
+              "preferredChannel": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "phone"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "whatsapp"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "email"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "created"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "associated"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "already_associated"
+                ]
+              }
+            ]
           }
         }
       }
@@ -75582,7 +75960,10 @@
                     "createdAt",
                     "readAt",
                     "archivedAt",
-                    "emailSentAt"
+                    "emailSentAt",
+                    "customerId",
+                    "convertedAt",
+                    "convertedBy"
                   ],
                   "properties": {
                     "id": {
@@ -75725,6 +76106,39 @@
                       "anyOf": [
                         {
                           "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "customerId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedBy": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
                           "type": "string"
                         },
                         {
@@ -75901,7 +76315,10 @@
                           "createdAt",
                           "readAt",
                           "archivedAt",
-                          "emailSentAt"
+                          "emailSentAt",
+                          "customerId",
+                          "convertedAt",
+                          "convertedBy"
                         ],
                         "properties": {
                           "id": {
@@ -76044,6 +76461,39 @@
                             "anyOf": [
                               {
                                 "format": "date-time",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "customerId": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "convertedAt": {
+                            "anyOf": [
+                              {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "convertedBy": {
+                            "anyOf": [
+                              {
+                                "format": "uuid",
                                 "type": "string"
                               },
                               {
@@ -76261,7 +76711,10 @@
                     "createdAt",
                     "readAt",
                     "archivedAt",
-                    "emailSentAt"
+                    "emailSentAt",
+                    "customerId",
+                    "convertedAt",
+                    "convertedBy"
                   ],
                   "properties": {
                     "id": {
@@ -76404,6 +76857,39 @@
                       "anyOf": [
                         {
                           "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "customerId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedBy": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
                           "type": "string"
                         },
                         {
@@ -76623,6 +77109,618 @@
         }
       }
     },
+    "/api/v1/admin/custom-quotes/{id}/convert-to-customer": {
+      "post": {
+        "operationId": "convertAdminCustomQuoteToCustomer",
+        "summary": "Convert a custom quote prospect into a customer",
+        "tags": [
+          "admin-custom-quotes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "quote",
+                    "customer",
+                    "action"
+                  ],
+                  "properties": {
+                    "quote": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "reference",
+                        "productType",
+                        "openings",
+                        "preferences",
+                        "contact",
+                        "attachmentMetadata",
+                        "acceptedPrivacy",
+                        "createdAt",
+                        "readAt",
+                        "archivedAt",
+                        "emailSentAt",
+                        "customerId",
+                        "convertedAt",
+                        "convertedBy"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "reference": {
+                          "type": "string"
+                        },
+                        "productType": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "rideaux"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "voilages"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "stores"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "ensemble_fenetre"
+                              ]
+                            }
+                          ]
+                        },
+                        "openings": {
+                          "type": "array",
+                          "items": {}
+                        },
+                        "preferences": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "contact": {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "firstName",
+                            "lastName",
+                            "phone",
+                            "governorate",
+                            "city",
+                            "preferredContact"
+                          ],
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            },
+                            "phone": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            },
+                            "governorate": {
+                              "type": "string"
+                            },
+                            "city": {
+                              "type": "string"
+                            },
+                            "preferredContact": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "phone"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "whatsapp"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "email"
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "attachmentMetadata": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          }
+                        },
+                        "acceptedPrivacy": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "readAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "archivedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "emailSentAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "customerId": {
+                          "anyOf": [
+                            {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "convertedAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "convertedBy": {
+                          "anyOf": [
+                            {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "customer": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "phone",
+                        "email",
+                        "governorate",
+                        "preferredChannel"
+                      ],
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "governorate": {
+                          "type": "string"
+                        },
+                        "preferredChannel": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "phone"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "whatsapp"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "email"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "action": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "created"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "associated"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "already_associated"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "code",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "minimum": 400,
+                      "maximum": 599,
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message",
+                          "keyword"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "keyword": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/custom-quotes/{id}/read": {
       "patch": {
         "operationId": "readAdminCustomQuote",
@@ -76666,7 +77764,10 @@
                     "createdAt",
                     "readAt",
                     "archivedAt",
-                    "emailSentAt"
+                    "emailSentAt",
+                    "customerId",
+                    "convertedAt",
+                    "convertedBy"
                   ],
                   "properties": {
                     "id": {
@@ -76809,6 +77910,39 @@
                       "anyOf": [
                         {
                           "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "customerId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedBy": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
                           "type": "string"
                         },
                         {
@@ -77071,7 +78205,10 @@
                     "createdAt",
                     "readAt",
                     "archivedAt",
-                    "emailSentAt"
+                    "emailSentAt",
+                    "customerId",
+                    "convertedAt",
+                    "convertedBy"
                   ],
                   "properties": {
                     "id": {
@@ -77214,6 +78351,39 @@
                       "anyOf": [
                         {
                           "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "customerId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "convertedBy": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
                           "type": "string"
                         },
                         {
