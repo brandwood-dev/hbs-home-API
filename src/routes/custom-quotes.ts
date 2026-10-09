@@ -184,6 +184,21 @@ export function registerCustomQuoteRoutes(
       },
     },
     async (request, reply) => {
+      if (
+        request.body.contact.preferredContact === "email" &&
+        !request.body.contact.email
+      ) {
+        return reply.status(400).send({
+          type: "https://api.hbs-home.com/problems/invalid-custom-quote",
+          title: "Invalid contact details",
+          status: 400,
+          detail:
+            "An email address is required when email is the preferred contact method.",
+          instance: request.url,
+          code: "QUOTE_EMAIL_REQUIRED",
+          requestId: request.id,
+        });
+      }
       const result = await dependencies.customQuoteRepository.create(
         request.body,
       );

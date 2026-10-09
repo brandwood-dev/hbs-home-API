@@ -243,7 +243,9 @@ export class CustomQuoteEmailWorker {
           },
           to: recipients.map((recipient) => ({
             email: recipient.email,
-            ...(recipient.displayName ? { name: recipient.displayName } : {}),
+            ...(recipient.displayName
+              ? { name: Array.from(recipient.displayName).slice(0, 70).join("") }
+              : {}),
           })),
           subject: message.subject,
           textContent: message.text,
@@ -252,10 +254,26 @@ export class CustomQuoteEmailWorker {
         signal: AbortSignal.timeout(20_000),
       });
       const body = (await response.text()).trim();
-      if (!response.ok)
+      if (!response.ok) {
+        try {
+          const parsed: unknown = JSON.parse(body);
+          if (
+            typeof parsed === "object" &&
+            parsed !== null &&
+            "code" in parsed &&
+            parsed.code === "duplicate_parameter"
+          ) {
+            await this.options.quoteRepository.markEmailSent(quoteId);
+            await this.markProcessed(event.id);
+            return;
+          }
+        } catch {
+          // Preserve the original response below when Brevo does not return JSON.
+        }
         throw new Error(
           `Brevo API request failed (${String(response.status)}): ${body.slice(0, 500)}`,
         );
+      }
       await this.options.quoteRepository.markEmailSent(quoteId);
       await this.markProcessed(event.id);
     } catch (error) {
