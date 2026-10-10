@@ -159,6 +159,21 @@ const SYSTEM_ATTRIBUTE_KEYS_BY_CATEGORY_SLUG: Readonly<
   ],
 };
 
+// Retired furniture keys remain managed so category synchronization removes
+// any legacy binding that an older admin configuration might reintroduce.
+const RETIRED_SYSTEM_ATTRIBUTE_KEYS = [
+  "free_shipping_eligible",
+  "depth_cm",
+  "seat_width_cm",
+  "seat_depth_cm",
+  "seat_height_cm",
+  "back_height_cm",
+  "armrest_height_cm",
+  "weight_kg",
+  "max_load_kg",
+  "package_count",
+] as const;
+
 function normalizedCategorySlug(value: string): string {
   return value
     .trim()
@@ -201,7 +216,10 @@ export function hasSystemAttributeCategoryOverride(
 }
 
 const MANAGED_SYSTEM_ATTRIBUTE_KEYS = [
-  ...new Set(Object.values(SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY).flat()),
+  ...new Set([
+    ...Object.values(SYSTEM_ATTRIBUTE_KEYS_BY_ROOT_CATEGORY).flat(),
+    ...RETIRED_SYSTEM_ATTRIBUTE_KEYS,
+  ]),
 ] as readonly string[];
 
 export function managedSystemAttributeKeys(): readonly string[] {
