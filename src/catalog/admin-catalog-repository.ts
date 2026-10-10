@@ -2692,6 +2692,28 @@ function normalizeAttributeValue(
   key: string,
 ): JsonAttributeValue {
   if (valueType === "text") {
+    // The furniture editor exposes `features` as a multi-select.  This
+    // legacy system attribute is kept as `text` for backwards compatibility,
+    // so accept its non-empty string list while retaining strict validation
+    // for every other text attribute.
+    if (key === "features" && Array.isArray(value)) {
+      const normalized = [
+        ...new Set(
+          value
+            .filter((candidate): candidate is string => typeof candidate === "string")
+            .map((candidate) => candidate.trim())
+            .filter(Boolean),
+        ),
+      ];
+      if (normalized.length === 0 || normalized.length !== value.length)
+        fail(
+          422,
+          "ATTRIBUTE_VALUE_INVALID",
+          "Invalid product attribute",
+          `The value for '${key}' must be a non-empty list of text values.`,
+        );
+      return normalized;
+    }
     if (
       typeof value !== "string" ||
       value.trim().length === 0 ||
