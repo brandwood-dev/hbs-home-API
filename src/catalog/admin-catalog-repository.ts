@@ -2700,7 +2700,9 @@ function normalizeAttributeValue(
       const normalized = [
         ...new Set(
           value
-            .filter((candidate): candidate is string => typeof candidate === "string")
+            .filter(
+              (candidate): candidate is string => typeof candidate === "string",
+            )
             .map((candidate) => candidate.trim())
             .filter(Boolean),
         ),
