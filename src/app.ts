@@ -244,6 +244,9 @@ export async function buildApp(
   await app.register(cors, {
     origin: environment.corsOrigins,
     credentials: true,
+    // Les mutations de favoris utilisent POST/DELETE avec JSON et déclenchent
+    // un preflight cross-origin. Le cache court évite un OPTIONS à chaque clic.
+    maxAge: 600,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "accept",
