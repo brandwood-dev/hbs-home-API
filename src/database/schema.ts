@@ -623,6 +623,9 @@ export interface CustomQuoteRequestTable {
   archived_at: Date | null;
   email_sent_at: Date | null;
   email_last_error: string | null;
+  customer_id: string | null;
+  converted_at: Date | null;
+  converted_by: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
 }

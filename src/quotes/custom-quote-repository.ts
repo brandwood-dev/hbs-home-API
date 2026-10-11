@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql, type Kysely, type Selectable } from "kysely";
 import type {
   DatabaseSchema,
+  CustomerTable,
   CustomQuoteRequestTable,
 } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
@@ -50,6 +51,25 @@ export interface CustomQuoteRequest extends CustomQuoteInput {
   readAt: string | null;
   archivedAt: string | null;
   emailSentAt: string | null;
+  customerId: string | null;
+  convertedAt: string | null;
+  convertedBy: string | null;
+}
+
+export interface CustomQuoteConversionCustomer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  preferredChannel: CustomQuotePreferredContact | null;
+}
+
+export interface CustomQuoteConversionResult {
+  quote: CustomQuoteRequest;
+  customer: CustomQuoteConversionCustomer;
+  action: "created" | "associated" | "already_associated";
 }
 
 export interface CustomQuoteListParams {
@@ -70,6 +90,7 @@ export interface CustomQuoteList {
 }
 
 type QuoteRow = Selectable<CustomQuoteRequestTable>;
+type CustomerRow = Selectable<CustomerTable>;
 
 function dateValue(value: Date | string | null): string | null {
   return value ? new Date(value).toISOString() : null;
@@ -130,6 +151,23 @@ function mapQuote(row: QuoteRow): CustomQuoteRequest {
     readAt: dateValue(row.read_at),
     archivedAt: dateValue(row.archived_at),
     emailSentAt: dateValue(row.email_sent_at),
+    customerId: row.customer_id,
+    convertedAt: dateValue(row.converted_at),
+    convertedBy: row.converted_by,
+  };
+}
+
+function mapConversionCustomer(
+  row: CustomerRow,
+): CustomQuoteConversionCustomer {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    phone: row.phone,
+    email: row.email,
+    governorate: row.governorate,
+    preferredChannel: row.preferred_channel,
   };
 }
 
@@ -140,6 +178,43 @@ function quoteReference(date = new Date()): string {
 
 function normalized(value: string): string {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeCustomerPhone(value: string): string {
+  let phone = value.trim().replace(/[\s.\-()]/g, "");
+  if (phone.startsWith("+")) phone = phone.slice(1);
+  if (phone.startsWith("00216")) phone = phone.slice(5);
+  else if (phone.startsWith("216") && phone.length > 8) phone = phone.slice(3);
+  if (!/^\d{8}$/.test(phone)) {
+    throw new AppError({
+      statusCode: 400,
+      code: "QUOTE_CONTACT_INVALID",
+      title: "Coordonnées invalides",
+      detail:
+        "Le numéro de téléphone de la demande doit contenir 8 chiffres tunisiens.",
+    });
+  }
+  return `+216${phone}`;
+}
+
+function normalizeCustomerEmail(value: string | null): string | null {
+  if (!value) return null;
+  const email = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AppError({
+      statusCode: 400,
+      code: "QUOTE_CONTACT_INVALID",
+      title: "Coordonnées invalides",
+      detail: "L’adresse e-mail de la demande est invalide.",
+    });
+  }
+  return email;
+}
+
+function customerTags(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((tag): tag is string => typeof tag === "string")
+    : [];
 }
 
 export class PostgresCustomQuoteRepository {
@@ -308,6 +383,187 @@ export class PostgresCustomQuoteRepository {
         detail: "La demande de devis demandée n'existe pas.",
       });
     return mapQuote(row);
+  }
+
+  /**
+   * Converts a quote into a reusable customer profile. The quote row is locked
+   * first, and phone/e-mail keys are advisory-locked so repeated clicks or two
+   * admins working at the same time cannot create duplicate customers.
+   */
+  async convertToCustomer(
+    id: string,
+    actorUserId: string,
+    actorName: string,
+  ): Promise<CustomQuoteConversionResult> {
+    return this.database.transaction().execute(async (trx) => {
+      const quote = await trx
+        .selectFrom("commerce.custom_quote_requests")
+        .selectAll()
+        .where("id", "=", id)
+        .forUpdate()
+        .executeTakeFirst();
+
+      if (!quote)
+        throw new AppError({
+          statusCode: 404,
+          code: "QUOTE_NOT_FOUND",
+          title: "Demande introuvable",
+          detail: "La demande de devis demandée n'existe pas.",
+        });
+
+      if (quote.customer_id) {
+        const linked = await trx
+          .selectFrom("commerce.customers")
+          .selectAll()
+          .where("id", "=", quote.customer_id)
+          .executeTakeFirst();
+        if (linked)
+          return {
+            quote: mapQuote(quote),
+            customer: mapConversionCustomer(linked),
+            action: "already_associated" as const,
+          };
+      }
+
+      const firstName = normalized(quote.first_name);
+      const lastName = normalized(quote.last_name);
+      const phone = normalizeCustomerPhone(quote.phone);
+      const email = normalizeCustomerEmail(quote.email);
+      const governorate = normalized(quote.governorate).slice(0, 120);
+      const city = normalized(quote.city).slice(0, 120);
+
+      await sql`select pg_advisory_xact_lock(hashtextextended(${phone}, 0))`.execute(
+        trx,
+      );
+      if (email) {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${email}, 0))`.execute(
+          trx,
+        );
+      }
+
+      const byPhone = await trx
+        .selectFrom("commerce.customers")
+        .selectAll()
+        .where("phone", "=", phone)
+        .where("merged_into_customer_id", "is", null)
+        .orderBy("updated_at", "desc")
+        .forUpdate()
+        .executeTakeFirst();
+      const byEmail = email
+        ? await trx
+            .selectFrom("commerce.customers")
+            .selectAll()
+            .where(sql<boolean>`lower(email) = ${email}`)
+            .where("merged_into_customer_id", "is", null)
+            .orderBy("updated_at", "desc")
+            .forUpdate()
+            .executeTakeFirst()
+        : undefined;
+
+      if (byPhone && byEmail && byPhone.id !== byEmail.id)
+        throw new AppError({
+          statusCode: 409,
+          code: "CUSTOMER_MATCH_CONFLICT",
+          title: "Correspondance client ambiguë",
+          detail:
+            "Le téléphone et l’e-mail correspondent à deux clients différents. Fusionnez-les avant de convertir cette demande.",
+        });
+
+      const existing = byPhone ?? byEmail;
+      const action: CustomQuoteConversionResult["action"] = existing
+        ? "associated"
+        : "created";
+      const tags = Array.from(
+        new Set([...customerTags(existing?.tags), "demande-sur-mesure"]),
+      );
+      const customer = existing
+        ? await trx
+            .updateTable("commerce.customers")
+            .set({
+              first_name: firstName,
+              last_name: lastName,
+              email: email ?? existing.email,
+              governorate: governorate || existing.governorate,
+              preferred_channel: quote.preferred_contact,
+              tags: sql`cast(${JSON.stringify(tags)} as jsonb)` as unknown as string[],
+              updated_at: new Date(),
+            })
+            .where("id", "=", existing.id)
+            .returningAll()
+            .executeTakeFirstOrThrow()
+        : await trx
+            .insertInto("commerce.customers")
+            .values({
+              id: randomUUID(),
+              first_name: firstName,
+              last_name: lastName,
+              phone,
+              email,
+              governorate,
+              preferred_channel: quote.preferred_contact,
+              tags: sql`cast(${JSON.stringify(tags)} as jsonb)` as unknown as string[],
+              internal_notes: "",
+              merged_into_customer_id: null,
+              merged_at: null,
+              created_at: new Date(),
+              updated_at: new Date(),
+            })
+            .returningAll()
+            .executeTakeFirstOrThrow();
+
+      const addressCount = await trx
+        .selectFrom("commerce.customer_addresses")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("customer_id", "=", customer.id)
+        .executeTakeFirstOrThrow();
+      if (Number.parseInt(String(addressCount.count), 10) === 0) {
+        await trx
+          .insertInto("commerce.customer_addresses")
+          .values({
+            id: randomUUID(),
+            customer_id: customer.id,
+            label: "Demande sur mesure",
+            governorate: governorate || "À préciser",
+            city: city || "À préciser",
+            postal_code: null,
+            address_line: "Adresse à confirmer",
+            landmark: null,
+            is_default: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          })
+          .executeTakeFirstOrThrow();
+      }
+
+      await trx
+        .insertInto("commerce.customer_notes")
+        .values({
+          id: randomUUID(),
+          customer_id: customer.id,
+          body: `Converti depuis la demande ${quote.reference}. Ville indiquée : ${city || "à préciser"}.`,
+          author_user_id: actorUserId,
+          author_name: actorName.trim() || "Administration",
+          created_at: new Date(),
+        })
+        .executeTakeFirstOrThrow();
+
+      const updatedQuote = await trx
+        .updateTable("commerce.custom_quote_requests")
+        .set({
+          customer_id: customer.id,
+          converted_at: new Date(),
+          converted_by: actorUserId,
+        })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      return {
+        quote: mapQuote(updatedQuote),
+        customer: mapConversionCustomer(customer),
+        action,
+      };
+    });
   }
 
   async markEmailSent(id: string): Promise<void> {
