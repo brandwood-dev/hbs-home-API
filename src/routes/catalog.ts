@@ -33,6 +33,7 @@ const VariantSchema = Type.Object(
     blindMountingType: Type.Optional(Type.String()),
     blindControlSide: Type.Optional(Type.String()),
     blindMechanismColor: Type.Optional(Type.String()),
+    orientation: Type.Optional(Type.String()),
     sizeLabel: Type.Optional(Type.String()),
     cushionContent: Type.Optional(Type.String()),
     cushionClosure: Type.Optional(Type.String()),
