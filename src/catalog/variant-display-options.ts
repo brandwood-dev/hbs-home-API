@@ -54,6 +54,7 @@ export function getVariantDisplayOptions(
   addOption(options, "Pose", variant.blindMountingType);
   addOption(options, "Manœuvre", variant.blindControlSide);
   addOption(options, "Mécanisme", variant.blindMechanismColor);
+  addOption(options, "Orientation", variant.orientation);
 
   if (variant.minLengthCm !== undefined || variant.maxLengthCm !== undefined) {
     const min = variant.minLengthCm ?? variant.maxLengthCm;

@@ -125,6 +125,7 @@ export interface ProductVariant {
   plantHeightCm?: number;
   potDiameterCm?: number;
   plantSize?: string;
+  orientation?: string;
   packQuantity?: number;
   price: ProductPrice;
   compareAtPrice?: ProductPrice;
@@ -354,6 +355,7 @@ function parseColor(value: unknown): ProductColor | null {
 
 function parseVariant(value: unknown): ProductVariant | null {
   const record = asRecord(value);
+  const variantOptions = asRecord(record.options);
   const id = asString(record.id);
   if (!id) return null;
   const colorId = asString(record.colorId) ?? asString(record.color_id);
@@ -476,6 +478,11 @@ function parseVariant(value: unknown): ProductVariant | null {
   if (Number.isFinite(potDiameterCm)) variant.potDiameterCm = potDiameterCm;
   const plantSize = asString(record.plantSize) ?? asString(record.plant_size);
   if (plantSize) variant.plantSize = plantSize;
+  const orientation = firstString(
+    record.orientation,
+    variantOptions.orientation,
+  );
+  if (orientation) variant.orientation = orientation;
   const packQuantity = asNumber(
     record.packQuantity,
     asNumber(record.pack_quantity, Number.NaN),
@@ -641,12 +648,14 @@ function parseProduct(row: CatalogProductRow): Product | null {
     payload.furniture_type,
   );
   if (furnitureType) product.furnitureType = furnitureType;
+  const isFurnitureCategory = category === "mobilier_interieur";
   const furnitureRooms = uniqueList(
     [
       attributes.furnitureRooms,
       attributes.furniture_rooms,
-      attributes.rooms,
-      payload.furnitureRooms ?? payload.furniture_rooms ?? payload.rooms,
+      payload.furnitureRooms,
+      payload.furniture_rooms,
+      ...(isFurnitureCategory ? [attributes.rooms, payload.rooms] : []),
     ]
       .map((value) => toArrayOrScalarString(value))
       .find((values) => values.length > 0) ?? [],

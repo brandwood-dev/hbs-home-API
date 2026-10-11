@@ -22,4 +22,19 @@ describe("variant display options", () => {
       { label: "Fermeture", value: "Zip" },
     ]);
   });
+
+  it("includes furniture orientation in the snapshot contract", () => {
+    const product = { colors: [] } as unknown as Product;
+    const variant = {
+      colorId: "beige",
+      widthCm: 160,
+      heightCm: 68,
+      orientation: "droite",
+    } as unknown as Product["variants"][number];
+
+    expect(getVariantDisplayOptions(product, variant)).toContainEqual({
+      label: "Orientation",
+      value: "Droite",
+    });
+  });
 });
