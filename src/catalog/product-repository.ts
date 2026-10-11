@@ -258,6 +258,14 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value.trim() : undefined;
 }
 
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    const normalized = asString(value);
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
+
 function asNumber(value: unknown, fallback: number): number {
   if (typeof value === "number" && Number.isFinite(value))
     return Math.trunc(value);
@@ -282,6 +290,12 @@ function toArrayString(value: unknown): string[] {
       (entry): entry is string => typeof entry === "string" && entry.length > 0,
     )
     .map((entry) => entry);
+}
+
+function toArrayOrScalarString(value: unknown): string[] {
+  if (Array.isArray(value)) return toArrayString(value);
+  const normalized = asString(value);
+  return normalized ? [normalized] : [];
 }
 
 function toObjectArray(value: unknown): unknown[] {
@@ -616,21 +630,42 @@ function parseProduct(row: CatalogProductRow): Product | null {
   if (accessoryCompatibilities?.length) {
     product.accessoryCompatibilities = accessoryCompatibilities;
   }
-  const furnitureType = mergeString(
+  // Admin-managed furniture fields are persisted in the normalized
+  // `attributes` bag. Keep accepting the legacy top-level spellings too so
+  // public detail pages and catalogue filters see the same values that the
+  // Admin editor saved.
+  const furnitureType = firstString(
+    attributes.furnitureType,
+    attributes.furniture_type,
     payload.furnitureType,
     payload.furniture_type,
   );
   if (furnitureType) product.furnitureType = furnitureType;
   const furnitureRooms = uniqueList(
-    toArrayString(payload.furnitureRooms ?? payload.furniture_rooms),
+    [
+      attributes.furnitureRooms,
+      attributes.furniture_rooms,
+      attributes.rooms,
+      payload.furnitureRooms ?? payload.furniture_rooms ?? payload.rooms,
+    ]
+      .map((value) => toArrayOrScalarString(value))
+      .find((values) => values.length > 0) ?? [],
   );
   if (furnitureRooms?.length) product.furnitureRooms = furnitureRooms;
-  const furnitureStyle = mergeString(
+  const furnitureStyle = firstString(
+    attributes.furnitureStyle,
+    attributes.furniture_style,
+    attributes.style,
     payload.furnitureStyle,
     payload.furniture_style,
+    payload.style,
   );
   if (furnitureStyle) product.furnitureStyle = furnitureStyle;
-  const furnitureAssembly = mergeString(
+  const furnitureAssembly = firstString(
+    attributes.furnitureAssembly,
+    attributes.furniture_assembly,
+    attributes.assembly_level,
+    attributes.assemblyLevel,
     payload.furnitureAssembly,
     payload.furniture_assembly,
   );
