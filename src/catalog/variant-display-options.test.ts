@@ -19,7 +19,7 @@ const variant = (orientation: string): ProductVariant => ({
 describe("catalog variant display options", () => {
   it("keeps furniture orientation in cart and order selections", () => {
     const options = getVariantDisplayOptions(
-      { colors: [] } as Product,
+      { colors: [] } as unknown as Product,
       variant("droite"),
     );
 
