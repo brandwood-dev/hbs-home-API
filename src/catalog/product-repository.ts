@@ -648,12 +648,14 @@ function parseProduct(row: CatalogProductRow): Product | null {
     payload.furniture_type,
   );
   if (furnitureType) product.furnitureType = furnitureType;
+  const isFurnitureCategory = category === "mobilier_interieur";
   const furnitureRooms = uniqueList(
     [
       attributes.furnitureRooms,
       attributes.furniture_rooms,
-      attributes.rooms,
-      payload.furnitureRooms ?? payload.furniture_rooms ?? payload.rooms,
+      payload.furnitureRooms,
+      payload.furniture_rooms,
+      ...(isFurnitureCategory ? [attributes.rooms, payload.rooms] : []),
     ]
       .map((value) => toArrayOrScalarString(value))
       .find((values) => values.length > 0) ?? [],
