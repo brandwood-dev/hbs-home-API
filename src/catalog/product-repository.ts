@@ -616,24 +616,34 @@ function parseProduct(row: CatalogProductRow): Product | null {
   if (accessoryCompatibilities?.length) {
     product.accessoryCompatibilities = accessoryCompatibilities;
   }
-  const furnitureType = mergeString(
-    payload.furnitureType,
-    payload.furniture_type,
-  );
+  // Admin-managed furniture fields are persisted in the normalized
+  // `attributes` bag. Keep accepting the legacy top-level spellings too so
+  // public detail pages and catalogue filters see the same values that the
+  // Admin editor saved.
+  const furnitureType =
+    mergeString(payload.furnitureType, payload.furniture_type) ??
+    mergeString(attributes.furnitureType, attributes.furniture_type);
   if (furnitureType) product.furnitureType = furnitureType;
   const furnitureRooms = uniqueList(
-    toArrayString(payload.furnitureRooms ?? payload.furniture_rooms),
+    toArrayString(
+      payload.furnitureRooms ??
+        payload.furniture_rooms ??
+        payload.rooms ??
+        attributes.furnitureRooms ??
+        attributes.furniture_rooms ??
+        attributes.rooms,
+    ),
   );
   if (furnitureRooms?.length) product.furnitureRooms = furnitureRooms;
-  const furnitureStyle = mergeString(
-    payload.furnitureStyle,
-    payload.furniture_style,
-  );
+  const furnitureStyle =
+    mergeString(payload.furnitureStyle, payload.furniture_style) ??
+    mergeString(payload.style, attributes.furnitureStyle) ??
+    mergeString(attributes.furniture_style, attributes.style);
   if (furnitureStyle) product.furnitureStyle = furnitureStyle;
-  const furnitureAssembly = mergeString(
-    payload.furnitureAssembly,
-    payload.furniture_assembly,
-  );
+  const furnitureAssembly =
+    mergeString(payload.furnitureAssembly, payload.furniture_assembly) ??
+    mergeString(attributes.furnitureAssembly, attributes.furniture_assembly) ??
+    mergeString(attributes.assembly_level, attributes.assemblyLevel);
   if (furnitureAssembly) product.furnitureAssembly = furnitureAssembly;
   const plantNature = mergeString(payload.plantNature, payload.plant_nature);
   if (plantNature) product.plantNature = plantNature;
