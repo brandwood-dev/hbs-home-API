@@ -646,9 +646,7 @@ function parseProduct(row: CatalogProductRow): Product | null {
       attributes.furnitureRooms,
       attributes.furniture_rooms,
       attributes.rooms,
-      payload.furnitureRooms ??
-        payload.furniture_rooms ??
-        payload.rooms,
+      payload.furnitureRooms ?? payload.furniture_rooms ?? payload.rooms,
     ]
       .map((value) => toArrayOrScalarString(value))
       .find((values) => values.length > 0) ?? [],
