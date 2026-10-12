@@ -202,7 +202,12 @@ function customerPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.startsWith("216") && digits.length === 11) return `+${digits}`;
   if (digits.length === 8) return `+216${digits}`;
-  return normalized(value);
+  throw new AppError({
+    statusCode: 400,
+    code: "INVALID_CUSTOMER_PHONE",
+    title: "Numéro de téléphone invalide",
+    detail: "Le numéro de téléphone doit être un numéro tunisien à 8 chiffres.",
+  });
 }
 
 function customerSummary(row: {
@@ -459,13 +464,31 @@ export class PostgresCustomQuoteRepository {
         });
 
       if (quote.customer_id) {
-        const linked = await trx
+        let linked = await trx
           .selectFrom("commerce.customers")
           .selectAll()
           .where("id", "=", quote.customer_id)
           .executeTakeFirstOrThrow();
+        const visited = new Set<string>();
+        while (linked.merged_into_customer_id && !visited.has(linked.id)) {
+          visited.add(linked.id);
+          linked = await trx
+            .selectFrom("commerce.customers")
+            .selectAll()
+            .where("id", "=", linked.merged_into_customer_id)
+            .executeTakeFirstOrThrow();
+        }
+        const linkedQuote =
+          linked.id === quote.customer_id
+            ? quote
+            : await trx
+                .updateTable("commerce.custom_quote_requests")
+                .set({ customer_id: linked.id })
+                .where("id", "=", id)
+                .returningAll()
+                .executeTakeFirstOrThrow();
         return {
-          quote: mapQuote(quote),
+          quote: mapQuote(linkedQuote),
           customer: customerSummary(linked),
           action: "already_associated" as const,
         };
@@ -497,7 +520,7 @@ export class PostgresCustomQuoteRepository {
             email,
             governorate: quote.governorate,
             preferred_channel: quote.preferred_contact,
-            tags: [],
+            tags: sql`cast(${JSON.stringify([])} as jsonb)` as unknown as string[],
             internal_notes: `Prospect converti depuis la demande ${quote.reference}.`,
           })
           .returningAll()
