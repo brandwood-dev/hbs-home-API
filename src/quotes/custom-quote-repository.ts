@@ -83,6 +83,25 @@ export interface CustomQuoteRequest extends CustomQuoteInput {
   readAt: string | null;
   archivedAt: string | null;
   emailSentAt: string | null;
+  customerId: string | null;
+  convertedAt: string | null;
+  convertedBy: string | null;
+}
+
+export interface CustomQuoteCustomerSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  preferredChannel: CustomQuotePreferredContact | null;
+}
+
+export interface CustomQuoteConversionResult {
+  quote: CustomQuoteRequest;
+  customer: CustomQuoteCustomerSummary;
+  action: "created" | "associated" | "already_associated";
 }
 
 export interface CustomQuoteListParams {
@@ -173,6 +192,36 @@ function mapQuote(row: QuoteRow): CustomQuoteRequest {
     readAt: dateValue(row.read_at),
     archivedAt: dateValue(row.archived_at),
     emailSentAt: dateValue(row.email_sent_at),
+    customerId: row.customer_id,
+    convertedAt: dateValue(row.converted_at),
+    convertedBy: row.converted_by,
+  };
+}
+
+function customerPhone(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("216") && digits.length === 11) return `+${digits}`;
+  if (digits.length === 8) return `+216${digits}`;
+  return normalized(value);
+}
+
+function customerSummary(row: {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  preferred_channel: CustomQuotePreferredContact | null;
+}): CustomQuoteCustomerSummary {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    phone: row.phone,
+    email: row.email,
+    governorate: row.governorate,
+    preferredChannel: row.preferred_channel,
   };
 }
 
@@ -388,6 +437,89 @@ export class PostgresCustomQuoteRepository {
       .where("id", "=", id)
       .executeTakeFirst();
     return row ? mapQuote(row) : null;
+  }
+
+  async convertToCustomer(
+    id: string,
+    convertedBy: string,
+  ): Promise<CustomQuoteConversionResult> {
+    return this.database.transaction().execute(async (trx) => {
+      const quote = await trx
+        .selectFrom("commerce.custom_quote_requests")
+        .selectAll()
+        .where("id", "=", id)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!quote)
+        throw new AppError({
+          statusCode: 404,
+          code: "QUOTE_NOT_FOUND",
+          title: "Demande introuvable",
+          detail: "La demande de devis demandée n'existe pas.",
+        });
+
+      if (quote.customer_id) {
+        const linked = await trx
+          .selectFrom("commerce.customers")
+          .selectAll()
+          .where("id", "=", quote.customer_id)
+          .executeTakeFirstOrThrow();
+        return {
+          quote: mapQuote(quote),
+          customer: customerSummary(linked),
+          action: "already_associated" as const,
+        };
+      }
+
+      const phone = customerPhone(quote.phone);
+      const email = quote.email?.trim().toLowerCase() || null;
+      const existing = await trx
+        .selectFrom("commerce.customers")
+        .selectAll()
+        .where((eb) =>
+          eb.or([
+            eb("phone", "=", phone),
+            ...(email ? [eb("email", "=", email)] : []),
+          ]),
+        )
+        .orderBy("created_at", "asc")
+        .executeTakeFirst();
+
+      const customer =
+        existing ??
+        (await trx
+          .insertInto("commerce.customers")
+          .values({
+            id: randomUUID(),
+            first_name: quote.first_name,
+            last_name: quote.last_name,
+            phone,
+            email,
+            governorate: quote.governorate,
+            preferred_channel: quote.preferred_contact,
+            tags: [],
+            internal_notes: `Prospect converti depuis la demande ${quote.reference}.`,
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow());
+
+      const updated = await trx
+        .updateTable("commerce.custom_quote_requests")
+        .set({
+          customer_id: customer.id,
+          converted_at: new Date(),
+          converted_by: convertedBy,
+        })
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      return {
+        quote: mapQuote(updated),
+        customer: customerSummary(customer),
+        action: existing ? ("associated" as const) : ("created" as const),
+      };
+    });
   }
 
   async markRead(id: string): Promise<CustomQuoteRequest> {

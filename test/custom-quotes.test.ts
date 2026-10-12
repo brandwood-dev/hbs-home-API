@@ -40,6 +40,9 @@ describe("professional custom quote submissions", () => {
       readAt: null,
       archivedAt: null,
       emailSentAt: null,
+      customerId: null,
+      convertedAt: null,
+      convertedBy: null,
     };
     const createProfessional = vi.fn().mockResolvedValue(created);
     const app = Fastify({ logger: false });

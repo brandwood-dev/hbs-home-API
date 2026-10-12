@@ -8,7 +8,10 @@ import {
 } from "../auth/admin-guard.js";
 import type { DatabaseConnection } from "../database/connection.js";
 import { ProblemDetailSchema } from "../http/problem.js";
-import type { PostgresCustomQuoteRepository } from "../quotes/custom-quote-repository.js";
+import type {
+  PostgresCustomQuoteRepository,
+  CustomQuoteConversionResult,
+} from "../quotes/custom-quote-repository.js";
 
 const ProductType = Type.Union([
   Type.Literal("rideaux"),
@@ -156,8 +159,38 @@ const QuoteResponse = Type.Object(
       Type.String({ format: "date-time" }),
       Type.Null(),
     ]),
+    customerId: Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
+    convertedAt: Type.Union([
+      Type.String({ format: "date-time" }),
+      Type.Null(),
+    ]),
+    convertedBy: Type.Union([Type.String({ format: "uuid" }), Type.Null()]),
   },
   { $id: "CustomQuoteRequest", additionalProperties: false },
+);
+const ConversionCustomer = Type.Object(
+  {
+    id: Type.String({ format: "uuid" }),
+    firstName: Type.String(),
+    lastName: Type.String(),
+    phone: Type.String(),
+    email: Type.Union([Type.String(), Type.Null()]),
+    governorate: Type.String(),
+    preferredChannel: Type.Union([PreferredContact, Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+const ConversionResponse = Type.Object(
+  {
+    quote: QuoteResponse,
+    customer: ConversionCustomer,
+    action: Type.Union([
+      Type.Literal("created"),
+      Type.Literal("associated"),
+      Type.Literal("already_associated"),
+    ]),
+  },
+  { additionalProperties: false },
 );
 const QuoteListResponse = Type.Object(
   {
@@ -377,6 +410,71 @@ export function registerCustomQuoteRoutes(
           requestId: request.id,
         })
       );
+    },
+  );
+
+  app.post<{ Params: Static<typeof IdParams> }>(
+    "/api/v1/admin/custom-quotes/:id/convert-to-customer",
+    {
+      preHandler: createAdminGuard(dependencies, {
+        requireMfa: true,
+        permissions: ["quotes.write", "customers.write"],
+      }),
+      schema: {
+        operationId: "convertAdminCustomQuoteToCustomer",
+        summary: "Convert a custom quote prospect into a customer",
+        tags: ["admin-custom-quotes"],
+        security: [{ bearerAuth: [] }],
+        params: IdParams,
+        response: {
+          200: ConversionResponse,
+          401: ProblemDetailSchema,
+          403: ProblemDetailSchema,
+          404: ProblemDetailSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const current = await dependencies.customQuoteRepository.getById(
+        request.params.id,
+      );
+      if (!current)
+        return reply.status(404).send({
+          type: "https://api.hbs-home.com/problems/quote-not-found",
+          title: "Demande introuvable",
+          status: 404,
+          detail: "La demande de devis demandée n'existe pas.",
+          instance: request.url,
+          code: "QUOTE_NOT_FOUND",
+          requestId: request.id,
+        });
+      if (
+        current.requestType === "professionnels" &&
+        !canReadProfessionalLeads(request)
+      ) {
+        return reply.status(403).send({
+          type: "https://api.hbs-home.com/problems/forbidden",
+          title: "Permission insuffisante",
+          status: 403,
+          detail:
+            "La permission leads.read est requise pour cette demande professionnelle.",
+          instance: request.url,
+          code: "LEADS_READ_REQUIRED",
+          requestId: request.id,
+        });
+      }
+      const result: CustomQuoteConversionResult =
+        await dependencies.customQuoteRepository.convertToCustomer(
+          request.params.id,
+          principal(request).userId,
+        );
+      await audit(
+        dependencies,
+        request,
+        "custom_quote.converted_to_customer",
+        result.quote.id,
+      );
+      return result;
     },
   );
 
