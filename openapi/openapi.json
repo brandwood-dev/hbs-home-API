@@ -10906,6 +10906,7 @@
         "required": [
           "id",
           "reference",
+          "requestType",
           "productType",
           "openings",
           "preferences",
@@ -10924,6 +10925,52 @@
           },
           "reference": {
             "type": "string"
+          },
+          "requestType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "particulier"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "professionnels"
+                ]
+              }
+            ]
+          },
+          "professionalDetails": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "companyName",
+              "activity",
+              "projectVolume",
+              "message"
+            ],
+            "properties": {
+              "companyName": {
+                "type": "string"
+              },
+              "activity": {
+                "type": "string"
+              },
+              "taxId": {
+                "type": "string"
+              },
+              "projectVolume": {
+                "type": "string"
+              },
+              "desiredDeadline": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
           },
           "productType": {
             "anyOf": [
@@ -11087,6 +11134,7 @@
               "required": [
                 "id",
                 "reference",
+                "requestType",
                 "productType",
                 "openings",
                 "preferences",
@@ -11105,6 +11153,52 @@
                 },
                 "reference": {
                   "type": "string"
+                },
+                "requestType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "particulier"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "professionnels"
+                      ]
+                    }
+                  ]
+                },
+                "professionalDetails": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "companyName",
+                    "activity",
+                    "projectVolume",
+                    "message"
+                  ],
+                  "properties": {
+                    "companyName": {
+                      "type": "string"
+                    },
+                    "activity": {
+                      "type": "string"
+                    },
+                    "taxId": {
+                      "type": "string"
+                    },
+                    "projectVolume": {
+                      "type": "string"
+                    },
+                    "desiredDeadline": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
                 },
                 "productType": {
                   "anyOf": [
@@ -75342,134 +75436,317 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": false,
-                "type": "object",
-                "required": [
-                  "productType",
-                  "openings",
-                  "preferences",
-                  "contact",
-                  "attachmentMetadata",
-                  "acceptedPrivacy"
-                ],
-                "properties": {
-                  "productType": {
-                    "anyOf": [
-                      {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "productType",
+                      "openings",
+                      "preferences",
+                      "contact",
+                      "attachmentMetadata",
+                      "acceptedPrivacy"
+                    ],
+                    "properties": {
+                      "requestType": {
                         "type": "string",
                         "enum": [
-                          "rideaux"
+                          "particulier"
                         ]
                       },
-                      {
-                        "type": "string",
-                        "enum": [
-                          "voilages"
+                      "productType": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "rideaux"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "voilages"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "stores"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "ensemble_fenetre"
+                            ]
+                          }
                         ]
                       },
-                      {
-                        "type": "string",
-                        "enum": [
-                          "stores"
-                        ]
-                      },
-                      {
-                        "type": "string",
-                        "enum": [
-                          "ensemble_fenetre"
-                        ]
-                      }
-                    ]
-                  },
-                  "openings": {
-                    "minItems": 1,
-                    "maxItems": 30,
-                    "type": "array",
-                    "items": {
-                      "additionalProperties": false,
-                      "type": "object",
-                      "required": [
-                        "id",
-                        "label",
-                        "openingType",
-                        "widthCm",
-                        "heightCm",
-                        "quantity"
-                      ],
-                      "properties": {
-                        "id": {
-                          "minLength": 1,
-                          "maxLength": 80,
-                          "type": "string"
-                        },
-                        "label": {
-                          "minLength": 1,
-                          "maxLength": 120,
-                          "type": "string"
-                        },
-                        "openingType": {
-                          "minLength": 1,
-                          "maxLength": 80,
-                          "type": "string"
-                        },
-                        "widthCm": {
-                          "exclusiveMinimum": 0,
-                          "maximum": 20000,
-                          "type": "number"
-                        },
-                        "heightCm": {
-                          "exclusiveMinimum": 0,
-                          "maximum": 20000,
-                          "type": "number"
-                        },
-                        "quantity": {
-                          "minimum": 1,
-                          "maximum": 1000,
-                          "type": "integer"
-                        },
-                        "installationType": {
-                          "maxLength": 120,
-                          "type": "string"
+                      "openings": {
+                        "minItems": 1,
+                        "maxItems": 30,
+                        "type": "array",
+                        "items": {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "label",
+                            "openingType",
+                            "widthCm",
+                            "heightCm",
+                            "quantity"
+                          ],
+                          "properties": {
+                            "id": {
+                              "minLength": 1,
+                              "maxLength": 80,
+                              "type": "string"
+                            },
+                            "label": {
+                              "minLength": 1,
+                              "maxLength": 120,
+                              "type": "string"
+                            },
+                            "openingType": {
+                              "minLength": 1,
+                              "maxLength": 80,
+                              "type": "string"
+                            },
+                            "widthCm": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 20000,
+                              "type": "number"
+                            },
+                            "heightCm": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 20000,
+                              "type": "number"
+                            },
+                            "quantity": {
+                              "minimum": 1,
+                              "maximum": 1000,
+                              "type": "integer"
+                            },
+                            "installationType": {
+                              "maxLength": 120,
+                              "type": "string"
+                            }
+                          }
                         }
-                      }
-                    }
-                  },
-                  "preferences": {
-                    "additionalProperties": false,
-                    "type": "object",
-                    "required": [
-                      "wantsAccessories"
-                    ],
-                    "properties": {
-                      "wantsAccessories": {
-                        "type": "boolean"
                       },
-                      "notes": {
-                        "maxLength": 5000,
-                        "type": "string"
+                      "preferences": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "wantsAccessories"
+                        ],
+                        "properties": {
+                          "wantsAccessories": {
+                            "type": "boolean"
+                          },
+                          "notes": {
+                            "maxLength": 5000,
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "contact": {
+                        "additionalProperties": false,
+                        "type": "object",
+                        "required": [
+                          "firstName",
+                          "lastName",
+                          "phone",
+                          "governorate",
+                          "city",
+                          "preferredContact"
+                        ],
+                        "properties": {
+                          "firstName": {
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "type": "string"
+                          },
+                          "phone": {
+                            "minLength": 8,
+                            "maxLength": 20,
+                            "type": "string"
+                          },
+                          "email": {
+                            "format": "email",
+                            "maxLength": 255,
+                            "type": "string"
+                          },
+                          "governorate": {
+                            "minLength": 1,
+                            "maxLength": 120,
+                            "type": "string"
+                          },
+                          "city": {
+                            "minLength": 2,
+                            "maxLength": 120,
+                            "type": "string"
+                          },
+                          "preferredContact": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "phone"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "whatsapp"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "email"
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "attachmentMetadata": {
+                        "maxItems": 10,
+                        "type": "array",
+                        "items": {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "name",
+                            "size",
+                            "type"
+                          ],
+                          "properties": {
+                            "id": {
+                              "minLength": 1,
+                              "maxLength": 160,
+                              "type": "string"
+                            },
+                            "name": {
+                              "minLength": 1,
+                              "maxLength": 255,
+                              "type": "string"
+                            },
+                            "size": {
+                              "minimum": 0,
+                              "maximum": 25000000,
+                              "type": "integer"
+                            },
+                            "type": {
+                              "maxLength": 120,
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "acceptedPrivacy": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
                       }
                     }
                   },
-                  "contact": {
+                  {
                     "additionalProperties": false,
                     "type": "object",
                     "required": [
-                      "firstName",
-                      "lastName",
+                      "requestType",
+                      "companyName",
+                      "activity",
+                      "contactName",
                       "phone",
+                      "email",
                       "governorate",
-                      "city",
-                      "preferredContact"
+                      "projectVolume",
+                      "message",
+                      "acceptedPrivacy"
                     ],
                     "properties": {
-                      "firstName": {
+                      "requestType": {
+                        "type": "string",
+                        "enum": [
+                          "professionnels"
+                        ]
+                      },
+                      "companyName": {
                         "minLength": 2,
-                        "maxLength": 60,
+                        "maxLength": 160,
                         "type": "string"
                       },
-                      "lastName": {
+                      "activity": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "hotellerie"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "restauration"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "bureaux"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "architecte"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "decorateur"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "promoteur"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "commerce"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "autre"
+                            ]
+                          }
+                        ]
+                      },
+                      "taxId": {
+                        "maxLength": 80,
+                        "type": "string"
+                      },
+                      "contactName": {
                         "minLength": 2,
-                        "maxLength": 60,
+                        "maxLength": 120,
                         "type": "string"
                       },
                       "phone": {
@@ -75488,76 +75765,55 @@
                         "type": "string"
                       },
                       "city": {
-                        "minLength": 2,
                         "maxLength": 120,
                         "type": "string"
                       },
-                      "preferredContact": {
+                      "projectVolume": {
                         "anyOf": [
                           {
                             "type": "string",
                             "enum": [
-                              "phone"
+                              "moins_10"
                             ]
                           },
                           {
                             "type": "string",
                             "enum": [
-                              "whatsapp"
+                              "10_50"
                             ]
                           },
                           {
                             "type": "string",
                             "enum": [
-                              "email"
+                              "50_200"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "plus_200"
                             ]
                           }
                         ]
+                      },
+                      "desiredDeadline": {
+                        "maxLength": 160,
+                        "type": "string"
+                      },
+                      "message": {
+                        "minLength": 20,
+                        "maxLength": 5000,
+                        "type": "string"
+                      },
+                      "acceptedPrivacy": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
                       }
                     }
-                  },
-                  "attachmentMetadata": {
-                    "maxItems": 10,
-                    "type": "array",
-                    "items": {
-                      "additionalProperties": false,
-                      "type": "object",
-                      "required": [
-                        "id",
-                        "name",
-                        "size",
-                        "type"
-                      ],
-                      "properties": {
-                        "id": {
-                          "minLength": 1,
-                          "maxLength": 160,
-                          "type": "string"
-                        },
-                        "name": {
-                          "minLength": 1,
-                          "maxLength": 255,
-                          "type": "string"
-                        },
-                        "size": {
-                          "minimum": 0,
-                          "maximum": 25000000,
-                          "type": "integer"
-                        },
-                        "type": {
-                          "maxLength": 120,
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "acceptedPrivacy": {
-                    "type": "boolean",
-                    "enum": [
-                      true
-                    ]
                   }
-                }
+                ]
               }
             }
           }
@@ -75573,6 +75829,7 @@
                   "required": [
                     "id",
                     "reference",
+                    "requestType",
                     "productType",
                     "openings",
                     "preferences",
@@ -75591,6 +75848,52 @@
                     },
                     "reference": {
                       "type": "string"
+                    },
+                    "requestType": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "particulier"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "professionnels"
+                          ]
+                        }
+                      ]
+                    },
+                    "professionalDetails": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "companyName",
+                        "activity",
+                        "projectVolume",
+                        "message"
+                      ],
+                      "properties": {
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "activity": {
+                          "type": "string"
+                        },
+                        "taxId": {
+                          "type": "string"
+                        },
+                        "projectVolume": {
+                          "type": "string"
+                        },
+                        "desiredDeadline": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
                     },
                     "productType": {
                       "anyOf": [
@@ -75860,6 +76163,27 @@
             "in": "query",
             "name": "includeArchived",
             "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "particulier"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "professionnels"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "requestType",
+            "required": false
           }
         ],
         "security": [
@@ -75892,6 +76216,7 @@
                         "required": [
                           "id",
                           "reference",
+                          "requestType",
                           "productType",
                           "openings",
                           "preferences",
@@ -75910,6 +76235,52 @@
                           },
                           "reference": {
                             "type": "string"
+                          },
+                          "requestType": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "particulier"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "professionnels"
+                                ]
+                              }
+                            ]
+                          },
+                          "professionalDetails": {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "companyName",
+                              "activity",
+                              "projectVolume",
+                              "message"
+                            ],
+                            "properties": {
+                              "companyName": {
+                                "type": "string"
+                              },
+                              "activity": {
+                                "type": "string"
+                              },
+                              "taxId": {
+                                "type": "string"
+                              },
+                              "projectVolume": {
+                                "type": "string"
+                              },
+                              "desiredDeadline": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            }
                           },
                           "productType": {
                             "anyOf": [
@@ -76252,6 +76623,7 @@
                   "required": [
                     "id",
                     "reference",
+                    "requestType",
                     "productType",
                     "openings",
                     "preferences",
@@ -76270,6 +76642,52 @@
                     },
                     "reference": {
                       "type": "string"
+                    },
+                    "requestType": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "particulier"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "professionnels"
+                          ]
+                        }
+                      ]
+                    },
+                    "professionalDetails": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "companyName",
+                        "activity",
+                        "projectVolume",
+                        "message"
+                      ],
+                      "properties": {
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "activity": {
+                          "type": "string"
+                        },
+                        "taxId": {
+                          "type": "string"
+                        },
+                        "projectVolume": {
+                          "type": "string"
+                        },
+                        "desiredDeadline": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
                     },
                     "productType": {
                       "anyOf": [
@@ -76657,6 +77075,7 @@
                   "required": [
                     "id",
                     "reference",
+                    "requestType",
                     "productType",
                     "openings",
                     "preferences",
@@ -76675,6 +77094,52 @@
                     },
                     "reference": {
                       "type": "string"
+                    },
+                    "requestType": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "particulier"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "professionnels"
+                          ]
+                        }
+                      ]
+                    },
+                    "professionalDetails": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "companyName",
+                        "activity",
+                        "projectVolume",
+                        "message"
+                      ],
+                      "properties": {
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "activity": {
+                          "type": "string"
+                        },
+                        "taxId": {
+                          "type": "string"
+                        },
+                        "projectVolume": {
+                          "type": "string"
+                        },
+                        "desiredDeadline": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
                     },
                     "productType": {
                       "anyOf": [
@@ -77062,6 +77527,7 @@
                   "required": [
                     "id",
                     "reference",
+                    "requestType",
                     "productType",
                     "openings",
                     "preferences",
@@ -77080,6 +77546,52 @@
                     },
                     "reference": {
                       "type": "string"
+                    },
+                    "requestType": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "particulier"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "professionnels"
+                          ]
+                        }
+                      ]
+                    },
+                    "professionalDetails": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "companyName",
+                        "activity",
+                        "projectVolume",
+                        "message"
+                      ],
+                      "properties": {
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "activity": {
+                          "type": "string"
+                        },
+                        "taxId": {
+                          "type": "string"
+                        },
+                        "projectVolume": {
+                          "type": "string"
+                        },
+                        "desiredDeadline": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
                     },
                     "productType": {
                       "anyOf": [
