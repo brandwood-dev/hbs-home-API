@@ -472,7 +472,7 @@ export class PostgresCustomQuoteRepository {
       }
 
       const phone = customerPhone(quote.phone);
-      const email = quote.email?.trim().toLowerCase() || null;
+      const email = quote.email?.trim().toLowerCase() ?? null;
       const existing = await trx
         .selectFrom("commerce.customers")
         .selectAll()
