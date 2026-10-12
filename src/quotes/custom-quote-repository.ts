@@ -9,6 +9,37 @@ import { AppError } from "../http/problem.js";
 export type CustomQuoteProductType =
   "rideaux" | "voilages" | "stores" | "ensemble_fenetre";
 export type CustomQuotePreferredContact = "phone" | "whatsapp" | "email";
+export type CustomQuoteRequestType = "particulier" | "professionnels";
+
+export type ProfessionalActivity =
+  | "hotellerie"
+  | "restauration"
+  | "bureaux"
+  | "architecte"
+  | "decorateur"
+  | "promoteur"
+  | "commerce"
+  | "autre";
+export type ProfessionalProjectVolume =
+  "moins_10" | "10_50" | "50_200" | "plus_200";
+
+export interface ProfessionalDetails {
+  companyName: string;
+  activity: ProfessionalActivity;
+  taxId?: string;
+  projectVolume: ProfessionalProjectVolume;
+  desiredDeadline?: string;
+  message: string;
+}
+
+export interface ProfessionalLeadInput extends ProfessionalDetails {
+  contactName: string;
+  phone: string;
+  email: string;
+  governorate: string;
+  city?: string;
+  acceptedPrivacy: true;
+}
 
 export interface CustomQuoteOpeningInput {
   id: string;
@@ -46,6 +77,8 @@ export interface CustomQuoteInput {
 export interface CustomQuoteRequest extends CustomQuoteInput {
   id: string;
   reference: string;
+  requestType: CustomQuoteRequestType;
+  professionalDetails?: ProfessionalDetails;
   createdAt: string;
   readAt: string | null;
   archivedAt: string | null;
@@ -58,6 +91,7 @@ export interface CustomQuoteListParams {
   query?: string;
   unreadOnly?: boolean;
   includeArchived?: boolean;
+  requestType?: CustomQuoteRequestType;
 }
 
 export interface CustomQuoteList {
@@ -99,9 +133,18 @@ function numberValue(value: unknown, fallback: number): number {
 }
 
 function mapQuote(row: QuoteRow): CustomQuoteRequest {
+  const professionalDetails = objectValue(row.professional_details);
   return {
     id: row.id,
     reference: row.reference,
+    requestType: row.request_type,
+    ...(row.request_type === "professionnels" &&
+    Object.keys(professionalDetails).length > 0
+      ? {
+          professionalDetails:
+            professionalDetails as unknown as ProfessionalDetails,
+        }
+      : {}),
     productType: row.product_type,
     openings: objectArray(row.openings).map((opening) => ({
       id: stringValue(opening.id, ""),
@@ -133,21 +176,82 @@ function mapQuote(row: QuoteRow): CustomQuoteRequest {
   };
 }
 
-function quoteReference(date = new Date()): string {
+function quoteReference(
+  prefix: "DEV" | "PRO" = "DEV",
+  date = new Date(),
+): string {
   const day = `${String(date.getFullYear())}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
-  return `DEV-${day}-${randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
+  return `${prefix}-${day}-${randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase()}`;
 }
 
 function normalized(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function normalizedMultiline(value: string): string {
+  return value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim().replace(/[ \t]+/g, " "))
+    .join("\n")
+    .trim();
+}
+
 export class PostgresCustomQuoteRepository {
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
   async create(input: CustomQuoteInput): Promise<CustomQuoteRequest> {
+    return this.createRequest(input, "particulier");
+  }
+
+  async createProfessional(
+    input: ProfessionalLeadInput,
+  ): Promise<CustomQuoteRequest> {
+    const contact = normalized(input.contactName).split(" ");
+    const firstName = contact.shift() ?? "Contact";
+    const lastName = contact.join(" ") || "Professionnel";
+    return this.createRequest(
+      {
+        productType: "ensemble_fenetre",
+        openings: [],
+        preferences: {
+          wantsAccessories: false,
+        },
+        contact: {
+          firstName,
+          lastName,
+          phone: input.phone,
+          email: input.email,
+          governorate: input.governorate,
+          city: input.city?.trim() ?? "Non précisée",
+          preferredContact: "email",
+        },
+        attachmentMetadata: [],
+        acceptedPrivacy: true,
+      },
+      "professionnels",
+      {
+        companyName: normalized(input.companyName),
+        activity: input.activity,
+        ...(input.taxId?.trim() ? { taxId: normalized(input.taxId) } : {}),
+        projectVolume: input.projectVolume,
+        ...(input.desiredDeadline?.trim()
+          ? { desiredDeadline: normalized(input.desiredDeadline) }
+          : {}),
+        message: normalizedMultiline(input.message),
+      },
+    );
+  }
+
+  private async createRequest(
+    input: CustomQuoteInput,
+    requestType: CustomQuoteRequestType,
+    professionalDetails?: ProfessionalDetails,
+  ): Promise<CustomQuoteRequest> {
     const id = randomUUID();
-    const reference = quoteReference();
+    const reference = quoteReference(
+      requestType === "professionnels" ? "PRO" : "DEV",
+    );
     const firstName = normalized(input.contact.firstName);
     const lastName = normalized(input.contact.lastName);
     const phone = normalized(input.contact.phone);
@@ -161,6 +265,13 @@ export class PostgresCustomQuoteRepository {
         .values({
           id,
           reference,
+          request_type: requestType,
+          professional_details: professionalDetails
+            ? (sql`cast(${JSON.stringify(professionalDetails)} as jsonb)` as unknown as Record<
+                string,
+                unknown
+              >)
+            : null,
           product_type: input.productType,
           openings:
             sql`cast(${JSON.stringify(input.openings)} as jsonb)` as unknown as Record<
@@ -232,6 +343,9 @@ export class PostgresCustomQuoteRepository {
       )
       .$if(params.unreadOnly === true, (builder) =>
         builder.where("read_at", "is", null),
+      )
+      .$if(params.requestType !== undefined, (builder) =>
+        builder.where("request_type", "=", params.requestType ?? "particulier"),
       )
       .$if(params.includeArchived !== true, (builder) =>
         builder.where("archived_at", "is", null),

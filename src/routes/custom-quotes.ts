@@ -16,6 +16,10 @@ const ProductType = Type.Union([
   Type.Literal("stores"),
   Type.Literal("ensemble_fenetre"),
 ]);
+const RequestType = Type.Union([
+  Type.Literal("particulier"),
+  Type.Literal("professionnels"),
+]);
 const PreferredContact = Type.Union([
   Type.Literal("phone"),
   Type.Literal("whatsapp"),
@@ -61,8 +65,9 @@ const AttachmentMetadata = Type.Object(
   },
   { additionalProperties: false },
 );
-const CreateBody = Type.Object(
+const IndividualCreateBody = Type.Object(
   {
+    requestType: Type.Optional(Type.Literal("particulier")),
     productType: ProductType,
     openings: Type.Array(Opening, { minItems: 1, maxItems: 30 }),
     preferences: Preferences,
@@ -72,12 +77,61 @@ const CreateBody = Type.Object(
   },
   { additionalProperties: false },
 );
+const ProfessionalActivity = Type.Union([
+  Type.Literal("hotellerie"),
+  Type.Literal("restauration"),
+  Type.Literal("bureaux"),
+  Type.Literal("architecte"),
+  Type.Literal("decorateur"),
+  Type.Literal("promoteur"),
+  Type.Literal("commerce"),
+  Type.Literal("autre"),
+]);
+const ProfessionalProjectVolume = Type.Union([
+  Type.Literal("moins_10"),
+  Type.Literal("10_50"),
+  Type.Literal("50_200"),
+  Type.Literal("plus_200"),
+]);
+const ProfessionalCreateBody = Type.Object(
+  {
+    requestType: Type.Literal("professionnels"),
+    companyName: Type.String({ minLength: 2, maxLength: 160 }),
+    activity: ProfessionalActivity,
+    taxId: Type.Optional(Type.String({ maxLength: 80 })),
+    contactName: Type.String({ minLength: 2, maxLength: 120 }),
+    phone: Type.String({ minLength: 8, maxLength: 20 }),
+    email: Type.String({ format: "email", maxLength: 255 }),
+    governorate: Type.String({ minLength: 1, maxLength: 120 }),
+    city: Type.Optional(Type.String({ maxLength: 120 })),
+    projectVolume: ProfessionalProjectVolume,
+    desiredDeadline: Type.Optional(Type.String({ maxLength: 160 })),
+    message: Type.String({ minLength: 20, maxLength: 5_000 }),
+    acceptedPrivacy: Type.Literal(true),
+  },
+  { additionalProperties: false },
+);
+const CreateBody = Type.Union([IndividualCreateBody, ProfessionalCreateBody]);
 type CreateBodyType = Static<typeof CreateBody>;
+
+const ProfessionalDetails = Type.Object(
+  {
+    companyName: Type.String(),
+    activity: Type.String(),
+    taxId: Type.Optional(Type.String()),
+    projectVolume: Type.String(),
+    desiredDeadline: Type.Optional(Type.String()),
+    message: Type.String(),
+  },
+  { additionalProperties: false },
+);
 
 const QuoteResponse = Type.Object(
   {
     id: Type.String({ format: "uuid" }),
     reference: Type.String(),
+    requestType: RequestType,
+    professionalDetails: Type.Optional(ProfessionalDetails),
     productType: ProductType,
     openings: Type.Array(Type.Unknown()),
     preferences: Type.Record(Type.String(), Type.Unknown()),
@@ -127,6 +181,7 @@ const ListQuery = Type.Object(
     q: Type.Optional(Type.String({ maxLength: 160 })),
     unreadOnly: Type.Optional(Type.Boolean()),
     includeArchived: Type.Optional(Type.Boolean()),
+    requestType: Type.Optional(RequestType),
   },
   { additionalProperties: false },
 );
@@ -142,6 +197,10 @@ function principal(request: FastifyRequest): AdminPrincipal {
   if (!request.adminPrincipal)
     throw new Error("Admin guard did not set a principal.");
   return request.adminPrincipal;
+}
+
+function canReadProfessionalLeads(request: FastifyRequest): boolean {
+  return principal(request).permissions.includes("leads.read");
 }
 
 async function audit(
@@ -184,6 +243,13 @@ export function registerCustomQuoteRoutes(
       },
     },
     async (request, reply) => {
+      if (request.body.requestType === "professionnels") {
+        const result =
+          await dependencies.customQuoteRepository.createProfessional(
+            request.body,
+          );
+        return reply.status(201).send(result);
+      }
       if (
         request.body.contact.preferredContact === "email" &&
         !request.body.contact.email
@@ -226,8 +292,21 @@ export function registerCustomQuoteRoutes(
         },
       },
     },
-    async (request) =>
-      dependencies.customQuoteRepository.list({
+    async (request, reply) => {
+      const canReadLeads = canReadProfessionalLeads(request);
+      if (request.query.requestType === "professionnels" && !canReadLeads) {
+        return reply.status(403).send({
+          type: "https://api.hbs-home.com/problems/forbidden",
+          title: "Permission insuffisante",
+          status: 403,
+          detail:
+            "La permission leads.read est requise pour les demandes professionnelles.",
+          instance: request.url,
+          code: "LEADS_READ_REQUIRED",
+          requestId: request.id,
+        });
+      }
+      return dependencies.customQuoteRepository.list({
         page: request.query.page ?? 1,
         pageSize: request.query.pageSize ?? 20,
         ...(request.query.q ? { query: request.query.q } : {}),
@@ -237,7 +316,13 @@ export function registerCustomQuoteRoutes(
         ...(request.query.includeArchived !== undefined
           ? { includeArchived: request.query.includeArchived }
           : {}),
-      }),
+        ...(canReadLeads
+          ? request.query.requestType
+            ? { requestType: request.query.requestType }
+            : {}
+          : { requestType: "particulier" as const }),
+      });
+    },
   );
 
   app.get<{ Params: Static<typeof IdParams> }>(
@@ -265,6 +350,21 @@ export function registerCustomQuoteRoutes(
       const result = await dependencies.customQuoteRepository.getById(
         request.params.id,
       );
+      if (
+        result?.requestType === "professionnels" &&
+        !canReadProfessionalLeads(request)
+      ) {
+        return reply.status(403).send({
+          type: "https://api.hbs-home.com/problems/forbidden",
+          title: "Permission insuffisante",
+          status: 403,
+          detail:
+            "La permission leads.read est requise pour cette demande professionnelle.",
+          instance: request.url,
+          code: "LEADS_READ_REQUIRED",
+          requestId: request.id,
+        });
+      }
       return (
         result ??
         reply.status(404).send({

@@ -607,6 +607,8 @@ export interface OutboxEventTable {
 export interface CustomQuoteRequestTable {
   id: Generated<string>;
   reference: string;
+  request_type: "particulier" | "professionnels";
+  professional_details: Record<string, unknown> | null;
   product_type: "rideaux" | "voilages" | "stores" | "ensemble_fenetre";
   openings: readonly Record<string, unknown>[];
   preferences: Record<string, unknown>;

@@ -103,11 +103,36 @@ function quoteMessage(
     .join("");
   const openingTable = `<table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr><th scope="col" style="padding:0 10px 8px 0;border-bottom:1px solid #d9d0ca;text-align:left;font-size:12px;font-weight:600;color:#6b625c;">Pièce</th><th scope="col" style="padding:0 10px 8px 0;border-bottom:1px solid #d9d0ca;text-align:left;font-size:12px;font-weight:600;color:#6b625c;">Type d’ouverture</th><th scope="col" style="padding:0 0 8px;border-bottom:1px solid #d9d0ca;text-align:right;font-size:12px;font-weight:600;color:#6b625c;">Dimensions · Qté</th></tr></thead><tbody>${openingRows || '<tr><td colspan="3" style="padding:10px 0;">Aucune ouverture</td></tr>'}</tbody></table>`;
   const customerEmail = quote.contact.email ?? "Non renseigné";
-  const subject = `Nouvelle demande sur mesure · ${quote.reference}`;
+  const isProfessional = quote.requestType === "professionnels";
+  const professionalDetails = quote.professionalDetails;
+  const requestTypeLabel = isProfessional ? "Professionnels" : "Particulier";
+  const subject = `${isProfessional ? "Nouvelle demande professionnelle" : "Nouvelle demande sur mesure"} · ${quote.reference}`;
+  const professionalText =
+    isProfessional && professionalDetails
+      ? [
+          `Entreprise : ${professionalDetails.companyName}`,
+          `Activité : ${professionalDetails.activity}`,
+          ...(professionalDetails.taxId
+            ? [`Matricule fiscal : ${professionalDetails.taxId}`]
+            : []),
+          `Volume estimé : ${professionalDetails.projectVolume}`,
+          ...(professionalDetails.desiredDeadline
+            ? [`Échéance souhaitée : ${professionalDetails.desiredDeadline}`]
+            : []),
+          `Projet : ${professionalDetails.message}`,
+        ]
+      : [];
+  const professionalHtml =
+    isProfessional && professionalDetails
+      ? `<h2 style="font-size:16px;margin:24px 0 10px;">Entreprise</h2><p style="margin:0;line-height:1.6;"><strong>Société :</strong> ${escapeHtml(professionalDetails.companyName)}<br /><strong>Activité :</strong> ${escapeHtml(professionalDetails.activity)}<br />${professionalDetails.taxId ? `<strong>Matricule fiscal :</strong> ${escapeHtml(professionalDetails.taxId)}<br />` : ""}<strong>Volume estimé :</strong> ${escapeHtml(professionalDetails.projectVolume)}${professionalDetails.desiredDeadline ? `<br /><strong>Échéance souhaitée :</strong> ${escapeHtml(professionalDetails.desiredDeadline)}` : ""}</p><h2 style="font-size:16px;margin:24px 0 10px;">Projet</h2><p style="white-space:pre-line;margin:0;line-height:1.6;">${escapeHtml(professionalDetails.message)}</p>`
+      : "";
   const text = [
     subject,
     `Reçue le : ${formatDate(quote.createdAt)}`,
     "",
+    `Type de demande : ${requestTypeLabel}`,
+    ...professionalText,
+    ...(professionalText.length ? [""] : []),
     "Projet",
     `Type : ${labelProductType(quote.productType)}`,
     `Accessoires : ${wantsAccessories}`,
@@ -125,7 +150,7 @@ function quoteMessage(
     "",
     `Ouvrir dans le back-office : ${quoteUrl}`,
   ].join("\n");
-  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f7f4f1;color:#211e1b;font-family:Arial,Helvetica,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:20px 12px;"><div style="background:#ad7658;color:#fff;padding:22px 20px;"><img src="${escapeHtml(logoUrl)}" alt="HBS HOME" width="150" style="display:block;width:150px;max-width:100%;height:auto;margin:0 0 14px;" /><h1 style="font-size:22px;line-height:1.25;font-weight:600;margin:0;">Nouvelle demande sur mesure</h1></div><div style="background:#fff;padding:22px 20px;"><p style="margin:0;color:#6b625c;font-size:14px;line-height:1.5;">${escapeHtml(quote.reference)} · ${escapeHtml(formatDate(quote.createdAt))}</p><h2 style="font-size:16px;margin:24px 0 10px;">Projet</h2><p style="margin:0;line-height:1.6;"><strong>Type :</strong> ${escapeHtml(labelProductType(quote.productType))}<br /><strong>Accessoires :</strong> ${escapeHtml(wantsAccessories)}</p><h2 style="font-size:16px;margin:24px 0 10px;">Ouvertures</h2>${openingTable}${notes ? `<h2 style="font-size:16px;margin:24px 0 10px;">Précisions</h2><p style="white-space:pre-line;margin:0;line-height:1.6;">${escapeHtml(notes)}</p>` : ""}<h2 style="font-size:16px;margin:24px 0 10px;">Coordonnées</h2><p style="margin:0;line-height:1.65;">${escapeHtml(quote.contact.firstName)} ${escapeHtml(quote.contact.lastName)}<br /><a href="tel:${escapeHtml(quote.contact.phone)}" style="color:#8f5d46;">${escapeHtml(quote.contact.phone)}</a><br />${escapeHtml(customerEmail)}<br />${escapeHtml(quote.contact.city)}, ${escapeHtml(quote.contact.governorate)}<br /><strong>Contact préféré :</strong> ${escapeHtml(labelContact(quote.contact.preferredContact))}</p><p style="margin:26px 0 0;"><a href="${escapeHtml(quoteUrl)}" style="display:block;text-align:center;background:#ad7658;color:#fff;text-decoration:none;padding:13px 16px;font-size:14px;">Voir la demande dans l’admin</a></p></div><div style="padding:16px 8px;text-align:center;color:#8b817a;font-size:11px;">HBS HOME · Demande reçue depuis le site</div></div></body></html>`;
+  const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f7f4f1;color:#211e1b;font-family:Arial,Helvetica,sans-serif;"><div style="max-width:680px;margin:0 auto;padding:20px 12px;"><div style="background:#ad7658;color:#fff;padding:22px 20px;"><img src="${escapeHtml(logoUrl)}" alt="HBS HOME" width="150" style="display:block;width:150px;max-width:100%;height:auto;margin:0 0 14px;" /><h1 style="font-size:22px;line-height:1.25;font-weight:600;margin:0;">${isProfessional ? "Nouvelle demande professionnelle" : "Nouvelle demande sur mesure"}</h1></div><div style="background:#fff;padding:22px 20px;"><p style="margin:0;color:#6b625c;font-size:14px;line-height:1.5;">${escapeHtml(quote.reference)} · ${escapeHtml(formatDate(quote.createdAt))}</p><p style="margin:16px 0 0;line-height:1.6;"><strong>Type de demande :</strong> ${escapeHtml(requestTypeLabel)}</p>${professionalHtml}<h2 style="font-size:16px;margin:24px 0 10px;">Projet</h2><p style="margin:0;line-height:1.6;"><strong>Type :</strong> ${escapeHtml(labelProductType(quote.productType))}<br /><strong>Accessoires :</strong> ${escapeHtml(wantsAccessories)}</p><h2 style="font-size:16px;margin:24px 0 10px;">Ouvertures</h2>${openingTable}${notes ? `<h2 style="font-size:16px;margin:24px 0 10px;">Précisions</h2><p style="white-space:pre-line;margin:0;line-height:1.6;">${escapeHtml(notes)}</p>` : ""}<h2 style="font-size:16px;margin:24px 0 10px;">Coordonnées</h2><p style="margin:0;line-height:1.65;">${escapeHtml(quote.contact.firstName)} ${escapeHtml(quote.contact.lastName)}<br /><a href="tel:${escapeHtml(quote.contact.phone)}" style="color:#8f5d46;">${escapeHtml(quote.contact.phone)}</a><br />${escapeHtml(customerEmail)}<br />${escapeHtml(quote.contact.city)}, ${escapeHtml(quote.contact.governorate)}<br /><strong>Contact préféré :</strong> ${escapeHtml(labelContact(quote.contact.preferredContact))}</p><p style="margin:26px 0 0;"><a href="${escapeHtml(quoteUrl)}" style="display:block;text-align:center;background:#ad7658;color:#fff;text-decoration:none;padding:13px 16px;font-size:14px;">Voir la demande dans l’admin</a></p></div><div style="padding:16px 8px;text-align:center;color:#8b817a;font-size:11px;">HBS HOME · Demande reçue depuis le site</div></div></body></html>`;
   return { subject, text, html };
 }
 
@@ -231,7 +256,7 @@ export class CustomQuoteEmailWorker {
         throw new Error("custom_quote.created has no valid quoteId");
       const quote = await this.options.quoteRepository.getById(quoteId);
       if (!quote) throw new Error(`Custom quote ${quoteId} was not found`);
-      const recipients = await this.listRecipients();
+      const recipients = await this.listRecipients(quote.requestType);
       if (recipients.length === 0) {
         this.options.logger.warn(
           { quoteId },
@@ -298,9 +323,9 @@ export class CustomQuoteEmailWorker {
     }
   }
 
-  private async listRecipients(): Promise<
-    readonly { email: string; displayName: string | null }[]
-  > {
+  private async listRecipients(
+    requestType: "particulier" | "professionnels",
+  ): Promise<readonly { email: string; displayName: string | null }[]> {
     const rows = await this.options.database
       .selectFrom("iam.admin_profiles as profile")
       .innerJoin(
@@ -313,9 +338,13 @@ export class CustomQuoteEmailWorker {
         "permission.role_key",
         "membership.role_key",
       )
-      .select(["profile.email", "profile.display_name as displayName"])
+      .select([
+        "profile.email",
+        "profile.display_name as displayName",
+        "permission.permission_key as permissionKey",
+      ])
       .where("profile.status", "=", "active")
-      .where("permission.permission_key", "=", "quotes.read")
+      .where("permission.permission_key", "in", ["quotes.read", "leads.read"])
       .where("membership.revoked_at", "is", null)
       .where((eb) =>
         eb.or([
@@ -325,13 +354,31 @@ export class CustomQuoteEmailWorker {
       )
       .orderBy("profile.email", "asc")
       .execute();
-    const seen = new Set<string>();
-    return rows.filter((row) => {
+    const recipients = new Map<
+      string,
+      { email: string; displayName: string | null; permissions: Set<string> }
+    >();
+    for (const row of rows) {
       const email = row.email.trim().toLowerCase();
-      if (!email || seen.has(email)) return false;
-      seen.add(email);
-      return true;
-    });
+      if (!email) continue;
+      const current = recipients.get(email) ?? {
+        email,
+        displayName: row.displayName,
+        permissions: new Set<string>(),
+      };
+      if (!current.displayName && row.displayName)
+        current.displayName = row.displayName;
+      current.permissions.add(row.permissionKey);
+      recipients.set(email, current);
+    }
+    return [...recipients.values()]
+      .filter(
+        (recipient) =>
+          recipient.permissions.has("quotes.read") &&
+          (requestType === "particulier" ||
+            recipient.permissions.has("leads.read")),
+      )
+      .map(({ email, displayName }) => ({ email, displayName }));
   }
 
   private async markProcessed(id: string): Promise<void> {
