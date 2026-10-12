@@ -706,6 +706,9 @@
                 "blindMechanismColor": {
                   "type": "string"
                 },
+                "orientation": {
+                  "type": "string"
+                },
                 "sizeLabel": {
                   "type": "string"
                 },
@@ -12495,6 +12498,9 @@
                                 "blindMechanismColor": {
                                   "type": "string"
                                 },
+                                "orientation": {
+                                  "type": "string"
+                                },
                                 "sizeLabel": {
                                   "type": "string"
                                 },
@@ -13236,6 +13242,9 @@
                             "blindMechanismColor": {
                               "type": "string"
                             },
+                            "orientation": {
+                              "type": "string"
+                            },
                             "sizeLabel": {
                               "type": "string"
                             },
@@ -13812,6 +13821,9 @@
                                 "blindMechanismColor": {
                                   "type": "string"
                                 },
+                                "orientation": {
+                                  "type": "string"
+                                },
                                 "sizeLabel": {
                                   "type": "string"
                                 },
@@ -14380,6 +14392,9 @@
                             "type": "string"
                           },
                           "blindMechanismColor": {
+                            "type": "string"
+                          },
+                          "orientation": {
                             "type": "string"
                           },
                           "sizeLabel": {
@@ -15027,6 +15042,9 @@
                               "type": "string"
                             },
                             "blindMechanismColor": {
+                              "type": "string"
+                            },
+                            "orientation": {
                               "type": "string"
                             },
                             "sizeLabel": {
