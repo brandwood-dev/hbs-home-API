@@ -256,7 +256,7 @@ export class CustomQuoteEmailWorker {
         throw new Error("custom_quote.created has no valid quoteId");
       const quote = await this.options.quoteRepository.getById(quoteId);
       if (!quote) throw new Error(`Custom quote ${quoteId} was not found`);
-      const recipients = await this.listRecipients();
+      const recipients = await this.listRecipients(quote.requestType);
       if (recipients.length === 0) {
         this.options.logger.warn(
           { quoteId },
@@ -323,9 +323,9 @@ export class CustomQuoteEmailWorker {
     }
   }
 
-  private async listRecipients(): Promise<
-    readonly { email: string; displayName: string | null }[]
-  > {
+  private async listRecipients(
+    requestType: "particulier" | "professionnels",
+  ): Promise<readonly { email: string; displayName: string | null }[]> {
     const rows = await this.options.database
       .selectFrom("iam.admin_profiles as profile")
       .innerJoin(
@@ -338,9 +338,13 @@ export class CustomQuoteEmailWorker {
         "permission.role_key",
         "membership.role_key",
       )
-      .select(["profile.email", "profile.display_name as displayName"])
+      .select([
+        "profile.email",
+        "profile.display_name as displayName",
+        "permission.permission_key as permissionKey",
+      ])
       .where("profile.status", "=", "active")
-      .where("permission.permission_key", "=", "quotes.read")
+      .where("permission.permission_key", "in", ["quotes.read", "leads.read"])
       .where("membership.revoked_at", "is", null)
       .where((eb) =>
         eb.or([
@@ -350,13 +354,31 @@ export class CustomQuoteEmailWorker {
       )
       .orderBy("profile.email", "asc")
       .execute();
-    const seen = new Set<string>();
-    return rows.filter((row) => {
+    const recipients = new Map<
+      string,
+      { email: string; displayName: string | null; permissions: Set<string> }
+    >();
+    for (const row of rows) {
       const email = row.email.trim().toLowerCase();
-      if (!email || seen.has(email)) return false;
-      seen.add(email);
-      return true;
-    });
+      if (!email) continue;
+      const current = recipients.get(email) ?? {
+        email,
+        displayName: row.displayName,
+        permissions: new Set<string>(),
+      };
+      if (!current.displayName && row.displayName)
+        current.displayName = row.displayName;
+      current.permissions.add(row.permissionKey);
+      recipients.set(email, current);
+    }
+    return [...recipients.values()]
+      .filter(
+        (recipient) =>
+          recipient.permissions.has("quotes.read") &&
+          (requestType === "particulier" ||
+            recipient.permissions.has("leads.read")),
+      )
+      .map(({ email, displayName }) => ({ email, displayName }));
   }
 
   private async markProcessed(id: string): Promise<void> {

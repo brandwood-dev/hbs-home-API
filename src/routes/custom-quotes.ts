@@ -199,6 +199,10 @@ function principal(request: FastifyRequest): AdminPrincipal {
   return request.adminPrincipal;
 }
 
+function canReadProfessionalLeads(request: FastifyRequest): boolean {
+  return principal(request).permissions.includes("leads.read");
+}
+
 async function audit(
   dependencies: CustomQuoteRouteDependencies,
   request: FastifyRequest,
@@ -288,8 +292,21 @@ export function registerCustomQuoteRoutes(
         },
       },
     },
-    async (request) =>
-      dependencies.customQuoteRepository.list({
+    async (request, reply) => {
+      const canReadLeads = canReadProfessionalLeads(request);
+      if (request.query.requestType === "professionnels" && !canReadLeads) {
+        return reply.status(403).send({
+          type: "https://api.hbs-home.com/problems/forbidden",
+          title: "Permission insuffisante",
+          status: 403,
+          detail:
+            "La permission leads.read est requise pour les demandes professionnelles.",
+          instance: request.url,
+          code: "LEADS_READ_REQUIRED",
+          requestId: request.id,
+        });
+      }
+      return dependencies.customQuoteRepository.list({
         page: request.query.page ?? 1,
         pageSize: request.query.pageSize ?? 20,
         ...(request.query.q ? { query: request.query.q } : {}),
@@ -299,10 +316,13 @@ export function registerCustomQuoteRoutes(
         ...(request.query.includeArchived !== undefined
           ? { includeArchived: request.query.includeArchived }
           : {}),
-        ...(request.query.requestType
-          ? { requestType: request.query.requestType }
-          : {}),
-      }),
+        ...(canReadLeads
+          ? request.query.requestType
+            ? { requestType: request.query.requestType }
+            : {}
+          : { requestType: "particulier" as const }),
+      });
+    },
   );
 
   app.get<{ Params: Static<typeof IdParams> }>(
@@ -330,6 +350,21 @@ export function registerCustomQuoteRoutes(
       const result = await dependencies.customQuoteRepository.getById(
         request.params.id,
       );
+      if (
+        result?.requestType === "professionnels" &&
+        !canReadProfessionalLeads(request)
+      ) {
+        return reply.status(403).send({
+          type: "https://api.hbs-home.com/problems/forbidden",
+          title: "Permission insuffisante",
+          status: 403,
+          detail:
+            "La permission leads.read est requise pour cette demande professionnelle.",
+          instance: request.url,
+          code: "LEADS_READ_REQUIRED",
+          requestId: request.id,
+        });
+      }
       return (
         result ??
         reply.status(404).send({

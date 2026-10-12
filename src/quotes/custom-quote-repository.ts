@@ -188,6 +188,15 @@ function normalized(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function normalizedMultiline(value: string): string {
+  return value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim().replace(/[ \t]+/g, " "))
+    .join("\n")
+    .trim();
+}
+
 export class PostgresCustomQuoteRepository {
   constructor(private readonly database: Kysely<DatabaseSchema>) {}
 
@@ -229,7 +238,7 @@ export class PostgresCustomQuoteRepository {
         ...(input.desiredDeadline?.trim()
           ? { desiredDeadline: normalized(input.desiredDeadline) }
           : {}),
-        message: normalized(input.message),
+        message: normalizedMultiline(input.message),
       },
     );
   }
