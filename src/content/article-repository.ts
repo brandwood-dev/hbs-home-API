@@ -1053,4 +1053,3 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
     return bundle ? publicRecord(bundle) : null;
   }
 }
-
