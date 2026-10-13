@@ -7,12 +7,7 @@ export function panelCountOptionsFor(
   material: string,
   widthCm: number,
 ): readonly number[] {
-  const normalizedCategory = category
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[_\s]+/g, "-");
-  if (normalizedCategory !== "rideaux" && normalizedCategory !== "voilages")
-    return [];
+  if (!isCurtainCategory(category)) return [];
 
   if (widthCm <= 150) return [1];
   if (material.trim().toLocaleLowerCase() === "velours" && widthCm === 450)
@@ -23,3 +18,4 @@ export function panelCountOptionsFor(
 export function panelCountLabel(panelCount: number): string {
   return `${String(panelCount)} panneau${panelCount > 1 ? "x" : ""}`;
 }
+import { isCurtainCategory } from "./confection-options.js";

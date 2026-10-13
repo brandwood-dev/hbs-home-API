@@ -853,7 +853,7 @@ export class PostgresOrderRepository implements OrderRepository {
             variant,
             row.quantity,
             row.selected_options,
-            row.panel_count,
+            panelOptions.length ? row.panel_count : undefined,
           ),
         );
         if (

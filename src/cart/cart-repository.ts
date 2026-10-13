@@ -814,7 +814,13 @@ export class PostgresCartRepository implements CartRepository {
     const selectedOptions = row.selected_options.length
       ? [...row.selected_options]
       : getVariantDisplayOptions(product, variant);
+    const panelOptions = panelCountOptionsFor(
+      product.category,
+      product.material,
+      variant.widthCm,
+    );
     if (
+      panelOptions.length &&
       row.panel_count &&
       !selectedOptions.some((option) => option.label === "Panneaux")
     ) {
@@ -835,7 +841,7 @@ export class PostgresCartRepository implements CartRepository {
       productReference: product.reference,
       variantId: variant.id,
       confectionKey: row.confection_key || null,
-      panelCount: row.panel_count,
+      ...(panelOptions.length ? { panelCount: row.panel_count } : {}),
       sku: variant.sku,
       quantity,
       unitPriceMinor: variant.price.amountMinor,

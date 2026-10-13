@@ -10,6 +10,12 @@ describe("panelCountOptionsFor", () => {
     expect(panelCountOptionsFor("voilages", "lin", 300)).toEqual([1, 2]);
   });
 
+  it("recognizes the combined curtain category alias", () => {
+    expect(panelCountOptionsFor("Rideaux & Voilages", "lin", 300)).toEqual([
+      1, 2,
+    ]);
+  });
+
   it("allows only one or three panels for 450 cm velvet", () => {
     expect(panelCountOptionsFor("rideaux", "velours", 450)).toEqual([1, 3]);
   });
