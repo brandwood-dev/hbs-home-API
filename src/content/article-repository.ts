@@ -12,6 +12,14 @@ type MediaRow = Selectable<DatabaseSchema["content.media_assets"]>;
 export type ArticleStatus = "draft" | "published" | "archived";
 export type ArticleBlock = Record<string, unknown>;
 
+interface ArticleMetadata {
+  slug: string;
+  categoryId: string;
+  isFeatured: boolean;
+  homeSortOrder: number;
+  authorName: string;
+}
+
 export interface ArticleCategory {
   id: string;
   slug: string;
@@ -295,6 +303,43 @@ function blocks(value: readonly ArticleBlock[] | undefined): ArticleBlock[] {
   });
 }
 
+function articleMetadata(value: unknown): ArticleMetadata | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.slug !== "string" ||
+    typeof record.categoryId !== "string" ||
+    typeof record.isFeatured !== "boolean" ||
+    typeof record.homeSortOrder !== "number" ||
+    !Number.isInteger(record.homeSortOrder) ||
+    typeof record.authorName !== "string"
+  )
+    return null;
+  return {
+    slug: record.slug,
+    categoryId: record.categoryId,
+    isFeatured: record.isFeatured,
+    homeSortOrder: record.homeSortOrder,
+    authorName: record.authorName,
+  };
+}
+
+function metadataJson(input: {
+  slug: string;
+  categoryId: string;
+  isFeatured: boolean;
+  homeSortOrder: number;
+  authorName: string;
+}): ArticleMetadata {
+  return {
+    slug: input.slug,
+    categoryId: input.categoryId,
+    isFeatured: input.isFeatured,
+    homeSortOrder: input.homeSortOrder,
+    authorName: input.authorName,
+  };
+}
+
 function categoryRecord(row: CategoryRow): ArticleCategory {
   return {
     id: row.id,
@@ -339,6 +384,7 @@ function revisionRecord(
 interface ArticleBundle {
   article: ArticleRow;
   category: CategoryRow;
+  publicCategory: CategoryRow;
   draft: RevisionRow | null;
   published: RevisionRow | null;
   draftMedia: MediaRow | null;
@@ -346,14 +392,24 @@ interface ArticleBundle {
 }
 
 function adminRecord(bundle: ArticleBundle): AdminArticle {
-  return {
-    id: bundle.article.id,
+  const metadata =
+    articleMetadata(bundle.draft?.metadata) ??
+    articleMetadata(bundle.published?.metadata);
+  const articleMetadataValues = metadata ?? {
     slug: bundle.article.slug,
-    status: bundle.article.status,
-    category: categoryRecord(bundle.category),
+    categoryId: bundle.article.category_id,
     isFeatured: bundle.article.is_featured,
     homeSortOrder: bundle.article.home_sort_order,
     authorName: bundle.article.author_name,
+  };
+  return {
+    id: bundle.article.id,
+    slug: articleMetadataValues.slug,
+    status: bundle.article.status,
+    category: categoryRecord(bundle.category),
+    isFeatured: articleMetadataValues.isFeatured,
+    homeSortOrder: articleMetadataValues.homeSortOrder,
+    authorName: articleMetadataValues.authorName,
     publishedAt: iso(bundle.article.published_at),
     updatedAt: requiredIso(bundle.article.updated_at),
     version: bundle.draft?.version ?? bundle.published?.version ?? 1,
@@ -379,18 +435,25 @@ function publicRecord(bundle: ArticleBundle): PublicArticle | null {
   )
     return null;
   const revision = bundle.published;
+  const metadata = articleMetadata(revision.metadata) ?? {
+    slug: bundle.article.slug,
+    categoryId: bundle.article.category_id,
+    isFeatured: bundle.article.is_featured,
+    homeSortOrder: bundle.article.home_sort_order,
+    authorName: bundle.article.author_name,
+  };
   return {
     id: bundle.article.id,
-    slug: bundle.article.slug,
+    slug: metadata.slug,
     title: revision.title,
     excerpt: revision.excerpt,
-    category: categoryRecord(bundle.category),
+    category: categoryRecord(bundle.publicCategory),
     cover: mediaRecord(bundle.publishedMedia),
     readingTimeMinutes: revision.reading_time_minutes,
-    authorName: bundle.article.author_name,
+    authorName: metadata.authorName,
     publishedAt: requiredIso(bundle.article.published_at),
     updatedAt: requiredIso(bundle.article.updated_at),
-    isFeatured: bundle.article.is_featured,
+    isFeatured: metadata.isFeatured,
     bodyBlocks: revision.body_blocks,
     seoTitle: revision.seo_title,
     seoDescription: revision.seo_description,
@@ -423,12 +486,12 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
       .where("id", "=", id)
       .executeTakeFirst();
     if (!article) return null;
-    const category = await executor
+    const articleCategory = await executor
       .selectFrom("content.article_categories")
       .selectAll()
       .where("id", "=", article.category_id)
       .executeTakeFirst();
-    if (!category) return null;
+    if (!articleCategory) return null;
     const revisions = await executor
       .selectFrom("content.article_revisions")
       .selectAll()
@@ -451,9 +514,28 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
       revisions.find((revision) => revision.status === "draft") ?? null;
     const published =
       revisions.find((revision) => revision.status === "published") ?? null;
+    const draftMetadata = articleMetadata(draft?.metadata);
+    const publishedMetadata = articleMetadata(published?.metadata);
+    const categoryIds = [
+      article.category_id,
+      draftMetadata?.categoryId,
+      publishedMetadata?.categoryId,
+    ].filter((value): value is string => Boolean(value));
+    const categories = await executor
+      .selectFrom("content.article_categories")
+      .selectAll()
+      .where("id", "in", [...new Set(categoryIds)])
+      .execute();
+    const categoryById = new Map(categories.map((row) => [row.id, row]));
     return {
       article,
-      category,
+      category:
+        categoryById.get(draftMetadata?.categoryId ?? article.category_id) ??
+        articleCategory,
+      publicCategory:
+        categoryById.get(
+          publishedMetadata?.categoryId ?? article.category_id,
+        ) ?? articleCategory,
       draft,
       published,
       draftMedia: draft?.cover_media_asset_id
@@ -694,6 +776,11 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
         reading_time_minutes: input.readingTimeMinutes,
         seo_title: input.seoTitle,
         seo_description: input.seoDescription,
+        metadata:
+          sql`cast(${JSON.stringify(metadataJson(input))} as jsonb)` as unknown as Record<
+            string,
+            unknown
+          >,
         created_by: actorUserId,
       })
       .execute();
@@ -778,18 +865,20 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
       await this.category(trx, values.categoryId);
       await this.media(trx, values.coverMediaAssetId);
       const nextVersion = sourceRevision.version + 1;
-      await trx
-        .updateTable("content.articles")
-        .set({
-          slug: values.slug,
-          category_id: values.categoryId,
-          is_featured: values.isFeatured,
-          home_sort_order: values.homeSortOrder,
-          author_name: values.authorName,
-          updated_by: actorUserId,
-        })
-        .where("id", "=", id)
-        .execute();
+      if (current.article.status !== "published") {
+        await trx
+          .updateTable("content.articles")
+          .set({
+            slug: values.slug,
+            category_id: values.categoryId,
+            is_featured: values.isFeatured,
+            home_sort_order: values.homeSortOrder,
+            author_name: values.authorName,
+            updated_by: actorUserId,
+          })
+          .where("id", "=", id)
+          .execute();
+      }
       if (current.draft) {
         await trx
           .updateTable("content.article_revisions")
@@ -819,7 +908,14 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
           "Draft required",
           "Create a draft before publishing.",
         );
-      await this.category(trx, current.article.category_id);
+      const metadata = articleMetadata(current.draft.metadata) ?? {
+        slug: current.article.slug,
+        categoryId: current.article.category_id,
+        isFeatured: current.article.is_featured,
+        homeSortOrder: current.article.home_sort_order,
+        authorName: current.article.author_name,
+      };
+      await this.category(trx, metadata.categoryId);
       if (!current.draft.cover_media_asset_id)
         fail(
           400,
@@ -842,6 +938,11 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
       await trx
         .updateTable("content.articles")
         .set({
+          slug: metadata.slug,
+          category_id: metadata.categoryId,
+          is_featured: metadata.isFeatured,
+          home_sort_order: metadata.homeSortOrder,
+          author_name: metadata.authorName,
           status: "published",
           published_at: new Date(),
           updated_by: actorUserId,
