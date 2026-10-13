@@ -2655,8 +2655,7 @@ function publicVariantIssues(category: string, row: VariantRow): string[] {
   // not have a fabric width/height, so zero values are valid for them.
   const normalizedCategory = category.trim().toLocaleLowerCase("fr");
   const requiresCurtainDimensions =
-    normalizedCategory !== "accessoires" &&
-    normalizedCategory !== "accessory";
+    normalizedCategory !== "accessoires" && normalizedCategory !== "accessory";
   if (requiresCurtainDimensions && !positiveDimension(width))
     issues.push("la largeur doit être supérieure à 0 cm");
   if (requiresCurtainDimensions && !positiveDimension(height))
