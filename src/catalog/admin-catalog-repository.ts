@@ -1369,7 +1369,7 @@ export class PostgresAdminCatalogRepository implements AdminCatalogRepository {
             variantIssues.push("le SKU est manquant");
           if (variant.price_amount_minor < 0)
             variantIssues.push("le prix est invalide");
-          variantIssues.push(...publicVariantIssues(variant));
+          variantIssues.push(...publicVariantIssues(current.category, variant));
           if (variantIssues.length > 0) {
             publicationIssues.push(
               `Variante ${String(index + 1)} : ${variantIssues.join(" ; ")}.`,
@@ -2632,7 +2632,7 @@ function mediaRecord(
   };
 }
 
-function publicVariantIssues(row: VariantRow): string[] {
+function publicVariantIssues(category: string, row: VariantRow): string[] {
   const value = { ...asObject(row.payload), ...asObject(row.options) };
   const colorId = value.colorId ?? value.color_id;
   const width = value.widthCm ?? value.width;
@@ -2650,9 +2650,15 @@ function publicVariantIssues(row: VariantRow): string[] {
   if (typeof colorId !== "string" || colorId.trim().length === 0) {
     issues.push("une couleur doit être sélectionnée");
   }
-  if (!positiveDimension(width))
+  // Width/height are curtain dimensions. Accessory variants (for example
+  // extensible rods) use their own axes such as length and diameter and do
+  // not have a fabric width/height, so zero values are valid for them.
+  const normalizedCategory = category.trim().toLocaleLowerCase("fr");
+  const requiresCurtainDimensions =
+    normalizedCategory !== "accessoires" && normalizedCategory !== "accessory";
+  if (requiresCurtainDimensions && !positiveDimension(width))
     issues.push("la largeur doit être supérieure à 0 cm");
-  if (!positiveDimension(height))
+  if (requiresCurtainDimensions && !positiveDimension(height))
     issues.push("la hauteur doit être supérieure à 0 cm");
   return issues;
 }
