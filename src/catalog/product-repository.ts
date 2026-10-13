@@ -600,7 +600,17 @@ function parseProduct(row: CatalogProductRow): Product | null {
   if (pattern) product.pattern = pattern;
   const blindType = mergeString(payload.blindType, payload.blind_type);
   if (blindType) product.blindType = blindType;
-  const opacityLevel = mergeString(payload.opacityLevel, payload.opacity_level);
+  // Admin-managed attributes are the source of truth for newer products,
+  // while older payloads may still expose the legacy top-level spellings.
+  // Resolve all supported shapes before applying the in-memory filter so a
+  // product returned by the SQL fallback cannot be discarded here.
+  const opacityLevel = firstString(
+    payload.opacityLevel,
+    payload.opacity_level,
+    attributes.opacity,
+    attributes.opacityLevel,
+    attributes.opacity_level,
+  );
   if (opacityLevel) product.opacityLevel = opacityLevel;
   const cushionShape = mergeString(payload.cushionShape, payload.chairPadShape);
   if (cushionShape) product.cushionShape = cushionShape;
@@ -1224,7 +1234,22 @@ export class PostgresProductRepository implements ProductRepository {
       query = query.where("material", "in", [...params.materials]);
     }
     if (params.opacityLevels?.length) {
-      query = query.where("opacity_level", "in", [...params.opacityLevels]);
+      // The Admin editor persists the "Niveau de lumière" field in the
+      // product JSON payload, while the legacy scalar column is null for
+      // those rows. Read both representations so existing and newly-created
+      // products participate in the public Opacité facet without a data
+      // backfill or a category-specific exception.
+      const values = sql.join(
+        params.opacityLevels.map((value) => sql`${value}`),
+      );
+      query = query.where(sql<boolean>`(
+        opacity_level in (${values})
+        or product ->> 'opacityLevel' in (${values})
+        or product ->> 'opacity_level' in (${values})
+        or product -> 'attributes' ->> 'opacity' in (${values})
+        or product -> 'attributes' ->> 'opacityLevel' in (${values})
+        or product -> 'attributes' ->> 'opacity_level' in (${values})
+      )`);
     }
     if (params.sellingMode?.length) {
       query = query.where("selling_mode", "in", [...params.sellingMode]);
