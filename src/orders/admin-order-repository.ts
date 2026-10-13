@@ -50,6 +50,7 @@ export interface AdminOrderItem {
   selectedOptions: readonly { label: string; value: string }[];
   sellingUnitLabel: string;
   shippingProfile: string | null;
+  panelCount?: number;
 }
 
 export interface AdminOrderEvent {
@@ -279,6 +280,7 @@ function mapItem(row: OrderItemRow): AdminOrderItem {
     imageUrl: row.image_url,
     imageAlt: row.image_alt,
     selectedOptions: row.selected_options,
+    ...(row.panel_count ? { panelCount: row.panel_count } : {}),
     sellingUnitLabel: row.selling_unit_label,
     shippingProfile: row.shipping_profile,
   };

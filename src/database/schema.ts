@@ -290,6 +290,7 @@ export interface ContentArticleRevisionTable {
   reading_time_minutes: number;
   seo_title: string | null;
   seo_description: string | null;
+  metadata: Record<string, unknown> | null;
   created_by: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -422,6 +423,7 @@ export interface CartItemTable {
   product_id: string;
   variant_id: string;
   confection_key: string;
+  panel_count: number;
   selected_options: readonly { label: string; value: string }[];
   quantity: number;
   price_at_add_minor: number;
@@ -542,6 +544,7 @@ export interface OrderItemTable {
   color_label: string | null;
   width_cm: number | null;
   height_cm: number | null;
+  panel_count: number;
   curtain_header_label: string | null;
   eyelet_color_label: string | null;
   lining_label: string | null;

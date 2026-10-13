@@ -15,6 +15,10 @@ import {
   confectionOptionFor,
   isCurtainCategory,
 } from "../catalog/confection-options.js";
+import {
+  panelCountLabel,
+  panelCountOptionsFor,
+} from "../catalog/panel-count.js";
 import { AppError } from "../http/problem.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -30,6 +34,7 @@ export interface CartItemInput {
   variantId: string;
   quantity: number;
   confectionKey?: string;
+  panelCount?: number;
 }
 
 export interface CartPromotion {
@@ -49,6 +54,7 @@ export interface CartLine {
   productReference: string;
   variantId: string;
   confectionKey: string | null;
+  panelCount?: number;
   sku: string;
   quantity: number;
   unitPriceMinor: number;
@@ -292,6 +298,35 @@ export class PostgresCartRepository implements CartRepository {
         "The selected curtain confection is not available for this product.",
       );
     }
+    const panelOptions = panelCountOptionsFor(
+      product.category,
+      product.material,
+      variant.widthCm,
+    );
+    const panelCount = panelOptions.length
+      ? (input.panelCount ?? panelOptions[0])
+      : undefined;
+    if (
+      panelOptions.length &&
+      (panelCount === undefined ||
+        !Number.isInteger(panelCount) ||
+        !panelOptions.includes(panelCount))
+    ) {
+      fail(
+        400,
+        "INVALID_PANEL_COUNT",
+        "Invalid panel count",
+        "The selected panel count is not available for this dimension.",
+      );
+    }
+    if (!panelOptions.length && input.panelCount !== undefined) {
+      fail(
+        400,
+        "INVALID_PANEL_COUNT",
+        "Invalid panel count",
+        "Panel count is only available for curtains and voilages.",
+      );
+    }
     const stock = await this.stock(variantId);
     const available = availableQuantity(stock);
     if (available.quantity === 0) {
@@ -308,6 +343,7 @@ export class PostgresCartRepository implements CartRepository {
       .where("cart_id", "=", session.cart.id)
       .where("variant_id", "=", variantId)
       .where("confection_key", "=", confectionKey)
+      .where("panel_count", "=", panelCount ?? 1)
       .executeTakeFirst();
     const wanted = (existing?.quantity ?? 0) + input.quantity;
     const quantity = Math.min(
@@ -321,6 +357,7 @@ export class PostgresCartRepository implements CartRepository {
         product_id: product.id,
         variant_id: variant.id,
         confection_key: confectionKey,
+        panel_count: panelCount ?? 1,
         // pg does not serialize an array of objects as JSON when it is bound
         // directly. Explicitly cast the JSON string so PostgreSQL receives a
         // valid jsonb value instead of the driver's array literal syntax.
@@ -329,8 +366,26 @@ export class PostgresCartRepository implements CartRepository {
             ? [
                 ...getVariantDisplayOptions(product, variant),
                 { label: "Confection", value: confection.label },
+                ...(panelCount
+                  ? [
+                      {
+                        label: "Panneaux",
+                        value: panelCountLabel(panelCount),
+                      },
+                    ]
+                  : []),
               ]
-            : getVariantDisplayOptions(product, variant),
+            : [
+                ...getVariantDisplayOptions(product, variant),
+                ...(panelCount
+                  ? [
+                      {
+                        label: "Panneaux",
+                        value: panelCountLabel(panelCount),
+                      },
+                    ]
+                  : []),
+              ],
         )} as jsonb)`,
         quantity,
         price_at_add_minor:
@@ -340,7 +395,7 @@ export class PostgresCartRepository implements CartRepository {
       })
       .onConflict((oc) =>
         oc
-          .columns(["cart_id", "variant_id", "confection_key"])
+          .columns(["cart_id", "variant_id", "confection_key", "panel_count"])
           .doUpdateSet({ quantity, updated_at: new Date() }),
       )
       .executeTakeFirstOrThrow();
@@ -369,6 +424,7 @@ export class PostgresCartRepository implements CartRepository {
       .where("product_id", "=", parsed.productId)
       .where("variant_id", "=", parsed.variantId)
       .where("confection_key", "=", parsed.confectionKey ?? "")
+      .where("panel_count", "=", parsed.panelCount ?? 1)
       .executeTakeFirst();
     if (!existing)
       fail(
@@ -383,6 +439,7 @@ export class PostgresCartRepository implements CartRepository {
         parsed.productId,
         parsed.variantId,
         parsed.confectionKey ?? "",
+        parsed.panelCount ?? 1,
       );
     } else {
       const stock = availableQuantity(await this.stock(parsed.variantId));
@@ -395,6 +452,7 @@ export class PostgresCartRepository implements CartRepository {
         .where("product_id", "=", parsed.productId)
         .where("variant_id", "=", parsed.variantId)
         .where("confection_key", "=", parsed.confectionKey ?? "")
+        .where("panel_count", "=", parsed.panelCount ?? 1)
         .executeTakeFirstOrThrow();
     }
     return { token: session.token, cart: await this.view(session.cart) };
@@ -415,6 +473,7 @@ export class PostgresCartRepository implements CartRepository {
       parsed.productId,
       parsed.variantId,
       parsed.confectionKey ?? "",
+      parsed.panelCount ?? 1,
     );
     return { token: session.token, cart: await this.view(session.cart) };
   }
@@ -496,16 +555,25 @@ export class PostgresCartRepository implements CartRepository {
     };
   }
 
-  private parseLineId(
-    lineId: string,
-  ): { productId: string; variantId: string; confectionKey?: string } | null {
+  private parseLineId(lineId: string): {
+    productId: string;
+    variantId: string;
+    confectionKey?: string;
+    panelCount?: number;
+  } | null {
     const parts = lineId.split(":");
     if (parts.length < 2 || !parts[0] || !parts[1]) return null;
-    const confectionKey = parts.slice(2).join(":");
+    const confectionKey = parts[2] ?? "";
+    const parsedPanelCount = Number(parts[3]);
+    const panelCount =
+      Number.isInteger(parsedPanelCount) && parsedPanelCount > 0
+        ? parsedPanelCount
+        : undefined;
     return {
       productId: parts[0],
       variantId: parts[1],
       ...(confectionKey ? { confectionKey } : {}),
+      ...(panelCount ? { panelCount } : {}),
     };
   }
 
@@ -514,6 +582,7 @@ export class PostgresCartRepository implements CartRepository {
     productId: string,
     variantId: string,
     confectionKey: string,
+    panelCount: number,
   ): Promise<void> {
     await this.database
       .deleteFrom("commerce.cart_items")
@@ -521,6 +590,7 @@ export class PostgresCartRepository implements CartRepository {
       .where("product_id", "=", productId)
       .where("variant_id", "=", variantId)
       .where("confection_key", "=", confectionKey)
+      .where("panel_count", "=", panelCount)
       .execute();
   }
 
@@ -683,7 +753,7 @@ export class PostgresCartRepository implements CartRepository {
     product: Product | undefined,
     stock: Selectable<DatabaseSchema["inventory.stock_balances"]> | undefined,
   ): CartLine {
-    const lineId = `${row.product_id}:${row.variant_id}:${row.confection_key}`;
+    const lineId = `${row.product_id}:${row.variant_id}:${row.confection_key}:${String(row.panel_count)}`;
     if (!product) {
       return {
         lineId,
@@ -693,6 +763,7 @@ export class PostgresCartRepository implements CartRepository {
         productReference: "",
         variantId: row.variant_id,
         confectionKey: row.confection_key || null,
+        panelCount: row.panel_count,
         sku: "",
         quantity: row.quantity,
         unitPriceMinor: 0,
@@ -741,8 +812,23 @@ export class PostgresCartRepository implements CartRepository {
     else if (priceChanged) status = "price_changed";
     else if (available.availability === "low_stock") status = "low_stock";
     const selectedOptions = row.selected_options.length
-      ? row.selected_options
+      ? [...row.selected_options]
       : getVariantDisplayOptions(product, variant);
+    const panelOptions = panelCountOptionsFor(
+      product.category,
+      product.material,
+      variant.widthCm,
+    );
+    if (
+      panelOptions.length &&
+      row.panel_count &&
+      !selectedOptions.some((option) => option.label === "Panneaux")
+    ) {
+      selectedOptions.push({
+        label: "Panneaux",
+        value: panelCountLabel(row.panel_count),
+      });
+    }
     const shippingProfile =
       typeof product.details.shippingProfile === "string"
         ? product.details.shippingProfile
@@ -755,6 +841,7 @@ export class PostgresCartRepository implements CartRepository {
       productReference: product.reference,
       variantId: variant.id,
       confectionKey: row.confection_key || null,
+      ...(panelOptions.length ? { panelCount: row.panel_count } : {}),
       sku: variant.sku,
       quantity,
       unitPriceMinor: variant.price.amountMinor,
