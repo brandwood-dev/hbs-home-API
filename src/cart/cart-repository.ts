@@ -54,7 +54,7 @@ export interface CartLine {
   productReference: string;
   variantId: string;
   confectionKey: string | null;
-  panelCount: number;
+  panelCount?: number;
   sku: string;
   quantity: number;
   unitPriceMinor: number;

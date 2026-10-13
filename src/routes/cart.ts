@@ -12,7 +12,7 @@ const CartLineSchema = Type.Object(
     productReference: Type.String(),
     variantId: Type.String(),
     confectionKey: Type.Union([Type.String(), Type.Null()]),
-    panelCount: Type.Integer({ minimum: 1, maximum: 3 }),
+    panelCount: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
     sku: Type.String(),
     quantity: Type.Integer({ minimum: 1, maximum: 99 }),
     unitPriceMinor: Type.Integer({ minimum: 0 }),
