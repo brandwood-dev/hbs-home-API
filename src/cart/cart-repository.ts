@@ -551,9 +551,7 @@ export class PostgresCartRepository implements CartRepository {
     };
   }
 
-  private parseLineId(
-    lineId: string,
-  ): {
+  private parseLineId(lineId: string): {
     productId: string;
     variantId: string;
     confectionKey?: string;
