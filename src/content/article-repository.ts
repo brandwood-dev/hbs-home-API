@@ -562,7 +562,11 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
 
   private validateInput(
     input: AdminArticleInput | AdminArticlePatch,
-    current?: { article: ArticleRow; draft: RevisionRow | null },
+    current?: {
+      article: ArticleRow;
+      draft: RevisionRow | null;
+      published?: RevisionRow | null;
+    },
   ): {
     slug: string;
     categoryId: string;
@@ -577,7 +581,10 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
     homeSortOrder: number;
     authorName: string;
   } {
-    const draft = current?.draft ?? null;
+    // A published article can be edited by creating a new draft revision from
+    // its published content. Keep validation/fallbacks based on that source
+    // revision so partial patches remain safe before the draft is persisted.
+    const draft = current?.draft ?? current?.published ?? null;
     const article = current?.article;
     const slug = normalizeSlug(input.slug ?? article?.slug);
     const categoryId = input.categoryId ?? article?.category_id;
@@ -749,16 +756,17 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
           "Article not found",
           "The requested article does not exist.",
         );
-      if (!current.draft)
+      const sourceRevision = current.draft ?? current.published;
+      if (!sourceRevision)
         fail(
           409,
-          "ARTICLE_DRAFT_REQUIRED",
-          "Draft required",
-          "Duplicate the published article before editing it.",
+          "ARTICLE_CONTENT_MISSING",
+          "Article content missing",
+          "The article has no revision that can be edited.",
         );
       if (
         patch.expectedVersion !== undefined &&
-        patch.expectedVersion !== current.draft.version
+        patch.expectedVersion !== sourceRevision.version
       )
         fail(
           409,
@@ -769,7 +777,7 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
       const values = this.validateInput(patch, current);
       await this.category(trx, values.categoryId);
       await this.media(trx, values.coverMediaAssetId);
-      const nextVersion = current.draft.version + 1;
+      const nextVersion = sourceRevision.version + 1;
       await trx
         .updateTable("content.articles")
         .set({
@@ -782,11 +790,13 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
         })
         .where("id", "=", id)
         .execute();
-      await trx
-        .updateTable("content.article_revisions")
-        .set({ status: "archived" })
-        .where("id", "=", current.draft.id)
-        .execute();
+      if (current.draft) {
+        await trx
+          .updateTable("content.article_revisions")
+          .set({ status: "archived" })
+          .where("id", "=", current.draft.id)
+          .execute();
+      }
       await this.createDraft(trx, id, values, actorUserId, nextVersion);
       return adminRecord(requireBundle(await this.bundle(trx, id)));
     });
@@ -1043,3 +1053,4 @@ export class PostgresAdminArticleRepository implements ArticleRepository {
     return bundle ? publicRecord(bundle) : null;
   }
 }
+
