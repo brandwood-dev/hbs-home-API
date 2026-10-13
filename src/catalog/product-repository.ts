@@ -605,11 +605,11 @@ function parseProduct(row: CatalogProductRow): Product | null {
   // Resolve all supported shapes before applying the in-memory filter so a
   // product returned by the SQL fallback cannot be discarded here.
   const opacityLevel = firstString(
-    payload.opacityLevel,
-    payload.opacity_level,
     attributes.opacity,
     attributes.opacityLevel,
     attributes.opacity_level,
+    payload.opacityLevel,
+    payload.opacity_level,
   );
   if (opacityLevel) product.opacityLevel = opacityLevel;
   const cushionShape = mergeString(payload.cushionShape, payload.chairPadShape);
