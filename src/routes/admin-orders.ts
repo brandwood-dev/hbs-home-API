@@ -171,6 +171,7 @@ const OrderItem = Type.Object(
     selectedOptions: Type.Array(OrderItemOption),
     sellingUnitLabel: Type.String(),
     shippingProfile: Type.Union([Type.String(), Type.Null()]),
+    panelCount: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
   },
   { additionalProperties: false },
 );

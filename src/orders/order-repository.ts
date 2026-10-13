@@ -16,6 +16,7 @@ import {
 } from "../catalog/product-repository.js";
 import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { resolveLineImage } from "../cart/cart-repository.js";
+import { panelCountOptionsFor } from "../catalog/panel-count.js";
 import { reserveWithinTransaction } from "../inventory/reservation-repository.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -55,6 +56,7 @@ export interface OrderItemInput {
   productId: string;
   variantId: string;
   confectionKey?: string;
+  panelCount?: number;
   quantity: number;
   expectedUnitPriceMinor: number;
 }
@@ -82,6 +84,7 @@ export interface OrderItemSnapshot {
   colorLabel?: string;
   widthCm?: number;
   heightCm?: number;
+  panelCount?: number;
   curtainHeaderLabel?: string;
   eyeletColorLabel?: string;
   liningLabel?: string;
@@ -216,6 +219,17 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
       const confectionValue = item.confectionKey?.trim();
       const confectionKey =
         confectionValue === "" ? undefined : confectionValue;
+      const panelCount = item.panelCount;
+      if (
+        panelCount !== undefined &&
+        (!Number.isInteger(panelCount) || panelCount < 1 || panelCount > 3)
+      )
+        fail(
+          400,
+          "INVALID_ORDER_ITEMS",
+          "Invalid order items",
+          "A panel count must be an integer between one and three.",
+        );
       if (confectionKey && confectionKey.length > 80)
         fail(
           400,
@@ -223,7 +237,7 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
           "Invalid order items",
           "A confection key must be at most eighty characters.",
         );
-      const lineIdentity = `${variantId}\u0000${confectionKey ?? ""}`;
+      const lineIdentity = `${variantId}\u0000${confectionKey ?? ""}\u0000${panelCount ?? 1}`;
       if (seen.has(lineIdentity))
         fail(
           400,
@@ -257,6 +271,7 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
         productId,
         variantId,
         ...(confectionKey ? { confectionKey } : {}),
+        ...(panelCount !== undefined ? { panelCount } : {}),
         quantity: item.quantity,
         expectedUnitPriceMinor: item.expectedUnitPriceMinor,
       };
@@ -264,9 +279,11 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
     .sort((left, right) => {
       const variantOrder = left.variantId.localeCompare(right.variantId);
       if (variantOrder !== 0) return variantOrder;
-      return (left.confectionKey ?? "").localeCompare(
+      const confectionOrder = (left.confectionKey ?? "").localeCompare(
         right.confectionKey ?? "",
       );
+      if (confectionOrder !== 0) return confectionOrder;
+      return (left.panelCount ?? 1) - (right.panelCount ?? 1);
     });
 }
 
@@ -390,6 +407,7 @@ function snapshot(
   variant: ProductVariant,
   quantity: number,
   selectedOptions?: readonly { label: string; value: string }[],
+  panelCount?: number,
 ): OrderItemSnapshot {
   const image = resolveLineImage(product, variant);
   const color = product.colors.find(
@@ -410,6 +428,7 @@ function snapshot(
     ...(color?.name ? { colorLabel: color.name } : {}),
     ...(variant.widthCm ? { widthCm: variant.widthCm } : {}),
     ...(variant.heightCm ? { heightCm: variant.heightCm } : {}),
+    ...(panelCount ? { panelCount } : {}),
     ...(variant.curtainHeader
       ? { curtainHeaderLabel: variant.curtainHeader }
       : {}),
@@ -417,8 +436,29 @@ function snapshot(
     ...(variant.lining ? { liningLabel: variant.lining } : {}),
     selectedOptions:
       selectedOptions && selectedOptions.length > 0
-        ? selectedOptions
-        : getVariantDisplayOptions(product, variant),
+        ? [
+            ...selectedOptions,
+            ...(panelCount &&
+            !selectedOptions.some((option) => option.label === "Panneaux")
+              ? [
+                  {
+                    label: "Panneaux",
+                    value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                  },
+                ]
+              : []),
+          ]
+        : [
+            ...getVariantDisplayOptions(product, variant),
+            ...(panelCount
+              ? [
+                  {
+                    label: "Panneaux",
+                    value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                  },
+                ]
+              : []),
+          ],
     sellingUnitLabel: product.sellingMode,
     ...(profile ? { shippingProfile: profile } : {}),
     quantity,
@@ -537,6 +577,7 @@ function mapSnapshot(row: OrderItemRow): OrderItemSnapshot {
     ...(row.color_label ? { colorLabel: row.color_label } : {}),
     ...(row.width_cm !== null ? { widthCm: row.width_cm } : {}),
     ...(row.height_cm !== null ? { heightCm: row.height_cm } : {}),
+    ...(row.panel_count ? { panelCount: row.panel_count } : {}),
     ...(row.curtain_header_label
       ? { curtainHeaderLabel: row.curtain_header_label }
       : {}),
@@ -699,7 +740,8 @@ export class PostgresOrderRepository implements OrderRepository {
           const expectedItem = items.find(
             (item) =>
               item.variantId === row.variant_id &&
-              (item.confectionKey ?? "") === row.confection_key,
+              (item.confectionKey ?? "") === row.confection_key &&
+              (item.panelCount ?? 1) === row.panel_count,
           );
           if (!expectedItem) return true;
           return (
@@ -762,10 +804,23 @@ export class PostgresOrderRepository implements OrderRepository {
             "Item unavailable",
             "One of the cart items is no longer available.",
           );
+        const panelOptions = panelCountOptionsFor(
+          product.category,
+          product.material,
+          variant.widthCm,
+        );
+        if (panelOptions.length && !panelOptions.includes(row.panel_count))
+          fail(
+            409,
+            "INVALID_PANEL_COUNT",
+            "Invalid panel count",
+            "One of the cart panel selections is no longer available for this dimension.",
+          );
         const expected = items.find(
           (item) =>
             item.variantId === row.variant_id &&
-            (item.confectionKey ?? "") === row.confection_key,
+            (item.confectionKey ?? "") === row.confection_key &&
+            (item.panelCount ?? 1) === row.panel_count,
         );
         if (expected?.expectedUnitPriceMinor !== variant.price.amountMinor)
           fail(
@@ -790,7 +845,13 @@ export class PostgresOrderRepository implements OrderRepository {
             `Only ${String(available)} unit(s) are available for ${product.name}.`,
           );
         snapshots.push(
-          snapshot(product, variant, row.quantity, row.selected_options),
+          snapshot(
+            product,
+            variant,
+            row.quantity,
+            row.selected_options,
+            row.panel_count,
+          ),
         );
         if (
           balance.track_inventory &&
@@ -1013,6 +1074,7 @@ export class PostgresOrderRepository implements OrderRepository {
             color_label: item.colorLabel ?? null,
             width_cm: item.widthCm ?? null,
             height_cm: item.heightCm ?? null,
+            panel_count: item.panelCount ?? 1,
             curtain_header_label: item.curtainHeaderLabel ?? null,
             eyelet_color_label: item.eyeletColorLabel ?? null,
             lining_label: item.liningLabel ?? null,
@@ -1081,6 +1143,7 @@ export class PostgresOrderRepository implements OrderRepository {
           color_label: item.colorLabel ?? null,
           width_cm: item.widthCm ?? null,
           height_cm: item.heightCm ?? null,
+          panel_count: item.panelCount ?? 1,
           curtain_header_label: item.curtainHeaderLabel ?? null,
           eyelet_color_label: item.eyeletColorLabel ?? null,
           lining_label: item.liningLabel ?? null,

@@ -5003,6 +5003,11 @@
                       "type": "null"
                     }
                   ]
+                },
+                "panelCount": {
+                  "minimum": 1,
+                  "maximum": 3,
+                  "type": "integer"
                 }
               }
             }
@@ -5594,6 +5599,11 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "panelCount": {
+                        "minimum": 1,
+                        "maximum": 3,
+                        "type": "integer"
                       }
                     }
                   }
@@ -8120,6 +8130,7 @@
           "productReference",
           "variantId",
           "confectionKey",
+          "panelCount",
           "sku",
           "quantity",
           "unitPriceMinor",
@@ -8169,6 +8180,11 @@
                 "type": "null"
               }
             ]
+          },
+          "panelCount": {
+            "minimum": 1,
+            "maximum": 3,
+            "type": "integer"
           },
           "sku": {
             "type": "string"
@@ -8403,6 +8419,7 @@
                 "productReference",
                 "variantId",
                 "confectionKey",
+                "panelCount",
                 "sku",
                 "quantity",
                 "unitPriceMinor",
@@ -8452,6 +8469,11 @@
                       "type": "null"
                     }
                   ]
+                },
+                "panelCount": {
+                  "minimum": 1,
+                  "maximum": 3,
+                  "type": "integer"
                 },
                 "sku": {
                   "type": "string"
@@ -8905,6 +8927,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "panelCount": {
+            "minimum": 1,
+            "maximum": 3,
+            "type": "integer"
+          },
           "curtainHeaderLabel": {
             "type": "string"
           },
@@ -9232,6 +9259,11 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "panelCount": {
+                  "minimum": 1,
+                  "maximum": 3,
+                  "type": "integer"
+                },
                 "curtainHeaderLabel": {
                   "type": "string"
                 },
@@ -9497,6 +9529,11 @@
                 },
                 "heightCm": {
                   "minimum": 0,
+                  "type": "integer"
+                },
+                "panelCount": {
+                  "minimum": 1,
+                  "maximum": 3,
                   "type": "integer"
                 },
                 "curtainHeaderLabel": {
@@ -37468,6 +37505,11 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "panelCount": {
+                                  "minimum": 1,
+                                  "maximum": 3,
+                                  "type": "integer"
                                 }
                               }
                             }
@@ -38292,6 +38334,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -39186,6 +39233,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -40182,6 +40234,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -41161,6 +41218,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -42132,6 +42194,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -43052,6 +43119,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -44068,6 +44140,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -45076,6 +45153,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -46058,6 +46140,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           }
                         }
                       }
@@ -47815,6 +47902,11 @@
                                           "type": "null"
                                         }
                                       ]
+                                    },
+                                    "panelCount": {
+                                      "minimum": 1,
+                                      "maximum": 3,
+                                      "type": "integer"
                                     }
                                   }
                                 }
@@ -52912,6 +53004,11 @@
                                           "type": "null"
                                         }
                                       ]
+                                    },
+                                    "panelCount": {
+                                      "minimum": 1,
+                                      "maximum": 3,
+                                      "type": "integer"
                                     }
                                   }
                                 }
@@ -64162,6 +64259,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -64211,6 +64309,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -64684,6 +64787,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -64733,6 +64837,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -65120,6 +65229,11 @@
                     "maxLength": 80,
                     "type": "string"
                   },
+                  "panelCount": {
+                    "minimum": 1,
+                    "maximum": 3,
+                    "type": "integer"
+                  },
                   "quantity": {
                     "minimum": 1,
                     "maximum": 99,
@@ -65178,6 +65292,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -65227,6 +65342,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -65871,6 +65991,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -65920,6 +66041,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -66473,6 +66599,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -66522,6 +66649,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -67018,6 +67150,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -67067,6 +67200,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -67676,6 +67814,7 @@
                           "productReference",
                           "variantId",
                           "confectionKey",
+                          "panelCount",
                           "sku",
                           "quantity",
                           "unitPriceMinor",
@@ -67725,6 +67864,11 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
+                            "type": "integer"
                           },
                           "sku": {
                             "type": "string"
@@ -68840,6 +68984,11 @@
                           "maxLength": 80,
                           "type": "string"
                         },
+                        "panelCount": {
+                          "minimum": 1,
+                          "maximum": 3,
+                          "type": "integer"
+                        },
                         "quantity": {
                           "minimum": 1,
                           "maximum": 99,
@@ -69071,6 +69220,11 @@
                           },
                           "heightCm": {
                             "minimum": 0,
+                            "type": "integer"
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
                             "type": "integer"
                           },
                           "curtainHeaderLabel": {
@@ -69519,6 +69673,11 @@
                           },
                           "heightCm": {
                             "minimum": 0,
+                            "type": "integer"
+                          },
+                          "panelCount": {
+                            "minimum": 1,
+                            "maximum": 3,
                             "type": "integer"
                           },
                           "curtainHeaderLabel": {
