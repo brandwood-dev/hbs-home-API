@@ -290,6 +290,7 @@ export interface ContentArticleRevisionTable {
   reading_time_minutes: number;
   seo_title: string | null;
   seo_description: string | null;
+  metadata: Record<string, unknown> | null;
   created_by: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
