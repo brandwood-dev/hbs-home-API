@@ -240,7 +240,7 @@ function normalizeItems(items: readonly OrderItemInput[]): OrderItemInput[] {
           "Invalid order items",
           "A confection key must be at most eighty characters.",
         );
-      const lineIdentity = `${variantId}\u0000${confectionKey ?? ""}\u0000${panelCount ?? 1}`;
+      const lineIdentity = `${variantId}\u0000${confectionKey ?? ""}\u0000${String(panelCount ?? 1)}`;
       if (seen.has(lineIdentity))
         fail(
           400,

@@ -308,7 +308,9 @@ export class PostgresCartRepository implements CartRepository {
       : undefined;
     if (
       panelOptions.length &&
-      (!Number.isInteger(panelCount) || !panelOptions.includes(panelCount!))
+      (panelCount === undefined ||
+        !Number.isInteger(panelCount) ||
+        !panelOptions.includes(panelCount))
     ) {
       fail(
         400,
@@ -751,7 +753,7 @@ export class PostgresCartRepository implements CartRepository {
     product: Product | undefined,
     stock: Selectable<DatabaseSchema["inventory.stock_balances"]> | undefined,
   ): CartLine {
-    const lineId = `${row.product_id}:${row.variant_id}:${row.confection_key}:${row.panel_count}`;
+    const lineId = `${row.product_id}:${row.variant_id}:${row.confection_key}:${String(row.panel_count)}`;
     if (!product) {
       return {
         lineId,
