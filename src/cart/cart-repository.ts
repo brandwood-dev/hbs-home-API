@@ -15,7 +15,10 @@ import {
   confectionOptionFor,
   isCurtainCategory,
 } from "../catalog/confection-options.js";
-import { panelCountOptionsFor } from "../catalog/panel-count.js";
+import {
+  panelCountLabel,
+  panelCountOptionsFor,
+} from "../catalog/panel-count.js";
 import { AppError } from "../http/problem.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -305,8 +308,7 @@ export class PostgresCartRepository implements CartRepository {
       : undefined;
     if (
       panelOptions.length &&
-      (!Number.isInteger(panelCount) ||
-        !panelOptions.includes(panelCount as number))
+      (!Number.isInteger(panelCount) || !panelOptions.includes(panelCount!))
     ) {
       fail(
         400,
@@ -366,7 +368,7 @@ export class PostgresCartRepository implements CartRepository {
                   ? [
                       {
                         label: "Panneaux",
-                        value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                        value: panelCountLabel(panelCount),
                       },
                     ]
                   : []),
@@ -377,7 +379,7 @@ export class PostgresCartRepository implements CartRepository {
                   ? [
                       {
                         label: "Panneaux",
-                        value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                        value: panelCountLabel(panelCount),
                       },
                     ]
                   : []),
@@ -816,7 +818,7 @@ export class PostgresCartRepository implements CartRepository {
     ) {
       selectedOptions.push({
         label: "Panneaux",
-        value: `${row.panel_count} panneau${row.panel_count > 1 ? "x" : ""}`,
+        value: panelCountLabel(row.panel_count),
       });
     }
     const shippingProfile =

@@ -19,3 +19,7 @@ export function panelCountOptionsFor(
     return [1, 3];
   return [1, 2];
 }
+
+export function panelCountLabel(panelCount: number): string {
+  return `${String(panelCount)} panneau${panelCount > 1 ? "x" : ""}`;
+}

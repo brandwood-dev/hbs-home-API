@@ -16,7 +16,10 @@ import {
 } from "../catalog/product-repository.js";
 import { getVariantDisplayOptions } from "../catalog/variant-display-options.js";
 import { resolveLineImage } from "../cart/cart-repository.js";
-import { panelCountOptionsFor } from "../catalog/panel-count.js";
+import {
+  panelCountLabel,
+  panelCountOptionsFor,
+} from "../catalog/panel-count.js";
 import { reserveWithinTransaction } from "../inventory/reservation-repository.js";
 import {
   DEFAULT_STORE_SHIPPING_SETTINGS,
@@ -443,7 +446,7 @@ function snapshot(
               ? [
                   {
                     label: "Panneaux",
-                    value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                    value: panelCountLabel(panelCount),
                   },
                 ]
               : []),
@@ -454,7 +457,7 @@ function snapshot(
               ? [
                   {
                     label: "Panneaux",
-                    value: `${panelCount} panneau${panelCount > 1 ? "x" : ""}`,
+                    value: panelCountLabel(panelCount),
                   },
                 ]
               : []),
