@@ -325,7 +325,9 @@ function requiredStatusPermission(status: string): string {
 }
 
 function requiredStatusPermissions(from: string, to: string): string[] {
-  return [...new Set([requiredStatusPermission(from), requiredStatusPermission(to)])];
+  return [
+    ...new Set([requiredStatusPermission(from), requiredStatusPermission(to)]),
+  ];
 }
 
 async function requireStatusPermission(
@@ -497,7 +499,9 @@ export function registerAdminOrderRoutes(
     },
     async (request) => {
       const actor = principal(request);
-      const destinationPermission = requiredStatusPermission(request.body.status);
+      const destinationPermission = requiredStatusPermission(
+        request.body.status,
+      );
       await requireStatusPermission(
         dependencies,
         request,
@@ -506,10 +510,17 @@ export function registerAdminOrderRoutes(
         request.params.id,
       );
 
-      const current = await dependencies.adminOrderRepository.getById(request.params.id);
+      const current = await dependencies.adminOrderRepository.getById(
+        request.params.id,
+      );
       const sourceStatus = current?.status ?? request.body.status;
-      const permissions = requiredStatusPermissions(sourceStatus, request.body.status);
-      for (const permission of permissions.filter((item) => item !== destinationPermission)) {
+      const permissions = requiredStatusPermissions(
+        sourceStatus,
+        request.body.status,
+      );
+      for (const permission of permissions.filter(
+        (item) => item !== destinationPermission,
+      )) {
         await requireStatusPermission(
           dependencies,
           request,
