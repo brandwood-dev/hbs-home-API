@@ -318,10 +318,14 @@ function principal(request: {
   return request.adminPrincipal;
 }
 
-function requiredStatusPermission(status: Static<typeof OrderStatus>): string {
+function requiredStatusPermission(status: string): string {
   if (status === "cancelled") return "orders.cancel";
   if (status === "shipped" || status === "delivered") return "orders.ship";
   return "orders.confirm";
+}
+
+function requiredStatusPermissions(from: string, to: string): string[] {
+  return [...new Set([requiredStatusPermission(from), requiredStatusPermission(to)])];
 }
 
 async function requireStatusPermission(
@@ -493,14 +497,27 @@ export function registerAdminOrderRoutes(
     },
     async (request) => {
       const actor = principal(request);
-      const permission = requiredStatusPermission(request.body.status);
+      const destinationPermission = requiredStatusPermission(request.body.status);
       await requireStatusPermission(
         dependencies,
         request,
         actor,
-        permission,
+        destinationPermission,
         request.params.id,
       );
+
+      const current = await dependencies.adminOrderRepository.getById(request.params.id);
+      const sourceStatus = current?.status ?? request.body.status;
+      const permissions = requiredStatusPermissions(sourceStatus, request.body.status);
+      for (const permission of permissions.filter((item) => item !== destinationPermission)) {
+        await requireStatusPermission(
+          dependencies,
+          request,
+          actor,
+          permission,
+          request.params.id,
+        );
+      }
       const input: AdminOrderStatusUpdateInput = {
         orderId: request.params.id,
         status: request.body.status,
@@ -535,7 +552,7 @@ export function registerAdminOrderRoutes(
         metadata: {
           orderNumber: order.orderNumber,
           status: order.status,
-          permission,
+          permissions,
         },
       });
       return order;
