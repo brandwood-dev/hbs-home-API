@@ -784,15 +784,12 @@ export class PostgresAdminOrderRepository {
         });
       }
 
-      const reservationId =
-        input.status === "cancelled"
-          ? current.reservation_id
-          : await reactivateReservation(
-              trx,
-              input.orderId,
-              current,
-              input.actorUserId,
-            );
+      const reservationId = await reactivateReservation(
+        trx,
+        input.orderId,
+        current,
+        input.actorUserId,
+      );
       const updatedAt = new Date();
       await trx
         .updateTable("commerce.orders")
