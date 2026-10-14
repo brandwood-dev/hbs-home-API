@@ -334,6 +334,11 @@ function statusLabel(status: OrderStatus): string {
   )[status];
 }
 
+function noteAuthorName(value?: string): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : "Admin";
+}
+
 function mapReturn(row: OrderReturnRow): AdminOrderReturnInfo {
   return {
     id: row.id,
@@ -828,7 +833,7 @@ export class PostgresAdminOrderRepository {
       if (reason || note) {
         const body = reason
           ? `Statut modifié : ${statusLabel(current.status)} → ${statusLabel(input.status)}. Motif : ${reason}${note ? ` — ${note}` : ""}`
-          : note!;
+          : (note ?? "");
         await trx
           .insertInto("commerce.order_notes")
           .values({
@@ -836,7 +841,7 @@ export class PostgresAdminOrderRepository {
             order_id: input.orderId,
             body,
             author_user_id: input.actorUserId,
-            author_name: input.actorName?.trim() || "Admin",
+            author_name: noteAuthorName(input.actorName),
             created_at: updatedAt,
           })
           .executeTakeFirstOrThrow();
@@ -1256,7 +1261,7 @@ export class PostgresAdminOrderRepository {
           order_id: input.orderId,
           body: `Commande annulée : ${statusLabel(current.status)} → ${statusLabel("cancelled")}. Motif : ${reason}${note ? ` — ${note}` : ""}`,
           author_user_id: input.actorUserId,
-          author_name: input.actorName?.trim() || "Admin",
+          author_name: noteAuthorName(input.actorName),
           created_at: updatedAt,
         })
         .executeTakeFirstOrThrow();
