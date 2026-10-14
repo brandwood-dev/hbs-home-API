@@ -41,7 +41,7 @@ describe("Category media conversion", () => {
     });
   });
 
-  it("uploads with the secret key in apikey only", async () => {
+  it("uses the admin JWT for Storage auth with a modern secret key", async () => {
     const source = await sharp({
       create: {
         width: 12,
@@ -74,6 +74,7 @@ describe("Category media conversion", () => {
     const result = await storage.upload({
       bytes: source,
       contentType: "image/png",
+      authorization: "Bearer admin.jwt",
     });
 
     expect(result.mimeType).toBe("image/webp");
@@ -81,7 +82,115 @@ describe("Category media conversion", () => {
       "/storage/v1/object/public/catalog-media/",
     );
     expect(capturedHeaders.get("apikey")).toBe("sb_secret_test");
-    expect(capturedHeaders.get("authorization")).toBeNull();
+    expect(capturedHeaders.get("authorization")).toBe("Bearer admin.jwt");
+  });
+
+  it("keeps Bearer auth for legacy JWT-shaped service keys", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    let capturedHeaders = new Headers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+        capturedHeaders = new Headers(init?.headers);
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }),
+    );
+
+    const legacyKey = "eyJhbGciOiJIUzI1NiJ9.legacy.service.role";
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      legacyKey,
+    );
+    await storage.upload({ bytes: source, contentType: "image/png" });
+
+    expect(capturedHeaders.get("apikey")).toBe(legacyKey);
+    expect(capturedHeaders.get("authorization")).toBe(`Bearer ${legacyKey}`);
+  });
+
+  it("returns an actionable configuration error for rejected storage credentials", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "InvalidJWT" }), {
+            status: 401,
+            headers: { "x-request-id": "storage-test-request" },
+          }),
+        ),
+      ),
+    );
+
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      "sb_secret_test",
+    );
+    await expect(
+      storage.upload({ bytes: source, contentType: "image/png" }),
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MEDIA_STORAGE_MISCONFIGURED",
+    });
+  });
+
+  it("returns a permission error for an RLS rejection from Storage", async () => {
+    const source = await sharp({
+      create: {
+        width: 12,
+        height: 8,
+        channels: 3,
+        background: { r: 180, g: 110, b: 80 },
+      },
+    })
+      .png()
+      .toBuffer();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "AccessDenied" }), {
+            status: 400,
+            headers: { "x-request-id": "storage-rls-test-request" },
+          }),
+        ),
+      ),
+    );
+
+    const storage = new SupabaseCategoryMediaStorage(
+      "catalog-media",
+      "https://example.supabase.co",
+      "sb_secret_test",
+    );
+    await expect(
+      storage.upload({
+        bytes: source,
+        contentType: "image/png",
+        authorization: "Bearer admin.jwt",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: "MEDIA_STORAGE_PERMISSION_DENIED",
+    });
   });
 
   it("rejects a publishable key before attempting a Storage write", async () => {

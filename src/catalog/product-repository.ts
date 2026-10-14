@@ -125,6 +125,7 @@ export interface ProductVariant {
   plantHeightCm?: number;
   potDiameterCm?: number;
   plantSize?: string;
+  orientation?: string;
   packQuantity?: number;
   price: ProductPrice;
   compareAtPrice?: ProductPrice;
@@ -258,6 +259,14 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value.trim() : undefined;
 }
 
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    const normalized = asString(value);
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
+
 function asNumber(value: unknown, fallback: number): number {
   if (typeof value === "number" && Number.isFinite(value))
     return Math.trunc(value);
@@ -282,6 +291,12 @@ function toArrayString(value: unknown): string[] {
       (entry): entry is string => typeof entry === "string" && entry.length > 0,
     )
     .map((entry) => entry);
+}
+
+function toArrayOrScalarString(value: unknown): string[] {
+  if (Array.isArray(value)) return toArrayString(value);
+  const normalized = asString(value);
+  return normalized ? [normalized] : [];
 }
 
 function toObjectArray(value: unknown): unknown[] {
@@ -340,6 +355,7 @@ function parseColor(value: unknown): ProductColor | null {
 
 function parseVariant(value: unknown): ProductVariant | null {
   const record = asRecord(value);
+  const variantOptions = asRecord(record.options);
   const id = asString(record.id);
   if (!id) return null;
   const colorId = asString(record.colorId) ?? asString(record.color_id);
@@ -462,6 +478,11 @@ function parseVariant(value: unknown): ProductVariant | null {
   if (Number.isFinite(potDiameterCm)) variant.potDiameterCm = potDiameterCm;
   const plantSize = asString(record.plantSize) ?? asString(record.plant_size);
   if (plantSize) variant.plantSize = plantSize;
+  const orientation = firstString(
+    record.orientation,
+    variantOptions.orientation,
+  );
+  if (orientation) variant.orientation = orientation;
   const packQuantity = asNumber(
     record.packQuantity,
     asNumber(record.pack_quantity, Number.NaN),
@@ -579,7 +600,17 @@ function parseProduct(row: CatalogProductRow): Product | null {
   if (pattern) product.pattern = pattern;
   const blindType = mergeString(payload.blindType, payload.blind_type);
   if (blindType) product.blindType = blindType;
-  const opacityLevel = mergeString(payload.opacityLevel, payload.opacity_level);
+  // Admin-managed attributes are the source of truth for newer products,
+  // while older payloads may still expose the legacy top-level spellings.
+  // Resolve all supported shapes before applying the in-memory filter so a
+  // product returned by the SQL fallback cannot be discarded here.
+  const opacityLevel = firstString(
+    attributes.opacity,
+    attributes.opacityLevel,
+    attributes.opacity_level,
+    payload.opacityLevel,
+    payload.opacity_level,
+  );
   if (opacityLevel) product.opacityLevel = opacityLevel;
   const cushionShape = mergeString(payload.cushionShape, payload.chairPadShape);
   if (cushionShape) product.cushionShape = cushionShape;
@@ -616,21 +647,44 @@ function parseProduct(row: CatalogProductRow): Product | null {
   if (accessoryCompatibilities?.length) {
     product.accessoryCompatibilities = accessoryCompatibilities;
   }
-  const furnitureType = mergeString(
+  // Admin-managed furniture fields are persisted in the normalized
+  // `attributes` bag. Keep accepting the legacy top-level spellings too so
+  // public detail pages and catalogue filters see the same values that the
+  // Admin editor saved.
+  const furnitureType = firstString(
+    attributes.furnitureType,
+    attributes.furniture_type,
     payload.furnitureType,
     payload.furniture_type,
   );
   if (furnitureType) product.furnitureType = furnitureType;
+  const isFurnitureCategory = category === "mobilier_interieur";
   const furnitureRooms = uniqueList(
-    toArrayString(payload.furnitureRooms ?? payload.furniture_rooms),
+    [
+      attributes.furnitureRooms,
+      attributes.furniture_rooms,
+      payload.furnitureRooms,
+      payload.furniture_rooms,
+      ...(isFurnitureCategory ? [attributes.rooms, payload.rooms] : []),
+    ]
+      .map((value) => toArrayOrScalarString(value))
+      .find((values) => values.length > 0) ?? [],
   );
   if (furnitureRooms?.length) product.furnitureRooms = furnitureRooms;
-  const furnitureStyle = mergeString(
+  const furnitureStyle = firstString(
+    attributes.furnitureStyle,
+    attributes.furniture_style,
+    attributes.style,
     payload.furnitureStyle,
     payload.furniture_style,
+    payload.style,
   );
   if (furnitureStyle) product.furnitureStyle = furnitureStyle;
-  const furnitureAssembly = mergeString(
+  const furnitureAssembly = firstString(
+    attributes.furnitureAssembly,
+    attributes.furniture_assembly,
+    attributes.assembly_level,
+    attributes.assemblyLevel,
     payload.furnitureAssembly,
     payload.furniture_assembly,
   );
@@ -1180,7 +1234,22 @@ export class PostgresProductRepository implements ProductRepository {
       query = query.where("material", "in", [...params.materials]);
     }
     if (params.opacityLevels?.length) {
-      query = query.where("opacity_level", "in", [...params.opacityLevels]);
+      // The Admin editor persists the "Niveau de lumière" field in the
+      // product JSON payload, while the legacy scalar column is null for
+      // those rows. Read both representations so existing and newly-created
+      // products participate in the public Opacité facet without a data
+      // backfill or a category-specific exception.
+      const values = sql.join(
+        params.opacityLevels.map((value) => sql`${value}`),
+      );
+      query = query.where(sql<boolean>`(
+        opacity_level in (${values})
+        or product ->> 'opacityLevel' in (${values})
+        or product ->> 'opacity_level' in (${values})
+        or product -> 'attributes' ->> 'opacity' in (${values})
+        or product -> 'attributes' ->> 'opacityLevel' in (${values})
+        or product -> 'attributes' ->> 'opacity_level' in (${values})
+      )`);
     }
     if (params.sellingMode?.length) {
       query = query.where("selling_mode", "in", [...params.sellingMode]);

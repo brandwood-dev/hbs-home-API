@@ -290,6 +290,7 @@ export interface ContentArticleRevisionTable {
   reading_time_minutes: number;
   seo_title: string | null;
   seo_description: string | null;
+  metadata: Record<string, unknown> | null;
   created_by: string | null;
   created_at: Generated<Date>;
   updated_at: Generated<Date>;
@@ -422,6 +423,7 @@ export interface CartItemTable {
   product_id: string;
   variant_id: string;
   confection_key: string;
+  panel_count: number;
   selected_options: readonly { label: string; value: string }[];
   quantity: number;
   price_at_add_minor: number;
@@ -542,6 +544,7 @@ export interface OrderItemTable {
   color_label: string | null;
   width_cm: number | null;
   height_cm: number | null;
+  panel_count: number;
   curtain_header_label: string | null;
   eyelet_color_label: string | null;
   lining_label: string | null;
@@ -604,6 +607,34 @@ export interface OutboxEventTable {
   created_at: Generated<Date>;
 }
 
+export interface CustomQuoteRequestTable {
+  id: Generated<string>;
+  reference: string;
+  request_type: "particulier" | "professionnels";
+  professional_details: Record<string, unknown> | null;
+  product_type: "rideaux" | "voilages" | "stores" | "ensemble_fenetre";
+  openings: readonly Record<string, unknown>[];
+  preferences: Record<string, unknown>;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  governorate: string;
+  city: string;
+  preferred_contact: "phone" | "whatsapp" | "email";
+  attachment_metadata: readonly Record<string, unknown>[];
+  accepted_privacy: boolean;
+  read_at: Date | null;
+  archived_at: Date | null;
+  email_sent_at: Date | null;
+  email_last_error: string | null;
+  customer_id: string | null;
+  converted_at: Date | null;
+  converted_by: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseSchema {
   "iam.admin_profiles": AdminProfileTable;
   "iam.roles": RoleTable;
@@ -647,4 +678,5 @@ export interface DatabaseSchema {
   "commerce.order_notes": OrderNoteTable;
   "commerce.order_returns": OrderReturnTable;
   "commerce.outbox_events": OutboxEventTable;
+  "commerce.custom_quote_requests": CustomQuoteRequestTable;
 }
