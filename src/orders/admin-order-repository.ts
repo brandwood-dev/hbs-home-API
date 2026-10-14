@@ -749,6 +749,15 @@ export class PostgresAdminOrderRepository {
       }
 
       if (current.status === input.status) return;
+      if (input.status === "cancelled") {
+        throw new AppError({
+          statusCode: 409,
+          code: "ORDER_STATUS_USE_CANCEL_WORKFLOW",
+          title: "Use the cancellation workflow",
+          detail:
+            "Cancelling an order must use the cancellation action so stock and payment safeguards are applied.",
+        });
+      }
       if (
         statusTransitionRequiresReason(current.status, input.status) &&
         !reason
