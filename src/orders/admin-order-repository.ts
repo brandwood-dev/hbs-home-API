@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely, Selectable, Transaction } from "kysely";
 import type {
   CustomerTable,
   DatabaseSchema,
@@ -12,7 +12,10 @@ import type {
   OrderTable,
 } from "../database/schema.js";
 import { AppError } from "../http/problem.js";
-import { PostgresReservationRepository } from "../inventory/reservation-repository.js";
+import {
+  PostgresReservationRepository,
+  reserveWithinTransaction,
+} from "../inventory/reservation-repository.js";
 import { syncVariantPayload } from "../inventory/inventory-payload.js";
 
 type OrderRow = Selectable<OrderTable>;
@@ -141,6 +144,7 @@ export interface AdminOrderStatusUpdateInput {
   orderId: string;
   status: OrderStatus;
   actorUserId: string;
+  actorName?: string;
   reason?: string;
   note?: string;
   carrierName?: string;
@@ -175,6 +179,7 @@ export interface AdminOrderNoteInput {
 export interface AdminOrderCancellationInput {
   orderId: string;
   actorUserId: string;
+  actorName?: string;
   reason: string;
   note?: string;
   restoreStock: boolean;
@@ -213,7 +218,7 @@ export interface AdminOrderReturnInput {
 
 /**
  * Admin corrections are intentionally reversible. Operational safeguards are
- * enforced separately (reason for sensitive changes, stock restoration only
+ * enforced separately (a reason for cancellation, stock restoration only
  * through the cancellation workflow, and an append-only status history).
  */
 const EDITABLE_ORDER_STATUSES: readonly OrderStatus[] = [
@@ -225,49 +230,81 @@ const EDITABLE_ORDER_STATUSES: readonly OrderStatus[] = [
   "cancelled",
 ];
 
-const NORMAL_EDITABLE_ORDER_STATUSES = EDITABLE_ORDER_STATUSES.filter(
-  (status) => status !== "cancelled",
-);
-
 const STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  pending_confirmation: NORMAL_EDITABLE_ORDER_STATUSES.filter(
+  pending_confirmation: EDITABLE_ORDER_STATUSES.filter(
     (status) => status !== "pending_confirmation",
   ),
-  confirmed: NORMAL_EDITABLE_ORDER_STATUSES.filter(
-    (status) => status !== "confirmed",
-  ),
-  preparing: NORMAL_EDITABLE_ORDER_STATUSES.filter(
-    (status) => status !== "preparing",
-  ),
-  shipped: NORMAL_EDITABLE_ORDER_STATUSES.filter(
-    (status) => status !== "shipped",
-  ),
-  delivered: NORMAL_EDITABLE_ORDER_STATUSES.filter(
-    (status) => status !== "delivered",
-  ),
-  // A cancelled order can be corrected back to any operational status. The
-  // reverse path is deliberately handled by cancelOrder so stock reservations
-  // are restored consistently.
-  cancelled: NORMAL_EDITABLE_ORDER_STATUSES,
+  confirmed: EDITABLE_ORDER_STATUSES.filter((status) => status !== "confirmed"),
+  preparing: EDITABLE_ORDER_STATUSES.filter((status) => status !== "preparing"),
+  shipped: EDITABLE_ORDER_STATUSES.filter((status) => status !== "shipped"),
+  delivered: EDITABLE_ORDER_STATUSES.filter((status) => status !== "delivered"),
+  cancelled: EDITABLE_ORDER_STATUSES.filter((status) => status !== "cancelled"),
 };
 
-const STATUS_ORDER: Record<OrderStatus, number> = {
-  pending_confirmation: 0,
-  confirmed: 1,
-  preparing: 2,
-  shipped: 3,
-  delivered: 4,
-  cancelled: 5,
-};
+const REACTIVATION_RESERVATION_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
 function statusTransitionRequiresReason(
-  from: OrderStatus,
+  _from: OrderStatus,
   to: OrderStatus,
 ): boolean {
-  if (from === to) return false;
-  if (to === "cancelled" || to === "delivered") return true;
-  if (from === "delivered" || from === "cancelled") return true;
-  return STATUS_ORDER[to] < STATUS_ORDER[from];
+  return to === "cancelled";
+}
+
+async function reactivateReservation(
+  trx: Transaction<DatabaseSchema>,
+  orderId: string,
+  current: OrderRow,
+  actorUserId: string,
+): Promise<string | null> {
+  if (current.status !== "cancelled") return current.reservation_id;
+
+  if (current.reservation_id) {
+    const existing = await trx
+      .selectFrom("inventory.reservations")
+      .select(["id", "status"])
+      .where("id", "=", current.reservation_id)
+      .executeTakeFirst();
+    if (existing?.status === "active") return existing.id;
+  }
+
+  const orderItems = await trx
+    .selectFrom("commerce.order_items")
+    .select(["product_id", "variant_id", "quantity"])
+    .where("order_id", "=", orderId)
+    .execute();
+  if (orderItems.length === 0) return null;
+
+  const variantIds = orderItems.map((item) => item.variant_id);
+  const balances = await trx
+    .selectFrom("inventory.stock_balances")
+    .select(["variant_id", "track_inventory", "availability"])
+    .where("variant_id", "in", variantIds)
+    .execute();
+  const reservableVariants = new Set(
+    balances
+      .filter(
+        (balance) =>
+          balance.track_inventory && balance.availability !== "made_to_order",
+      )
+      .map((balance) => balance.variant_id),
+  );
+  const items = orderItems
+    .filter((item) => reservableVariants.has(item.variant_id))
+    .map((item) => ({
+      productId: item.product_id,
+      variantId: item.variant_id,
+      quantity: item.quantity,
+    }));
+  if (items.length === 0) return null;
+
+  const reservation = await reserveWithinTransaction(trx, {
+    reservationKey: `order:${orderId}:reactivation:${randomUUID()}`,
+    orderId,
+    items,
+    expiresAt: new Date(Date.now() + REACTIVATION_RESERVATION_TTL_MS),
+    actorUserId,
+  });
+  return reservation.id;
 }
 
 function iso(value: Date): string {
@@ -734,10 +771,23 @@ export class PostgresAdminOrderRepository {
         });
       }
 
+      const reservationId =
+        input.status === "cancelled"
+          ? current.reservation_id
+          : await reactivateReservation(
+              trx,
+              input.orderId,
+              current,
+              input.actorUserId,
+            );
       const updatedAt = new Date();
       await trx
         .updateTable("commerce.orders")
-        .set({ status: input.status, updated_at: updatedAt })
+        .set({
+          status: input.status,
+          reservation_id: reservationId,
+          updated_at: updatedAt,
+        })
         .where("id", "=", input.orderId)
         .executeTakeFirstOrThrow();
 
@@ -765,6 +815,23 @@ export class PostgresAdminOrderRepository {
           created_at: updatedAt,
         })
         .executeTakeFirstOrThrow();
+
+      if (reason || note) {
+        const body = reason
+          ? `Statut modifié : ${statusLabel(current.status)} → ${statusLabel(input.status)}. Motif : ${reason}${note ? ` — ${note}` : ""}`
+          : note!;
+        await trx
+          .insertInto("commerce.order_notes")
+          .values({
+            id: randomUUID(),
+            order_id: input.orderId,
+            body,
+            author_user_id: input.actorUserId,
+            author_name: input.actorName?.trim() || "Admin",
+            created_at: updatedAt,
+          })
+          .executeTakeFirstOrThrow();
+      }
     });
 
     const updated = await this.getById(input.orderId);
@@ -1141,6 +1208,7 @@ export class PostgresAdminOrderRepository {
           "cancelled",
         );
       }
+      const updatedAt = new Date();
       const nextPaymentStatus =
         input.refundPayment && current.payment_status === "collected"
           ? "refunded"
@@ -1150,7 +1218,7 @@ export class PostgresAdminOrderRepository {
         .set({
           status: "cancelled",
           payment_status: nextPaymentStatus,
-          updated_at: new Date(),
+          updated_at: updatedAt,
         })
         .where("id", "=", input.orderId)
         .executeTakeFirstOrThrow();
@@ -1168,7 +1236,19 @@ export class PostgresAdminOrderRepository {
           reason,
           actor_user_id: input.actorUserId,
           metadata,
-          created_at: new Date(),
+          created_at: updatedAt,
+        })
+        .executeTakeFirstOrThrow();
+
+      await trx
+        .insertInto("commerce.order_notes")
+        .values({
+          id: randomUUID(),
+          order_id: input.orderId,
+          body: `Commande annulée : ${statusLabel(current.status)} → ${statusLabel("cancelled")}. Motif : ${reason}${note ? ` — ${note}` : ""}`,
+          author_user_id: input.actorUserId,
+          author_name: input.actorName?.trim() || "Admin",
+          created_at: updatedAt,
         })
         .executeTakeFirstOrThrow();
     });

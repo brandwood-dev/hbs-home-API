@@ -505,6 +505,7 @@ export function registerAdminOrderRoutes(
         orderId: request.params.id,
         status: request.body.status,
         actorUserId: actor.userId,
+        actorName: actor.displayName?.trim() ?? actor.email,
         ...(request.body.reason ? { reason: request.body.reason } : {}),
         ...(request.body.note ? { note: request.body.note } : {}),
         ...(request.body.carrierName
@@ -990,6 +991,7 @@ export function registerAdminOrderRoutes(
       const input: AdminOrderCancellationInput = {
         orderId: request.params.id,
         actorUserId: actor.userId,
+        actorName: actor.displayName?.trim() ?? actor.email,
         reason: request.body.reason,
         restoreStock: request.body.restoreStock,
         refundPayment: request.body.refundPayment ?? false,
