@@ -335,8 +335,7 @@ function statusLabel(status: OrderStatus): string {
 }
 
 function noteAuthorName(value?: string): string {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : "Admin";
+  return value?.trim() ?? "Admin";
 }
 
 function mapReturn(row: OrderReturnRow): AdminOrderReturnInfo {
